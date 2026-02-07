@@ -1,3 +1,4 @@
+//# Full code with auto-refresh callback
 'use client';
 import { useState, useEffect } from 'react';
 import InvoiceForm from '@/components/invoice/InvoiceForm';

@@ -9,18 +9,32 @@ interface XRPLConnectProps {
 export default function XRPLConnect({ onConnect }: XRPLConnectProps) {
   const [qrUrl, setQrUrl] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const generateXamanQR = () => {
     setLoading(true);
-    const payload = { TransactionType: 'SignIn' };
-    const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64');
-    const qrCodeUrl = `https://xumm.app/sign/${base64Payload}`;
-    setQrUrl(qrCodeUrl);
-    setLoading(false);
+    setError('');
+
+    try {
+      const payload = {
+        TransactionType: 'SignIn'
+      };
+
+      const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64');
+      const qrCodeUrl = `https://xumm.app/sign/${base64Payload}`;
+
+      setQrUrl(qrCodeUrl);
+      console.log('QR URL generated:', qrCodeUrl);
+    } catch (err: any) {
+      setError('Failed to generate QR: ' + err.message);
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDemoConnect = () => {
-    console.log('Demo button clicked — calling onConnect');
+    console.log('Demo connect clicked');
     const testAddress = 'rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh';
     const testPublicKey = 'ED00000000000000000000000000000000000000000000000000000000000000';
     onConnect({ address: testAddress, publicKey: testPublicKey });
@@ -37,7 +51,7 @@ export default function XRPLConnect({ onConnect }: XRPLConnectProps) {
           >
             {loading ? 'Generating QR...' : '📱 Connect with Xaman (Recommended)'}
           </button>
-          <p className="text-xs text-gray-400 mt-4">Xaman is mobile-only. Scan with your iPhone.</p>
+          {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
         </div>
       ) : (
         <div className="space-y-4 text-center">

@@ -52,7 +52,6 @@ export default function DashboardPage() {
     if (wallet) fetchInvoices();
   }, [wallet]);
 
-  // Auto-refresh when tab gains focus (after creating invoice)
   useEffect(() => {
     const handleFocus = () => {
       if (wallet) fetchInvoices();
@@ -97,9 +96,18 @@ export default function DashboardPage() {
   };
 
   const handleShareOnX = (invoice: Invoice) => {
-    const text = `Invoice #${invoice.invoice_id} for ${invoice.amount} ${invoice.currency} on UrsaDeFi! #XRP`;
+    const text = `Invoice #${invoice.invoice_id} for ${invoice.amount} ${invoice.currency} on UrsaDeFi! #XRP #XRPL`;
     const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
     window.open(url, '_blank');
+  };
+
+  const handleEmailInvoice = async (invoice: Invoice) => {
+    await handleViewPDF(invoice); // Download PDF first
+    const subject = `UrsaDeFi Invoice #${invoice.invoice_id}`;
+    const body = '';
+    const emailUrl = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.open(emailUrl, '_blank');
+    alert('PDF downloaded — attach it to the email manually.');
   };
 
   const handleLogout = () => {
@@ -191,6 +199,13 @@ export default function DashboardPage() {
                   className="flex-1 py-3 bg-[#1e293b] border border-gray-700 rounded-xl font-medium hover:bg-[#334155]"
                 >
                   Share on X
+                </button>
+                <button 
+                  onClick={() => handleEmailInvoice(invoice)}
+                  disabled={pdfLoading === invoice.invoice_id}
+                  className="flex-1 py-3 bg-[#1e293b] border border-gray-700 rounded-xl font-medium hover:bg-[#334155] disabled:opacity-50"
+                >
+                  Email Invoice
                 </button>
               </div>
             </div>
