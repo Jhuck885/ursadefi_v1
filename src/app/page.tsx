@@ -1,13 +1,20 @@
-// src/app/page.tsx
-import './globals.css';
-import { redirect } from 'next/navigation';  // Added for redirect
+'use client';
+import { useEffect } from 'react';
+import { Xumm } from '@xumm/xumm-sdk';
 
-export const metadata = {
-  title: 'UrsaDeFi',
-  description: 'DeFi-native invoicing for freelancers and small businesses',
-};
+const xumm = new Xumm('your_api_key_here'); // Replace with your key
 
-export default function Home() {  // Renamed from RootLayout to Home (page standard)
-  redirect('/login');  // Added: Redirect root / to /login
-  return null;  // Silent— no content shown before redirect
+export default function Home() {
+  useEffect(() => {
+    xumm.on('ready', () => {
+      console.log('XUMM SDK ready');
+    });
+  }, []);
+
+  return (
+    <div>
+      <h1>UrsaDeFi</h1>
+      {/* Your app */}
+    </div>
+  );
 }
