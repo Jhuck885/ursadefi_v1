@@ -1,10 +1,9 @@
 'use client';
 import { useForm } from 'react-hook-form';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { supabaseBrowser } from '@/lib/supabase';
 import { useWallet } from '@/context/WalletContext';
 import { QRCodeCanvas } from 'qrcode.react';
-import { Client } from 'xrpl';
 
 interface InvoiceData {
   invoiceNumber: string;
@@ -25,7 +24,6 @@ export default function InvoiceForm({ onSuccess }: InvoiceFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [qrUrl, setQrUrl] = useState('');
-  const [invoiceDbId, setInvoiceDbId] = useState<string | null>(null);
 
   const { register, handleSubmit, formState: { errors } } = useForm<InvoiceData>({
     defaultValues: {
@@ -39,9 +37,6 @@ export default function InvoiceForm({ onSuccess }: InvoiceFormProps) {
     setError('');
 
     try {
-      const client = new Client('wss://s.altnet.rippletest.net:51233');
-      await client.connect();
-
       const invoiceJson = JSON.stringify({
         invoice_id: data.invoiceNumber,
         client: data.clientName,
@@ -54,18 +49,12 @@ export default function InvoiceForm({ onSuccess }: InvoiceFormProps) {
 
       const uri = Buffer.from(invoiceJson).toString('hex').toUpperCase();
 
-      const prepared = await client.autofill({
+      const payload = {
         TransactionType: 'NFTokenMint',
         Account: wallet.address,
         URI: uri,
         Flags: 1,
         NFTokenTaxon: 0,
-      });
-
-      await client.disconnect();
-
-      const payload = {
-        txjson: prepared,
       };
 
       const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64');
@@ -73,7 +62,7 @@ export default function InvoiceForm({ onSuccess }: InvoiceFormProps) {
 
       setQrUrl(qrCodeUrl);
 
-      const { data: inserted, error: dbError } = await supabaseBrowser
+      const { error: dbError } = await supabaseBrowser
         .from('invoices')
         .insert({
           wallet_address: wallet.address,
@@ -85,61 +74,17 @@ export default function InvoiceForm({ onSuccess }: InvoiceFormProps) {
           description: data.description,
           due_date: data.dueDate,
           status: 'pending'
-        })
-        .select('id')
-        .single();
+        });
 
       if (dbError) throw dbError;
 
-      setInvoiceDbId(inserted.id);
-      alert(`Invoice saved! Scan QR to mint NFToken on-chain. Polling for confirmation...`);
+      alert(`Invoice saved! Scan QR to mint NFToken on-chain.`);
     } catch (err: any) {
       setError(err.message || 'Failed to prepare mint');
-      console.error(err);
     } finally {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    if (!qrUrl || !invoiceDbId) return;
-
-    const interval = setInterval(async () => {
-      try {
-        const client = new Client('wss://s.altnet.rippletest.net:51233');
-        await client.connect();
-
-        const response = await client.request({
-          command: 'account_nfts',
-          account: wallet.address,
-        });
-
-        await client.disconnect();
-
-        const nfts = response.result.account_nfts || [];
-
-        if (nfts.length > 0) {
-          const latestNft = nfts[0];
-          const nftId = latestNft.NFTokenID;
-
-          const { error } = await supabaseBrowser
-            .from('invoices')
-            .update({ nftoken_id: nftId, status: 'minted' })
-            .eq('id', invoiceDbId);
-
-          if (error) throw error;
-
-          alert(`NFToken minted! ID: ${nftId}`);
-          onSuccess();
-          clearInterval(interval);
-        }
-      } catch (err) {
-        console.error('Polling error:', err);
-      }
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [qrUrl, invoiceDbId, wallet, onSuccess]);
 
   const handleMintToXRPL = () => {
     const testNftokenId = '00000000' + Date.now().toString(16).toUpperCase().padStart(56, '0');
@@ -200,7 +145,7 @@ export default function InvoiceForm({ onSuccess }: InvoiceFormProps) {
                 id="currency"
                 {...register('currency')}
                 className="w-full p-3 bg-[#1e293b] rounded-lg border border-gray-700 focus:border-[#1D9BF0] outline-none text-white"
-                >
+              >
                 <option value="XRP">XRP</option>
                 <option value="USD">USD</option>
               </select>
@@ -260,7 +205,7 @@ export default function InvoiceForm({ onSuccess }: InvoiceFormProps) {
           </div>
           <button
             onClick={handleMintToXRPL}
-            className="w-full py-4 bg[#1D9BF0] rounded-full font-bold hover:bg[#1a8cd8] transition"
+            className="w-full py-4 bg-[#1D9BF0] rounded-full font-bold hover:bg-[#1a8cd8] transition"
           >
             Mint Invoice to XRPL
           </button>

@@ -102,7 +102,7 @@ export default function DashboardPage() {
   };
 
   const handleEmailInvoice = async (invoice: Invoice) => {
-    await handleViewPDF(invoice); // Download PDF first
+    await handleViewPDF(invoice);
     const subject = `UrsaDeFi Invoice #${invoice.invoice_id}`;
     const body = '';
     const emailUrl = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
@@ -196,14 +196,13 @@ export default function DashboardPage() {
                 </button>
                 <button 
                   onClick={() => handleShareOnX(invoice)}
-                  className="flex-1 py-3 bg-[#1e293b] border border-gray-700 rounded-xl font-medium hover:bg-[#334155]"
+                  className="flex-1 py-3 bg-[#1e293b] border border-gray-700 rounded-xl font-medium hover:bg[#334155]"
                 >
                   Share on X
                 </button>
                 <button 
                   onClick={() => handleEmailInvoice(invoice)}
-                  disabled={pdfLoading === invoice.invoice_id}
-                  className="flex-1 py-3 bg-[#1e293b] border border-gray-700 rounded-xl font-medium hover:bg-[#334155] disabled:opacity-50"
+                  className="flex-1 py-3 bg[#1e293b] border border-gray-700 rounded-xl font-medium hover:bg[#334155]"
                 >
                   Email Invoice
                 </button>

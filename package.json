@@ -9,31 +9,25 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@react-pdf/renderer": "^4.3.2",
-    "@supabase/ssr": "^0.8.0",
-    "jspdf": "^4.0.0",
-    "lucide-react": "0.312.0",
-    "next": "^16.1.6",
-    "qrcode.react": "^4.2.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-hook-form": "7.50.1",
-    "react-infinite-scroll-component": "6.1.0",
-    "react-query": "3.39.3",
+    "@supabase/supabase-js": "^2.45.1",
+    "lucide-react": "^0.563.0",
+    "next": "^14.2.35",
+    "qrcode.react": "^3.1.0",
+    "react": "^18",
+    "react-dom": "^18",
+    "react-hook-form": "^7.51.5",
     "xrpl": "^4.5.0",
-    "xumm": "^1.8.0",
-    "xumm-sdk": "^1.11.2"
+    "xumm-sdk": "^1.5.0"
   },
   "devDependencies": {
-    "@types/node": "20.11.17",
-    "@types/react": "18.3.1",
-    "autoprefixer": "10.4.17",
-    "eslint": "^9.39.2",
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "autoprefixer": "^10.4.24",
+    "eslint": "^8",
     "eslint-config-next": "^16.1.6",
-    "postcss": "8.4.35",
-    "prettier": "3.2.5",
-    "prettier-plugin-tailwindcss": "0.5.11",
-    "tailwindcss": "3.4.1",
-    "typescript": "5.3.3"
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.18",
+    "typescript": "^5"
   }
 }
