@@ -5,7 +5,7 @@ import { useWallet } from '@/context/WalletContext';
 import XRPLConnect from '@/components/XRPLConnect';
 import Image from 'next/image';
 
-export const dynamic = 'force-dynamic'; // forces dynamic rendering so useWallet never runs on server (fixes prerender error)
+export const dynamic = 'force-dynamic'; // forces dynamic rendering so useWallet never runs on server
 
 export default function LoginPage() {
   const router = useRouter();
