@@ -2,7 +2,6 @@
 import { useState } from 'react';
 import BrowserInvoicePDF from './BrowserInvoicePDF';
 import { mintInvoiceNFT } from '@/lib/xrpl';
-import { Button } from '@/components/ui/button'; // shadcn if added, else native
 
 interface InvoiceData { id: string; from: string; to: string; items: any[]; total: number; xrpAmount: number; receiver: string; }
 
