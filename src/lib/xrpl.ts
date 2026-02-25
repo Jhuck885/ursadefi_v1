@@ -17,7 +17,7 @@ export async function mintInvoiceNFT(invoice: any) {
     };
 
     const xumm = new XummSdk(process.env.NEXT_PUBLIC_XUMM_API_KEY!);
-    const payload = await xumm.payload.create({ txjson: tx }, true); // correct key is 'txjson'
+    const payload = await xumm.payload.create({ txjson: { ...tx, TransactionType: 'NFTokenMint' } }, true);
     if (payload?.next?.always) {
       window.location.href = payload.next.always; // deep link auto-open
     }
