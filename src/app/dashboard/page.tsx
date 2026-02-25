@@ -1,6 +1,6 @@
 'use client';
-import InvoiceFeed from '@/components/InvoiceFeed';
-import InvoiceForm from '@/components/InvoiceForm';
+import InvoiceFeed from '@/components/invoice/InvoiceFeed';
+import InvoiceForm from '@/components/invoice/InvoiceForm';
 import { useState } from 'react';
 
 export default function Dashboard() {
