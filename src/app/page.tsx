@@ -1,19 +1,14 @@
 'use client';
-import { useEffect } from 'react';
-import { Xumm } from 'xumm-sdk';
-
-export default function Home() {
-  useEffect(() => {
-    const xumm = new Xumm('d3d4783b-a893-4212-a6c3-368c4442aac3');
-    xumm.on('ready', () => {
-      console.log('XUMM SDK ready');
-    });
-  }, []);
-
+import XRPLConnect from '@/components/XRPLConnect'; // your existing
+export default function Landing() {
   return (
-    <div>
-      <h1>UrsaDeFi</h1>
-      <p>App is running with correct SDK.</p>
+    <div className="min-h-screen flex items-center justify-center bg-black text-white">
+      <div className="text-center max-w-md">
+        <h1 className="text-6xl font-bold tracking-tighter mb-4">URSADEFI</h1>
+        <p className="text-xl mb-8">XRPL Invoicing • Dallas, TX • Pay 0.15% max, keep the rest</p>
+        <XRPLConnect /> {/* Xaman button + email fallback */}
+        <div className="mt-8 text-xs text-zinc-500">2 free CSVs/year • 100% non-custodial • 1099-ready</div>
+      </div>
     </div>
   );
 }
