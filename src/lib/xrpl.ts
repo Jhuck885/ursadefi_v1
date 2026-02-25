@@ -1,5 +1,6 @@
+// Zero private keys — Xaman only. Deferred NFTokenMint until paid.
 import { Client } from 'xrpl';
-import { Xumm } from 'xumm-sdk';
+import Xumm from 'xumm-sdk';  // ← default export (fixes the error)
 
 const client = new Client('wss://s.altnet.rippletest.net:51233'); // testnet MVP, swap later
 const RECEIVER = process.env.NEXT_PUBLIC_XRPL_RECEIVER_ADDRESS!;
