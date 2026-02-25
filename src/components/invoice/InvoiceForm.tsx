@@ -5,7 +5,11 @@ import { mintInvoiceNFT } from '@/lib/xrpl';
 
 interface InvoiceData { id: string; from: string; to: string; items: any[]; total: number; xrpAmount: number; receiver: string; }
 
-export default function InvoiceForm() {
+interface Props {
+  onSuccess?: (data: InvoiceData) => void; // optional for RightSidebar
+}
+
+export default function InvoiceForm({ onSuccess }: Props = {}) {
   const [data, setData] = useState<InvoiceData>({ id: 'INV-' + Date.now(), from: 'Your Business', to: '', items: [], total: 0, xrpAmount: 0, receiver: process.env.NEXT_PUBLIC_XRPL_RECEIVER_ADDRESS! });
   const [loading, setLoading] = useState(false);
 
@@ -22,6 +26,7 @@ export default function InvoiceForm() {
       await mintInvoiceNFT(data); // Xaman opens
       // On success (listen in parent) add to feed via context later
       alert('Xaman opened — sign to mint NFT!');
+      onSuccess?.(data); // call RightSidebar handler if provided
     } catch (e) { console.error(e); alert('Mint failed — retry'); }
     setLoading(false);
   };

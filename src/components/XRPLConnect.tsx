@@ -3,10 +3,10 @@ import { useState } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
 
 interface XRPLConnectProps {
-  onConnect: (wallet: { address: string; publicKey: string }) => void;
+  onConnect?: (wallet: { address: string; publicKey: string }) => void; // optional for MVP landing page
 }
 
-export default function XRPLConnect({ onConnect }: XRPLConnectProps) {
+export default function XRPLConnect({ onConnect }: XRPLConnectProps = {}) {
   const [qrUrl, setQrUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -37,7 +37,8 @@ export default function XRPLConnect({ onConnect }: XRPLConnectProps) {
     console.log('Demo connect clicked');
     const testAddress = 'rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh';
     const testPublicKey = 'ED00000000000000000000000000000000000000000000000000000000000000';
-    onConnect({ address: testAddress, publicKey: testPublicKey });
+    onConnect?.({ address: testAddress, publicKey: testPublicKey });
+    window.location.href = '/dashboard'; // auto-redirect after demo or real connect
   };
 
   return (
