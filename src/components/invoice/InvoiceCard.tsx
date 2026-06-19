@@ -1,33 +1,74 @@
 'use client';
+
 import { Invoice } from '@/types';
-import BrowserInvoicePDF from './BrowserInvoicePDF'; // relative — same folder
-import { mintInvoiceNFT } from '@/lib/xrpl'; // your exact xrpl.ts
+import BrowserInvoicePDF from './BrowserInvoicePDF';
+import { mintInvoiceNFT } from '@/lib/xrpl';
+import { Share2 } from 'lucide-react';
 
 interface Props { invoice: Invoice; }
 
 export default function InvoiceCard({ invoice }: Props) {
   const handleMint = async () => {
     try {
-      await mintInvoiceNFT(invoice); // opens Xaman — your xrpl.ts
-      alert('✅ Xaman opened — sign to mint NFT (deferred until paid)');
-    } catch (e) { alert('Retry — Xaman required'); }
+      await mintInvoiceNFT(invoice);
+      alert('Xaman opened — sign to mint!');
+    } catch (e) {
+      alert('Retry — Xaman required');
+    }
+  };
+
+  const handleShareToX = () => {
+    const text = `Invoice #${invoice.id} for $${invoice.total} to ${invoice.to}\n\n${invoice.description || ''}`;
+    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
   };
 
   return (
-    <div className="border border-zinc-800 rounded-3xl p-6 bg-zinc-950 hover:border-white transition-all">
-      <div className="flex justify-between items-start">
+    <div className="border border-zinc-800 rounded-3xl p-5 bg-zinc-950 hover:border-zinc-700 transition-all">
+      {/* Header */}
+      <div className="flex justify-between items-start mb-4">
         <div>
-          <div className="font-mono text-sm text-zinc-500">#{invoice.id}</div>
-          <div className="text-xl font-semibold">$${invoice.total}</div>
-          <div className="text-sm text-zinc-400">To: {invoice.to || invoice.clientName}</div>
+          <div className="font-mono text-xs text-zinc-500">#{invoice.id}</div>
+          <div className="text-2xl font-semibold tracking-tight mt-1">${invoice.total}</div>
+          <div className="text-sm text-zinc-400 mt-1">To: {invoice.to}</div>
         </div>
         <div className="text-right">
-          <div className="text-xs text-emerald-400">XRPL NFT Ready</div>
+          <div className="inline-block px-2.5 py-0.5 text-[10px] rounded-full bg-emerald-950 text-emerald-400 border border-emerald-900">
+            XRPL NFT Ready
+          </div>
         </div>
       </div>
-      <div className="mt-6 flex gap-3">
-        <BrowserInvoicePDF invoice={invoice} /> {/* your exact PDF component */}
-        <button onClick={handleMint} className="btn-pill flex-1 bg-white text-black">Mint as XRPL NFT</button>
+
+      {/* Description (if exists) */}
+      {invoice.description && (
+        <div className="text-sm text-zinc-400 mb-4 line-clamp-2">
+          {invoice.description}
+        </div>
+      )}
+
+      {/* Actions - clean like X posts */}
+      <div className="flex items-center gap-2 pt-3 border-t border-zinc-800">
+        {/* PDF - small subtle button */}
+        <div className="flex-1">
+          <BrowserInvoicePDF invoice={invoice} />
+        </div>
+
+        {/* Mint - small pill */}
+        <button
+          onClick={handleMint}
+          className="px-4 py-1.5 text-xs font-medium border border-zinc-700 hover:bg-zinc-900 rounded-full transition"
+        >
+          Mint as XRPL NFT
+        </button>
+
+        {/* Share to X - grey text button with icon */}
+        <button
+          onClick={handleShareToX}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-zinc-400 hover:text-white transition"
+        >
+          <Share2 size={14} />
+          Share to X
+        </button>
       </div>
     </div>
   );
