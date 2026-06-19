@@ -141,7 +141,7 @@ const RecentPaymentsCard = () => {
             <span className="font-bold text-white">+{p.amount.toFixed(2)} XRP</span>
             <span className="text-sm text-gray-400">{p.date}</span>
           </div>
-          {p.tag && <span className="text-xs text-gray-400">Tag: {p.tag}</span>
+          {p.tag && <span className="text-xs text-gray-400">Tag: {p.tag}</span>}
           <a
             href={`https://test.bithomp.com/explorer/${p.hash}`}
             target="_blank"
