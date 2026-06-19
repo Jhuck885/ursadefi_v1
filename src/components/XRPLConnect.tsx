@@ -43,7 +43,6 @@ export default function XRPLConnect({ onConnect }: XRPLConnectProps = {}) {
     }, 400);
   };
 
-  // Consistent pill button style
   const pillButton = 'w-full py-3.5 bg-[#1D9BF0] hover:bg-[#1a8cd8] text-white font-semibold rounded-full transition disabled:opacity-60';
   const outlineButton = 'w-full py-3 text-sm text-gray-400 hover:text-white border border-gray-700 rounded-full transition';
 
@@ -71,7 +70,7 @@ export default function XRPLConnect({ onConnect }: XRPLConnectProps = {}) {
         <div className="space-y-4 text-center">
           <p className="text-sm text-gray-300">Scan with Xaman on your iPhone</p>
           <div className="inline-block p-4 bg-white rounded-2xl">
-            <QRCodeCanvas value={qrCodeUrl} size={220} />
+            <QRCodeCanvas value={qrUrl} size={220} />
           </div>
           <div className="space-y-1 text-xs text-gray-400">
             <p>1. Open Xaman app</p>
