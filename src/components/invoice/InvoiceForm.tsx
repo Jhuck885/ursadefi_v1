@@ -1,26 +1,21 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useForm, useFieldArray, SubmitHandler } from 'react-hook-form';
+import { useForm, SubmitHandler } from 'react-hook-form';
 import { useWallet } from '@/context/WalletContext';
 import BrowserInvoicePDF from './BrowserInvoicePDF';
 import { mintInvoiceNFT } from '@/lib/xrpl';
 import { Invoice } from '@/types';
 
-interface SimpleItem {
-  desc: string;
-  amount: number;
-}
-
 interface InvoiceFormData {
-  from: string;
+  invoiceName: string;
   to: string;
-  items: SimpleItem[];
+  description: string;
+  amount: number;
   total: number;
   xrpAmount: number;
   receiver: string;
   dueDate: string;
-  description: string;
 }
 
 interface Props {
@@ -32,39 +27,33 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
   const [loading, setLoading] = useState(false);
   const [xrpRate] = useState(2.45);
 
-  const { register, control, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm<InvoiceFormData>({
+  const { register, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm<InvoiceFormData>({
     defaultValues: {
-      from: wallet?.address ? `Wallet ${wallet.address.slice(0, 8)}...` : 'Your Business / Wallet',
+      invoiceName: '',
       to: '',
-      items: [{ desc: '', amount: 0 }],
+      description: '',
+      amount: 0,
       total: 0,
       xrpAmount: 0,
       receiver: process.env.NEXT_PUBLIC_XRPL_RECEIVER_ADDRESS || 'rNb4AKqA6QwhD8Nfff7rVxg5RPmyTE1vVn',
       dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      description: '',
     }
   });
 
-  const { fields, append, remove } = useFieldArray({ control, name: 'items' });
+  const watchedAmount = watch('amount');
 
-  const watchedItems = watch('items');
-  const watchedTotal = watch('total');
-
-  // Auto sum from simple items
+  // Auto calculate TOTAL and XRP from Amount
   useEffect(() => {
-    const sum = (watchedItems || []).reduce((acc, item) => acc + (Number(item?.amount) || 0), 0);
-    setValue('total', parseFloat(sum.toFixed(2)));
-  }, [watchedItems, setValue]);
+    const total = Number(watchedAmount) || 0;
+    const xrpAmount = xrpRate > 0 ? total / xrpRate : 0;
 
-  // Auto XRP from TOTAL
-  useEffect(() => {
-    const xrpAmount = xrpRate > 0 ? (Number(watchedTotal) || 0) / xrpRate : 0;
+    setValue('total', parseFloat(total.toFixed(2)));
     setValue('xrpAmount', parseFloat(xrpAmount.toFixed(6)));
-  }, [watchedTotal, xrpRate, setValue]);
+  }, [watchedAmount, xrpRate, setValue]);
 
   const onSubmit: SubmitHandler<InvoiceFormData> = async (formData) => {
-    if (!formData.to) {
-      alert('Please enter a client name');
+    if (!formData.to || !formData.invoiceName) {
+      alert('Please enter Invoice Name and Client');
       return;
     }
 
@@ -72,9 +61,9 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
 
     const newInvoice: Invoice = {
       id: 'INV-' + Date.now(),
-      from: formData.from,
+      from: formData.invoiceName,
       to: formData.to,
-      items: formData.items.map(i => ({ desc: i.desc, qty: 1, price: i.amount })),
+      items: [{ desc: formData.description, qty: 1, price: formData.amount }],
       total: formData.total,
       xrpAmount: formData.xrpAmount,
       receiver: formData.receiver,
@@ -90,17 +79,17 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
       localStorage.setItem('invoices', JSON.stringify([newInvoice, ...existing]));
 
       onSuccess?.(newInvoice);
-      alert('✅ Invoice saved! Check feed or modal.');
+      alert('✅ Invoice saved!');
 
       reset({
-        from: wallet?.address ? `Wallet ${wallet.address.slice(0, 8)}...` : 'Your Business / Wallet',
+        invoiceName: '',
         to: '',
-        items: [{ desc: '', amount: 0 }],
+        description: '',
+        amount: 0,
         total: 0,
         xrpAmount: 0,
         receiver: formData.receiver,
         dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        description: '',
       });
     } catch (e) {
       console.error(e);
@@ -113,15 +102,16 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
   const handleMint = async () => {
     const currentTotal = watch('total');
     if (!currentTotal || currentTotal < 5) {
-      alert('Min $5 total to mint');
+      alert('Min $5 to mint');
       return;
     }
+
     const formValues = watch();
     const tempInvoice = {
       id: 'INV-' + Date.now(),
-      from: formValues.from,
+      from: formValues.invoiceName,
       to: formValues.to || 'Client',
-      items: formValues.items.map((i: any) => ({ desc: i.desc, qty: 1, price: i.amount })),
+      items: [{ desc: formValues.description, qty: 1, price: formValues.amount }],
       total: formValues.total || 0,
       xrpAmount: formValues.xrpAmount || 0,
       receiver: formValues.receiver,
@@ -131,68 +121,67 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
     setLoading(true);
     try {
       await mintInvoiceNFT(tempInvoice);
-      alert('Xaman opened — sign the NFTokenMint on testnet!');
+      alert('Xaman opened — sign to mint!');
     } catch (e) {
       console.error(e);
-      alert('Mint failed — check Xumm key');
+      alert('Mint failed');
     } finally {
       setLoading(false);
     }
   };
 
-  const blueButtonClass = 'flex-1 py-3 bg-[#1D9BF0] hover:bg-[#1a8cd8] text-white font-semibold rounded-2xl transition flex items-center justify-center gap-2 disabled:opacity-60';
+  // Match dashboard Create Invoice button style
+  const blueButtonClass =
+    'flex-1 py-3.5 bg-[#1D9BF0] hover:bg-[#1a8cd8] text-white font-semibold rounded-2xl transition disabled:opacity-60';
 
   return (
-    <div className="space-y-6">
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-        {/* FROM / TO */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs text-zinc-400 mb-1">FROM</label>
-            <input {...register('from')} className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm" readOnly />
-          </div>
-          <div>
-            <label className="block text-xs text-zinc-400 mb-1">TO (Client / Company)</label>
-            <input {...register('to', { required: 'Client name required' })} className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#1D9BF0]" placeholder="Client or company name" />
-            {errors.to && <p className="text-red-400 text-xs mt-1">{errors.to.message}</p>}
-          </div>
-        </div>
-
-        {/* SIMPLE ITEMS - Description + Amount */}
+    <div className="space-y-5">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        {/* Invoice Name */}
         <div>
-          <div className="flex justify-between items-center mb-2">
-            <label className="text-xs text-zinc-400">ITEMS</label>
-            <button type="button" onClick={() => append({ desc: '', amount: 0 })} className="text-xs px-3 py-1 bg-zinc-800 hover:bg-zinc-700 rounded-full">+ Add Item</button>
-          </div>
-
-          <div className="space-y-3">
-            {fields.map((field, index) => (
-              <div key={field.id} className="flex gap-3 items-center bg-zinc-950 p-3 rounded-xl border border-zinc-800">
-                <input
-                  {...register(`items.${index}.desc` as const)}
-                  placeholder="Description"
-                  className="flex-1 bg-black border border-zinc-700 rounded-lg px-3 py-2 text-sm"
-                />
-                <input
-                  type="number"
-                  step="0.01"
-                  {...register(`items.${index}.amount` as const, { valueAsNumber: true })}
-                  placeholder="Amount"
-                  className="w-28 bg-black border border-zinc-700 rounded-lg px-3 py-2 text-sm text-right"
-                />
-                <button type="button" onClick={() => remove(index)} className="text-red-400 hover:text-red-500 px-2 text-lg" disabled={fields.length === 1}>
-                  ×
-                </button>
-              </div>
-            ))}
-          </div>
+          <label className="block text-xs text-zinc-400 mb-1">INVOICE NAME</label>
+          <input
+            {...register('invoiceName', { required: 'Invoice name is required' })}
+            className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#1D9BF0]"
+            placeholder="Project Alpha - Phase 1"
+          />
+          {errors.invoiceName && <p className="text-red-400 text-xs mt-1">{errors.invoiceName.message}</p>}
         </div>
 
-        {/* TOTAL + DUE DATE (XRP hidden) */}
+        {/* Client */}
+        <div>
+          <label className="block text-xs text-zinc-400 mb-1">TO (Client / Company)</label>
+          <input
+            {...register('to', { required: 'Client is required' })}
+            className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#1D9BF0]"
+            placeholder="Acme Corp or client@email.com"
+          />
+          {errors.to && <p className="text-red-400 text-xs mt-1">{errors.to.message}</p>}
+        </div>
+
+        {/* Description */}
+        <div>
+          <label className="block text-xs text-zinc-400 mb-1">DESCRIPTION (max 1500 characters)</label>
+          <textarea
+            {...register('description', { maxLength: 1500 })}
+            rows={5}
+            maxLength={1500}
+            className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm resize-y focus:outline-none focus:border-[#1D9BF0]"
+            placeholder="Detailed description of work..."
+          />
+          <p className="text-[10px] text-zinc-500 text-right mt-1">{watch('description')?.length || 0}/1500</p>
+        </div>
+
+        {/* Amount */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs text-zinc-400 mb-1">TOTAL USD</label>
-            <input type="number" step="0.01" {...register('total', { valueAsNumber: true })} className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-lg font-semibold" readOnly />
+            <label className="block text-xs text-zinc-400 mb-1">AMOUNT (USD)</label>
+            <input
+              type="number"
+              step="0.01"
+              {...register('amount', { valueAsNumber: true, required: true })}
+              className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-lg font-semibold focus:outline-none focus:border-[#1D9BF0]"
+            />
           </div>
           <div>
             <label className="block text-xs text-zinc-400 mb-1">DUE DATE</label>
@@ -200,12 +189,8 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
           </div>
         </div>
 
-        <div>
-          <label className="block text-xs text-zinc-400 mb-1">NOTES (optional)</label>
-          <textarea {...register('description')} rows={2} className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm resize-y" placeholder="Notes or description..." />
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-3 pt-2">
+        {/* Action Buttons - matching dashboard style */}
+        <div className="flex flex-col sm:flex-row gap-3 pt-3">
           <button type="submit" disabled={loading} className={blueButtonClass}>
             Save Invoice (Draft)
           </button>
@@ -217,17 +202,13 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
         <div className="text-[10px] text-zinc-500 text-center">Fee ~0.15% max • Non-custodial • PDF + email ready</div>
       </form>
 
-      <div className="pt-2">
+      <div className="pt-1">
         <BrowserInvoicePDF
           invoice={{
             id: 'PREVIEW-' + Date.now(),
-            from: watch('from'),
+            from: watch('invoiceName') || 'Invoice',
             to: watch('to') || 'Client',
-            items: (watch('items') || []).map((i: any) => ({
-              desc: i.desc,
-              qty: 1,
-              price: i.amount,
-            })),
+            items: [{ desc: watch('description') || '', qty: 1, price: watch('amount') || 0 }],
             total: watch('total') || 0,
             xrpAmount: watch('xrpAmount') || 0,
             receiver: watch('receiver'),
