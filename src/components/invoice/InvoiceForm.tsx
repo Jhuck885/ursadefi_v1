@@ -116,7 +116,7 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
 
       // Success feedback
       onSuccess?.(newInvoice);
-      alert(✅ Invoice saved! Check feed or modal.);
+      alert('✅ Invoice saved! Check feed or modal.');
 
       // Reset form for next
       reset({
@@ -179,8 +179,7 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
               {...register('from')}
               className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#1D9BF0]"
               placeholder="Your name or wallet"
-            />
-          </div>
+            </div>
           <div>
             <label className="block text-xs text-zinc-400 mb-1">TO (Client / Company)</label>
             <input
