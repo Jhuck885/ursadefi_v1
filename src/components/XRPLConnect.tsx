@@ -1,4 +1,5 @@
 'use client';
+
 import { useState } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useWallet } from '@/context/WalletContext';
@@ -17,8 +18,6 @@ export default function XRPLConnect({ onConnect }: XRPLConnectProps = {}) {
     setLoading(true);
     setError('');
 
-    // NOTE: This is a simplified QR for demo. For production real SignIn payload,
-    // use xumm-sdk payload.create({ txjson: { TransactionType: 'SignIn' } }) + handle callback
     try {
       const payload = { TransactionType: 'SignIn' };
       const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64');
@@ -36,14 +35,17 @@ export default function XRPLConnect({ onConnect }: XRPLConnectProps = {}) {
     const testPublicKey = 'ED00000000000000000000000000000000000000000000000000000000000000';
 
     const demoWallet = { address: testAddress, publicKey: testPublicKey };
-    setWallet(demoWallet);           // Persist via context
+    setWallet(demoWallet);
     onConnect?.(demoWallet);
 
-    // Give feedback then go to dashboard
     setTimeout(() => {
       window.location.href = '/dashboard';
     }, 400);
   };
+
+  // Consistent pill button style
+  const pillButton = 'w-full py-3.5 bg-[#1D9BF0] hover:bg-[#1a8cd8] text-white font-semibold rounded-full transition disabled:opacity-60';
+  const outlineButton = 'w-full py-3 text-sm text-gray-400 hover:text-white border border-gray-700 rounded-full transition';
 
   return (
     <div className="space-y-6">
@@ -52,13 +54,13 @@ export default function XRPLConnect({ onConnect }: XRPLConnectProps = {}) {
           <button
             onClick={generateXamanQR}
             disabled={loading}
-            className="flex items-center justify-center gap-3 p-4 bg-[#1D9BF0] hover:bg-[#1a8cd8] text-white rounded-2xl font-medium transition w-full"
+            className={pillButton}
           >
-            {loading ? 'Generating QR...' : '📱 Connect with Xaman (Recommended)'}
+            {loading ? 'Generating QR...' : 'Connect with Xaman (Recommended)'}
           </button>
           <button
             onClick={handleDemoConnect}
-            className="w-full py-3 text-sm text-gray-400 hover:text-white border border-gray-700 rounded-2xl transition"
+            className={outlineButton}
           >
             [MVP Demo] Use test wallet → Continue
           </button>
@@ -69,7 +71,7 @@ export default function XRPLConnect({ onConnect }: XRPLConnectProps = {}) {
         <div className="space-y-4 text-center">
           <p className="text-sm text-gray-300">Scan with Xaman on your iPhone</p>
           <div className="inline-block p-4 bg-white rounded-2xl">
-            <QRCodeCanvas value={qrUrl} size={220} />
+            <QRCodeCanvas value={qrCodeUrl} size={220} />
           </div>
           <div className="space-y-1 text-xs text-gray-400">
             <p>1. Open Xaman app</p>
@@ -79,7 +81,7 @@ export default function XRPLConnect({ onConnect }: XRPLConnectProps = {}) {
           </div>
           <button
             onClick={handleDemoConnect}
-            className="w-full py-3 text-xs text-gray-400 hover:text-white border border-gray-700 rounded-xl"
+            className={outlineButton}
           >
             [MVP Demo] I already signed → Continue
           </button>
