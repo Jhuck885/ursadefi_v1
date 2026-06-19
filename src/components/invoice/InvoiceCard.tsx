@@ -18,10 +18,13 @@ export default function InvoiceCard({ invoice }: Props) {
   };
 
   const handleShareToX = () => {
-    const text = `Invoice #${invoice.id} for $${invoice.total} to ${invoice.to}\n\n${invoice.description || ''}`;
+    const amount = invoice.total;
+    const client = invoice.to || 'client';
+    
+    const text = `Just sent a $${amount} invoice to ${client} powered by @ursadefi + @xAI ⚡\n\nInstant XRPL invoicing, payments & accounting — all free.\n\nTry it: ursadefi.com`;
+    
     const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
     window.open(url, '_blank');
-    window.dispatchEvent(new Event('invoices-updated'));
   };
 
   return (
