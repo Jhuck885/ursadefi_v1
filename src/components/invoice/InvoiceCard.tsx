@@ -21,11 +21,11 @@ export default function InvoiceCard({ invoice }: Props) {
     const text = `Invoice #${invoice.id} for $${invoice.total} to ${invoice.to}\n\n${invoice.description || ''}`;
     const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
     window.open(url, '_blank');
+    window.dispatchEvent(new Event('invoices-updated'));
   };
 
   return (
     <div className="border border-zinc-800 rounded-3xl p-5 bg-zinc-950 hover:border-zinc-700 transition-all">
-      {/* Header */}
       <div className="flex justify-between items-start mb-4">
         <div>
           <div className="font-mono text-xs text-zinc-500">#{invoice.id}</div>
@@ -39,21 +39,17 @@ export default function InvoiceCard({ invoice }: Props) {
         </div>
       </div>
 
-      {/* Description (if exists) */}
       {invoice.description && (
         <div className="text-sm text-zinc-400 mb-4 line-clamp-2">
           {invoice.description}
         </div>
       )}
 
-      {/* Actions - clean like X posts */}
       <div className="flex items-center gap-2 pt-3 border-t border-zinc-800">
-        {/* PDF - small subtle button */}
         <div className="flex-1">
-          <BrowserInvoicePDF invoice={invoice} />
+          <BrowserInvoicePDF invoice={invoice} compact />
         </div>
 
-        {/* Mint - small pill */}
         <button
           onClick={handleMint}
           className="px-4 py-1.5 text-xs font-medium border border-zinc-700 hover:bg-zinc-900 rounded-full transition"
@@ -61,7 +57,6 @@ export default function InvoiceCard({ invoice }: Props) {
           Mint as XRPL NFT
         </button>
 
-        {/* Share to X - grey text button with icon */}
         <button
           onClick={handleShareToX}
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-zinc-400 hover:text-white transition"
