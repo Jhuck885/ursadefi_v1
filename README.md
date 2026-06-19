@@ -1,3 +1,3 @@
 # UrsaDeFi
 
-**Pill style buttons + live XRP conversion** (commit 3275b071)
+**All buttons now pill style** (commit 3275b071 + follow-ups)
