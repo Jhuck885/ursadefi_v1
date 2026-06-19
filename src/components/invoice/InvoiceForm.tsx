@@ -42,9 +42,18 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
 
   const { fields, append, remove } = useFieldArray({ control, name: 'items' });
 
+  const watchedItems = watch('items');
   const watchedTotal = watch('total');
 
-  // Auto calculate XRP from TOTAL USD
+  // Auto-sum line items into TOTAL
+  useEffect(() => {
+    const sum = (watchedItems || []).reduce((acc, item) => {
+      return acc + (Number(item?.qty) || 0) * (Number(item?.price) || 0);
+    }, 0);
+    setValue('total', parseFloat(sum.toFixed(2)));
+  }, [watchedItems, setValue]);
+
+  // Auto calculate XRP from TOTAL
   useEffect(() => {
     const xrpAmount = xrpRate > 0 ? (Number(watchedTotal) || 0) / xrpRate : 0;
     setValue('xrpAmount', parseFloat(xrpAmount.toFixed(6)));
@@ -104,6 +113,7 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
       alert('Min $5 total to mint');
       return;
     }
+
     const formValues = watch();
     const tempInvoice = {
       id: 'INV-' + Date.now(),
@@ -128,7 +138,6 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
     }
   };
 
-  // Consistent blue pill button style (matching the main Create Invoice button)
   const blueButtonClass =
     'flex-1 py-3.5 bg-[#1D9BF0] hover:bg-[#1a8cd8] text-white font-semibold rounded-2xl transition disabled:opacity-60';
 
@@ -237,7 +246,6 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
           <textarea {...register('description')} rows={2} className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm resize-y" placeholder="Project scope, payment terms..." />
         </div>
 
-        {/* ACTION BUTTONS - Consistent blue pill style */}
         <div className="flex flex-col sm:flex-row gap-3 pt-2">
           <button type="submit" disabled={loading} className={blueButtonClass}>
             {loading ? 'Saving...' : '💾 Save Invoice (Draft)'}
@@ -250,7 +258,6 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
         <div className="text-[10px] text-zinc-500 text-center">Fee ~0.15% max • Non-custodial • PDF + email ready</div>
       </form>
 
-      {/* PDF Button - styled consistently */}
       <div className="pt-2">
         <BrowserInvoicePDF
           invoice={{
