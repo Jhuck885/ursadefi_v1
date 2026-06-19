@@ -1,6 +1,5 @@
 'use client';
-import { useEffect } from 'react';
-import { Invoice } from '@/types'; // assume existing
+import { Invoice } from '@/types';
 
 interface Props { invoice: Invoice; }
 
@@ -30,12 +29,19 @@ export default function BrowserInvoicePDF({ invoice }: Props) {
       </body></html>`;
     win.document.write(html);
     win.document.close();
-    // Email attach
+
     setTimeout(() => {
       const mailto = `mailto:?subject=Invoice%20%23${invoice.id}&body=Attached%20PDF%20via%20UrsaDeFi%20—%20pay%20via%20Xaman`;
       window.location.href = mailto;
     }, 1500);
   };
 
-  return <button onClick={openPDF} className="btn-pill w-full">📄 Save & Email PDF</button>;
+  return (
+    <button
+      onClick={openPDF}
+      className="w-full py-3.5 bg-[#1D9BF0] hover:bg-[#1a8cd8] text-white font-semibold rounded-2xl transition"
+    >
+      📄 Save & Email PDF
+    </button>
+  );
 }
