@@ -43,11 +43,9 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
   const watchedAmount = watch('amount');
   const watchedXrp = watch('xrpAmount');
 
-  // Auto calculate XRP from Amount
   useEffect(() => {
     const total = Number(watchedAmount) || 0;
     const xrpAmount = xrpRate > 0 ? total / xrpRate : 0;
-
     setValue('total', parseFloat(total.toFixed(2)));
     setValue('xrpAmount', parseFloat(xrpAmount.toFixed(6)));
   }, [watchedAmount, xrpRate, setValue]);
@@ -78,6 +76,9 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
     try {
       const existing = JSON.parse(localStorage.getItem('invoices') || '[]');
       localStorage.setItem('invoices', JSON.stringify([newInvoice, ...existing]));
+
+      // Notify feed to refresh
+      window.dispatchEvent(new Event('invoices-updated'));
 
       onSuccess?.(newInvoice);
       alert('✅ Invoice saved!');
@@ -122,16 +123,15 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
     setLoading(true);
     try {
       await mintInvoiceNFT(tempInvoice);
-      alert('Xaman opened — sign to mint!');
-    } catch (e) {
+      alert('Xaman opened — check your app to sign the mint!');
+    } catch (e: any) {
       console.error(e);
-      alert('Mint failed');
+      alert('Mint failed — check console or try again later');
     } finally {
       setLoading(false);
     }
   };
 
-  // Pill style matching the dashboard Create Invoice button
   const pillButton =
     'flex-1 py-3.5 bg-[#1D9BF0] hover:bg-[#1a8cd8] text-white font-semibold rounded-full transition disabled:opacity-60';
 
@@ -186,7 +186,6 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
           </div>
         </div>
 
-        {/* Live XRP conversion */}
         {watchedAmount > 0 && (
           <div className="text-sm text-zinc-400">
             ≈ <span className="font-semibold text-white">{watchedXrp.toFixed(2)} XRP</span> (auto)
