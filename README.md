@@ -1,3 +1,3 @@
 # UrsaDeFi
 
-Clean X.com-style invoice cards in feed (commit d89902f8)
+Share to X now uses promotional + invoice details template (commit 6332c5c5)
