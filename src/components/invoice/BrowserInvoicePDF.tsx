@@ -1,9 +1,9 @@
 'use client';
 import { Invoice } from '@/types';
 
-interface Props { invoice: Invoice; }
+interface Props { invoice: Invoice; compact?: boolean; }
 
-export default function BrowserInvoicePDF({ invoice }: Props) {
+export default function BrowserInvoicePDF({ invoice, compact = false }: Props) {
   const openPDF = () => {
     const win = window.open('', '_blank');
     if (!win) { alert('Pop-up blocked — allow for PDF'); return; }
@@ -37,6 +37,17 @@ export default function BrowserInvoicePDF({ invoice }: Props) {
       window.location.href = mailto;
     }, 1500);
   };
+
+  if (compact) {
+    return (
+      <button
+        onClick={openPDF}
+        className="px-4 py-1.5 text-xs font-medium border border-zinc-700 hover:bg-zinc-900 rounded-full transition w-full"
+      >
+        Save & Email PDF
+      </button>
+    );
+  }
 
   return (
     <button
