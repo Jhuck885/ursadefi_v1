@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useForm, useFieldArray, SubmitHandler } from 'react-hook-form';
 import { useWallet } from '@/context/WalletContext';
-import { supabaseBrowser } from '@/lib/supabase';
 import BrowserInvoicePDF from './BrowserInvoicePDF';
 import { mintInvoiceNFT } from '@/lib/xrpl';
 import { Invoice } from '@/types';
@@ -43,27 +42,17 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
 
   const { fields, append, remove } = useFieldArray({ control, name: 'items' });
 
-  const watchedItems = watch('items');
+  const watchedTotal = watch('total');
 
-  // Proper auto-calculation using useEffect + watch
-  const calculateTotals = () => {
-    const total = (watchedItems || []).reduce(
-      (sum, item) => sum + (Number(item?.qty) || 0) * (Number(item?.price) || 0),
-      0
-    );
-    const xrpAmount = xrpRate > 0 ? total / xrpRate : 0;
-
-    setValue('total', parseFloat(total.toFixed(2)));
-    setValue('xrpAmount', parseFloat(xrpAmount.toFixed(6)));
-  };
-
+  // Auto calculate XRP from TOTAL USD
   useEffect(() => {
-    calculateTotals();
-  }, [watchedItems, xrpRate, setValue]);
+    const xrpAmount = xrpRate > 0 ? (Number(watchedTotal) || 0) / xrpRate : 0;
+    setValue('xrpAmount', parseFloat(xrpAmount.toFixed(6)));
+  }, [watchedTotal, xrpRate, setValue]);
 
   const onSubmit: SubmitHandler<InvoiceFormData> = async (formData) => {
-    if (!formData.to || !formData.items || formData.items.length === 0) {
-      alert('Please add client and at least one line item');
+    if (!formData.to) {
+      alert('Please enter a client name');
       return;
     }
 
@@ -73,7 +62,7 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
       id: 'INV-' + Date.now(),
       from: formData.from,
       to: formData.to,
-      items: formData.items.map(i => ({ desc: i.desc, qty: Number(i.qty), price: Number(i.price) })),
+      items: formData.items || [],
       total: formData.total,
       xrpAmount: formData.xrpAmount,
       receiver: formData.receiver,
@@ -139,6 +128,10 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
     }
   };
 
+  // Consistent blue pill button style (matching the main Create Invoice button)
+  const blueButtonClass =
+    'flex-1 py-3.5 bg-[#1D9BF0] hover:bg-[#1a8cd8] text-white font-semibold rounded-2xl transition disabled:opacity-60';
+
   return (
     <div className="space-y-6">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
@@ -162,6 +155,7 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
           </div>
         </div>
 
+        {/* LINE ITEMS */}
         <div>
           <div className="flex justify-between items-center mb-2">
             <label className="text-xs text-zinc-400">LINE ITEMS</label>
@@ -202,12 +196,7 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
                   />
                 </div>
                 <div className="col-span-2 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => remove(index)}
-                    className="text-red-400 hover:text-red-500 px-2"
-                    disabled={fields.length === 1}
-                  >
+                  <button type="button" onClick={() => remove(index)} className="text-red-400 hover:text-red-500 px-2" disabled={fields.length === 1}>
                     ×
                   </button>
                 </div>
@@ -216,14 +205,26 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
           </div>
         </div>
 
+        {/* TOTAL + XRP + DUE DATE */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-xs text-zinc-400 mb-1">TOTAL USD</label>
-            <input type="number" step="0.01" {...register('total', { valueAsNumber: true })} className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-lg font-semibold" readOnly />
+            <input
+              type="number"
+              step="0.01"
+              {...register('total', { valueAsNumber: true })}
+              className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-lg font-semibold focus:outline-none focus:border-[#1D9BF0]"
+            />
           </div>
           <div>
-            <label className="block text-xs text-zinc-400 mb-1">XRP AMOUNT (est. @ ${xrpRate})</label>
-            <input type="number" step="0.000001" {...register('xrpAmount', { valueAsNumber: true })} className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-lg font-semibold" readOnly />
+            <label className="block text-xs text-zinc-400 mb-1">XRP AMOUNT</label>
+            <input
+              type="number"
+              step="0.000001"
+              {...register('xrpAmount', { valueAsNumber: true })}
+              className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-lg font-semibold"
+              readOnly
+            />
           </div>
           <div>
             <label className="block text-xs text-zinc-400 mb-1">DUE DATE</label>
@@ -236,11 +237,12 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
           <textarea {...register('description')} rows={2} className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm resize-y" placeholder="Project scope, payment terms..." />
         </div>
 
+        {/* ACTION BUTTONS - Consistent blue pill style */}
         <div className="flex flex-col sm:flex-row gap-3 pt-2">
-          <button type="submit" disabled={loading} className="flex-1 py-3.5 bg-white text-black font-semibold rounded-2xl hover:bg-zinc-200 transition disabled:opacity-60">
+          <button type="submit" disabled={loading} className={blueButtonClass}>
             {loading ? 'Saving...' : '💾 Save Invoice (Draft)'}
           </button>
-          <button type="button" onClick={handleMint} disabled={loading} className="flex-1 py-3.5 border border-[#1D9BF0] text-[#1D9BF0] font-semibold rounded-2xl hover:bg-[#1D9BF0]/10 transition disabled:opacity-60">
+          <button type="button" onClick={handleMint} disabled={loading} className={blueButtonClass}>
             {loading ? 'Opening Xaman...' : '🔗 Mint as XRPL NFT (Testnet)'}
           </button>
         </div>
@@ -248,17 +250,20 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
         <div className="text-[10px] text-zinc-500 text-center">Fee ~0.15% max • Non-custodial • PDF + email ready</div>
       </form>
 
-      <BrowserInvoicePDF
-        invoice={{
-          id: 'PREVIEW-' + Date.now(),
-          from: watch('from'),
-          to: watch('to') || 'Client',
-          items: watch('items') || [],
-          total: watch('total') || 0,
-          xrpAmount: watch('xrpAmount') || 0,
-          receiver: watch('receiver'),
-        } as Invoice}
-      />
+      {/* PDF Button - styled consistently */}
+      <div className="pt-2">
+        <BrowserInvoicePDF
+          invoice={{
+            id: 'PREVIEW-' + Date.now(),
+            from: watch('from'),
+            to: watch('to') || 'Client',
+            items: watch('items') || [],
+            total: watch('total') || 0,
+            xrpAmount: watch('xrpAmount') || 0,
+            receiver: watch('receiver'),
+          } as Invoice}
+        />
+      </div>
     </div>
   );
 }
