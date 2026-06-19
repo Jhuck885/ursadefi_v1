@@ -205,7 +205,6 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
           <textarea {...register('description')} rows={2} className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm resize-y" placeholder="Notes or description..." />
         </div>
 
-        {/* BUTTONS - No icons, clean text */}
         <div className="flex flex-col sm:flex-row gap-3 pt-2">
           <button type="submit" disabled={loading} className={blueButtonClass}>
             Save Invoice (Draft)
@@ -224,7 +223,11 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
             id: 'PREVIEW-' + Date.now(),
             from: watch('from'),
             to: watch('to') || 'Client',
-            items: watch('items') || [],
+            items: (watch('items') || []).map((i: any) => ({
+              desc: i.desc,
+              qty: 1,
+              price: i.amount,
+            })),
             total: watch('total') || 0,
             xrpAmount: watch('xrpAmount') || 0,
             receiver: watch('receiver'),
