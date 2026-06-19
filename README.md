@@ -1,3 +1,3 @@
 # UrsaDeFi
 
-Fixed: Invoices now appear in feed after save + better mint error handling (commit ef8f6074)
+Clean X.com-style invoice cards in feed (commit d89902f8)
