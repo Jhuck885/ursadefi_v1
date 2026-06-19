@@ -7,6 +7,7 @@ export default function BrowserInvoicePDF({ invoice }: Props) {
   const openPDF = () => {
     const win = window.open('', '_blank');
     if (!win) { alert('Pop-up blocked — allow for PDF'); return; }
+
     const qrData = `xrp:${invoice.receiver}?amount=${invoice.xrpAmount}`;
     const html = `
       <!DOCTYPE html>
@@ -27,6 +28,7 @@ export default function BrowserInvoicePDF({ invoice }: Props) {
         </div>
         <script>window.print();</script>
       </body></html>`;
+
     win.document.write(html);
     win.document.close();
 
@@ -39,9 +41,9 @@ export default function BrowserInvoicePDF({ invoice }: Props) {
   return (
     <button
       onClick={openPDF}
-      className="w-full py-3.5 bg-[#1D9BF0] hover:bg-[#1a8cd8] text-white font-semibold rounded-2xl transition"
+      className="w-full py-3.5 bg-[#1D9BF0] hover:bg-[#1a8cd8] text-white font-semibold rounded-full transition"
     >
-      📄 Save & Email PDF
+      Save & Email PDF
     </button>
   );
 }
