@@ -41,8 +41,9 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
   });
 
   const watchedAmount = watch('amount');
+  const watchedXrp = watch('xrpAmount');
 
-  // Auto calculate TOTAL and XRP from Amount
+  // Auto calculate XRP from Amount
   useEffect(() => {
     const total = Number(watchedAmount) || 0;
     const xrpAmount = xrpRate > 0 ? total / xrpRate : 0;
@@ -130,14 +131,13 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
     }
   };
 
-  // Match dashboard Create Invoice button style
-  const blueButtonClass =
-    'flex-1 py-3.5 bg-[#1D9BF0] hover:bg-[#1a8cd8] text-white font-semibold rounded-2xl transition disabled:opacity-60';
+  // Pill style matching the dashboard Create Invoice button
+  const pillButton =
+    'flex-1 py-3.5 bg-[#1D9BF0] hover:bg-[#1a8cd8] text-white font-semibold rounded-full transition disabled:opacity-60';
 
   return (
     <div className="space-y-5">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        {/* Invoice Name */}
         <div>
           <label className="block text-xs text-zinc-400 mb-1">INVOICE NAME</label>
           <input
@@ -148,7 +148,6 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
           {errors.invoiceName && <p className="text-red-400 text-xs mt-1">{errors.invoiceName.message}</p>}
         </div>
 
-        {/* Client */}
         <div>
           <label className="block text-xs text-zinc-400 mb-1">TO (Client / Company)</label>
           <input
@@ -159,7 +158,6 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
           {errors.to && <p className="text-red-400 text-xs mt-1">{errors.to.message}</p>}
         </div>
 
-        {/* Description */}
         <div>
           <label className="block text-xs text-zinc-400 mb-1">DESCRIPTION (max 1500 characters)</label>
           <textarea
@@ -172,7 +170,6 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
           <p className="text-[10px] text-zinc-500 text-right mt-1">{watch('description')?.length || 0}/1500</p>
         </div>
 
-        {/* Amount */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-xs text-zinc-400 mb-1">AMOUNT (USD)</label>
@@ -189,12 +186,18 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
           </div>
         </div>
 
-        {/* Action Buttons - matching dashboard style */}
-        <div className="flex flex-col sm:flex-row gap-3 pt-3">
-          <button type="submit" disabled={loading} className={blueButtonClass}>
+        {/* Live XRP conversion */}
+        {watchedAmount > 0 && (
+          <div className="text-sm text-zinc-400">
+            ≈ <span className="font-semibold text-white">{watchedXrp.toFixed(2)} XRP</span> (auto)
+          </div>
+        )}
+
+        <div className="flex flex-col sm:flex-row gap-3 pt-2">
+          <button type="submit" disabled={loading} className={pillButton}>
             Save Invoice (Draft)
           </button>
-          <button type="button" onClick={handleMint} disabled={loading} className={blueButtonClass}>
+          <button type="button" onClick={handleMint} disabled={loading} className={pillButton}>
             Mint as XRPL NFT (Testnet)
           </button>
         </div>
