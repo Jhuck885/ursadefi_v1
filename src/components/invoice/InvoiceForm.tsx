@@ -7,10 +7,15 @@ import BrowserInvoicePDF from './BrowserInvoicePDF';
 import { mintInvoiceNFT } from '@/lib/xrpl';
 import { Invoice } from '@/types';
 
+interface SimpleItem {
+  desc: string;
+  amount: number;
+}
+
 interface InvoiceFormData {
   from: string;
   to: string;
-  items: Array<{ desc: string; qty: number; price: number }>;
+  items: SimpleItem[];
   total: number;
   xrpAmount: number;
   receiver: string;
@@ -31,7 +36,7 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
     defaultValues: {
       from: wallet?.address ? `Wallet ${wallet.address.slice(0, 8)}...` : 'Your Business / Wallet',
       to: '',
-      items: [{ desc: '', qty: 1, price: 0 }],
+      items: [{ desc: '', amount: 0 }],
       total: 0,
       xrpAmount: 0,
       receiver: process.env.NEXT_PUBLIC_XRPL_RECEIVER_ADDRESS || 'rNb4AKqA6QwhD8Nfff7rVxg5RPmyTE1vVn',
@@ -45,15 +50,13 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
   const watchedItems = watch('items');
   const watchedTotal = watch('total');
 
-  // Auto-sum line items into TOTAL
+  // Auto sum from simple items
   useEffect(() => {
-    const sum = (watchedItems || []).reduce((acc, item) => {
-      return acc + (Number(item?.qty) || 0) * (Number(item?.price) || 0);
-    }, 0);
+    const sum = (watchedItems || []).reduce((acc, item) => acc + (Number(item?.amount) || 0), 0);
     setValue('total', parseFloat(sum.toFixed(2)));
   }, [watchedItems, setValue]);
 
-  // Auto calculate XRP from TOTAL
+  // Auto XRP from TOTAL
   useEffect(() => {
     const xrpAmount = xrpRate > 0 ? (Number(watchedTotal) || 0) / xrpRate : 0;
     setValue('xrpAmount', parseFloat(xrpAmount.toFixed(6)));
@@ -71,7 +74,7 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
       id: 'INV-' + Date.now(),
       from: formData.from,
       to: formData.to,
-      items: formData.items || [],
+      items: formData.items.map(i => ({ desc: i.desc, qty: 1, price: i.amount })),
       total: formData.total,
       xrpAmount: formData.xrpAmount,
       receiver: formData.receiver,
@@ -92,7 +95,7 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
       reset({
         from: wallet?.address ? `Wallet ${wallet.address.slice(0, 8)}...` : 'Your Business / Wallet',
         to: '',
-        items: [{ desc: '', qty: 1, price: 0 }],
+        items: [{ desc: '', amount: 0 }],
         total: 0,
         xrpAmount: 0,
         receiver: formData.receiver,
@@ -113,13 +116,12 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
       alert('Min $5 total to mint');
       return;
     }
-
     const formValues = watch();
     const tempInvoice = {
       id: 'INV-' + Date.now(),
       from: formValues.from,
       to: formValues.to || 'Client',
-      items: formValues.items || [],
+      items: formValues.items.map((i: any) => ({ desc: i.desc, qty: 1, price: i.amount })),
       total: formValues.total || 0,
       xrpAmount: formValues.xrpAmount || 0,
       receiver: formValues.receiver,
@@ -138,102 +140,59 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
     }
   };
 
-  const blueButtonClass =
-    'flex-1 py-3.5 bg-[#1D9BF0] hover:bg-[#1a8cd8] text-white font-semibold rounded-2xl transition disabled:opacity-60';
+  const blueButtonClass = 'flex-1 py-3 bg-[#1D9BF0] hover:bg-[#1a8cd8] text-white font-semibold rounded-2xl transition flex items-center justify-center gap-2 disabled:opacity-60';
 
   return (
     <div className="space-y-6">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+        {/* FROM / TO */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs text-zinc-400 mb-1">FROM</label>
-            <input
-              {...register('from')}
-              className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#1D9BF0]"
-              placeholder="Your name or wallet"
-            />
+            <input {...register('from')} className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm" readOnly />
           </div>
           <div>
             <label className="block text-xs text-zinc-400 mb-1">TO (Client / Company)</label>
-            <input
-              {...register('to', { required: 'Client name required' })}
-              className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#1D9BF0]"
-              placeholder="Acme Corp or client@ email"
-            />
+            <input {...register('to', { required: 'Client name required' })} className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#1D9BF0]" placeholder="Client or company name" />
             {errors.to && <p className="text-red-400 text-xs mt-1">{errors.to.message}</p>}
           </div>
         </div>
 
-        {/* LINE ITEMS */}
+        {/* SIMPLE ITEMS - Description + Amount */}
         <div>
           <div className="flex justify-between items-center mb-2">
-            <label className="text-xs text-zinc-400">LINE ITEMS</label>
-            <button
-              type="button"
-              onClick={() => append({ desc: '', qty: 1, price: 0 })}
-              className="text-xs px-3 py-1 bg-zinc-800 hover:bg-zinc-700 rounded-full"
-            >
-              + Add Item
-            </button>
+            <label className="text-xs text-zinc-400">ITEMS</label>
+            <button type="button" onClick={() => append({ desc: '', amount: 0 })} className="text-xs px-3 py-1 bg-zinc-800 hover:bg-zinc-700 rounded-full">+ Add Item</button>
           </div>
 
           <div className="space-y-3">
             {fields.map((field, index) => (
-              <div key={field.id} className="grid grid-cols-12 gap-2 items-end bg-zinc-950 p-3 rounded-xl border border-zinc-800">
-                <div className="col-span-5">
-                  <input
-                    {...register(`items.${index}.desc` as const, { required: true })}
-                    placeholder="Description / service"
-                    className="w-full bg-black border border-zinc-700 rounded-lg px-3 py-2 text-sm"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <input
-                    type="number"
-                    {...register(`items.${index}.qty` as const, { valueAsNumber: true, min: 1 })}
-                    placeholder="Qty"
-                    className="w-full bg-black border border-zinc-700 rounded-lg px-3 py-2 text-sm text-center"
-                  />
-                </div>
-                <div className="col-span-3">
-                  <input
-                    type="number"
-                    step="0.01"
-                    {...register(`items.${index}.price` as const, { valueAsNumber: true, min: 0 })}
-                    placeholder="Unit Price $"
-                    className="w-full bg-black border border-zinc-700 rounded-lg px-3 py-2 text-sm text-right"
-                  />
-                </div>
-                <div className="col-span-2 flex justify-end">
-                  <button type="button" onClick={() => remove(index)} className="text-red-400 hover:text-red-500 px-2" disabled={fields.length === 1}>
-                    ×
-                  </button>
-                </div>
+              <div key={field.id} className="flex gap-3 items-center bg-zinc-950 p-3 rounded-xl border border-zinc-800">
+                <input
+                  {...register(`items.${index}.desc` as const)}
+                  placeholder="Description"
+                  className="flex-1 bg-black border border-zinc-700 rounded-lg px-3 py-2 text-sm"
+                />
+                <input
+                  type="number"
+                  step="0.01"
+                  {...register(`items.${index}.amount` as const, { valueAsNumber: true })}
+                  placeholder="Amount"
+                  className="w-28 bg-black border border-zinc-700 rounded-lg px-3 py-2 text-sm text-right"
+                />
+                <button type="button" onClick={() => remove(index)} className="text-red-400 hover:text-red-500 px-2 text-lg" disabled={fields.length === 1}>
+                  ×
+                </button>
               </div>
             ))}
           </div>
         </div>
 
-        {/* TOTAL + XRP + DUE DATE */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* TOTAL + DUE DATE (XRP hidden) */}
+        <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-xs text-zinc-400 mb-1">TOTAL USD</label>
-            <input
-              type="number"
-              step="0.01"
-              {...register('total', { valueAsNumber: true })}
-              className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-lg font-semibold focus:outline-none focus:border-[#1D9BF0]"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-zinc-400 mb-1">XRP AMOUNT</label>
-            <input
-              type="number"
-              step="0.000001"
-              {...register('xrpAmount', { valueAsNumber: true })}
-              className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-lg font-semibold"
-              readOnly
-            />
+            <input type="number" step="0.01" {...register('total', { valueAsNumber: true })} className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-lg font-semibold" readOnly />
           </div>
           <div>
             <label className="block text-xs text-zinc-400 mb-1">DUE DATE</label>
@@ -242,16 +201,17 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
         </div>
 
         <div>
-          <label className="block text-xs text-zinc-400 mb-1">NOTES / DESCRIPTION (optional)</label>
-          <textarea {...register('description')} rows={2} className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm resize-y" placeholder="Project scope, payment terms..." />
+          <label className="block text-xs text-zinc-400 mb-1">NOTES (optional)</label>
+          <textarea {...register('description')} rows={2} className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm resize-y" placeholder="Notes or description..." />
         </div>
 
+        {/* BUTTONS - No icons, clean text */}
         <div className="flex flex-col sm:flex-row gap-3 pt-2">
           <button type="submit" disabled={loading} className={blueButtonClass}>
-            {loading ? 'Saving...' : '💾 Save Invoice (Draft)'}
+            Save Invoice (Draft)
           </button>
           <button type="button" onClick={handleMint} disabled={loading} className={blueButtonClass}>
-            {loading ? 'Opening Xaman...' : '🔗 Mint as XRPL NFT (Testnet)'}
+            Mint as XRPL NFT (Testnet)
           </button>
         </div>
 
