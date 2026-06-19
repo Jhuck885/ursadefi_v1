@@ -1,4 +1,3 @@
-//# Full code with auto-refresh callback
 'use client';
 import { useState, useEffect } from 'react';
 import InvoiceForm from '@/components/invoice/InvoiceForm';
@@ -11,7 +10,7 @@ interface FormattedPayment {
   tag: number | null;
 }
 
-const XRPPriceCard = () => {
+const PriceCard = ({ coinId, label }: { coinId: string; label: string }) => {
   const [price, setPrice] = useState<number | null>(null);
   const [change, setChange] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -19,15 +18,17 @@ const XRPPriceCard = () => {
   useEffect(() => {
     const fetchPrice = async () => {
       try {
-        const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ripple&vs_currencies=usd&include_24hr_change=true');
+        const res = await fetch(
+          `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd&include_24hr_change=true`
+        );
         if (res.ok) {
           const data = await res.json();
-          const xrp = data.ripple;
-          setPrice(xrp.usd);
-          setChange(xrp.usd_24h_change);
+          const coin = data[coinId];
+          setPrice(coin.usd);
+          setChange(coin.usd_24h_change);
         }
       } catch (err) {
-        console.error('Price fetch failed', err);
+        console.error(`${label} price fetch failed`, err);
         setPrice(null);
         setChange(null);
       } finally {
@@ -38,12 +39,12 @@ const XRPPriceCard = () => {
     fetchPrice();
     const interval = setInterval(fetchPrice, 60000);
     return () => clearInterval(interval);
-  }, []);
+  }, [coinId, label]);
 
   if (loading) {
     return (
-      <div className="mb-6 p-4 bg-[#1e293b] rounded-xl border border-[#1D9BF0]/30">
-        <div className="text-sm text-gray-400">XRP Price (Live)</div>
+      <div className="mb-4 p-4 bg-[#1e293b] rounded-xl border border-[#1D9BF0]/30">
+        <div className="text-sm text-gray-400">{label} Price (Live)</div>
         <div className="text-gray-500 text-sm">Loading...</div>
       </div>
     );
@@ -54,10 +55,10 @@ const XRPPriceCard = () => {
   const color = isUp ? 'text-green-500' : 'text-red-500';
 
   return (
-    <div className="mb-6 p-4 bg-[#1e293b] rounded-xl border border-[#1D9BF0]/30">
-      <div className="text-sm text-gray-400 mb-1">XRP Price (Live)</div>
+    <div className="mb-4 p-4 bg-[#1e293b] rounded-xl border border-[#1D9BF0]/30">
+      <div className="text-sm text-gray-400 mb-1">{label} Price (Live)</div>
       <div className="text-2xl font-bold text-white">
-        ${price?.toFixed(4) || '—.----'}
+        ${price?.toFixed(2) || '—.--'}
         {change !== null && (
           <span className={`ml-2 text-lg ${color}`}>
             {arrow} {Math.abs(change).toFixed(2)}%
@@ -68,6 +69,9 @@ const XRPPriceCard = () => {
     </div>
   );
 };
+
+const XRPPriceCard = () => <PriceCard coinId="ripple" label="XRP Price" />;
+const BTCPriceCard = () => <PriceCard coinId="bitcoin" label="BTC Price" />;
 
 const RecentPaymentsCard = () => {
   const [payments, setPayments] = useState<FormattedPayment[]>([]);
@@ -137,7 +141,7 @@ const RecentPaymentsCard = () => {
             <span className="font-bold text-white">+{p.amount.toFixed(2)} XRP</span>
             <span className="text-sm text-gray-400">{p.date}</span>
           </div>
-          {p.tag && <span className="text-xs text-gray-400">Tag: {p.tag}</span>}
+          {p.tag && <span className="text-xs text-gray-400">Tag: {p.tag}</span>
           <a
             href={`https://test.bithomp.com/explorer/${p.hash}`}
             target="_blank"
@@ -163,6 +167,7 @@ export default function RightSidebar() {
   return (
     <div className="p-6 h-full overflow-y-auto">
       <XRPPriceCard />
+      <BTCPriceCard />
 
       <h2 className="text-xl font-bold mb-4">Tax Overview (Free)</h2>
       <div className="bg-[#16181c] rounded-xl p-4 mb-6 border border-yellow-600">
