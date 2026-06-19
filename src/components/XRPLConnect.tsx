@@ -1,12 +1,14 @@
 'use client';
 import { useState } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
+import { useWallet } from '@/context/WalletContext';
 
 interface XRPLConnectProps {
-  onConnect?: (wallet: { address: string; publicKey: string }) => void; // optional for MVP landing page
+  onConnect?: (wallet: { address: string; publicKey: string }) => void;
 }
 
 export default function XRPLConnect({ onConnect }: XRPLConnectProps = {}) {
+  const { setWallet } = useWallet();
   const [qrUrl, setQrUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -15,36 +17,38 @@ export default function XRPLConnect({ onConnect }: XRPLConnectProps = {}) {
     setLoading(true);
     setError('');
 
+    // NOTE: This is a simplified QR for demo. For production real SignIn payload,
+    // use xumm-sdk payload.create({ txjson: { TransactionType: 'SignIn' } }) + handle callback
     try {
-      const payload = {
-        TransactionType: 'SignIn'
-      };
-
+      const payload = { TransactionType: 'SignIn' };
       const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64');
       const qrCodeUrl = `https://xumm.app/sign/${base64Payload}`;
-
       setQrUrl(qrCodeUrl);
-      console.log('QR URL generated:', qrCodeUrl);
     } catch (err: any) {
       setError('Failed to generate QR: ' + err.message);
-      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
   const handleDemoConnect = () => {
-    console.log('Demo connect clicked');
     const testAddress = 'rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh';
     const testPublicKey = 'ED00000000000000000000000000000000000000000000000000000000000000';
-    onConnect?.({ address: testAddress, publicKey: testPublicKey });
-    window.location.href = '/dashboard'; // auto-redirect after demo or real connect
+
+    const demoWallet = { address: testAddress, publicKey: testPublicKey };
+    setWallet(demoWallet);           // Persist via context
+    onConnect?.(demoWallet);
+
+    // Give feedback then go to dashboard
+    setTimeout(() => {
+      window.location.href = '/dashboard';
+    }, 400);
   };
 
   return (
     <div className="space-y-6">
       {!qrUrl ? (
-        <div className="text-center">
+        <div className="text-center space-y-3">
           <button
             onClick={generateXamanQR}
             disabled={loading}
@@ -52,7 +56,14 @@ export default function XRPLConnect({ onConnect }: XRPLConnectProps = {}) {
           >
             {loading ? 'Generating QR...' : '📱 Connect with Xaman (Recommended)'}
           </button>
+          <button
+            onClick={handleDemoConnect}
+            className="w-full py-3 text-sm text-gray-400 hover:text-white border border-gray-700 rounded-2xl transition"
+          >
+            [MVP Demo] Use test wallet → Continue
+          </button>
           {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
+          <p className="text-[10px] text-zinc-500">Demo instantly connects a test XRPL address</p>
         </div>
       ) : (
         <div className="space-y-4 text-center">
