@@ -131,10 +131,9 @@ export default function BrowserInvoicePDF({ invoice, compact = false }: Props) {
       margin-top: 22px;
       font-size: 12px;
     }
-    .footer-brand .brand-name { 
-      font-weight: 700; 
-      font-size: 13px;
-      margin-bottom: 1px;
+    .footer-brand img { 
+      height: 26px;
+      margin-bottom: 4px;
     }
     .footer-brand .powered { 
       font-size: 10px; 
@@ -236,9 +235,9 @@ export default function BrowserInvoicePDF({ invoice, compact = false }: Props) {
     <strong>THANK YOU FOR YOUR BUSINESS!</strong>
   </div>
 
-  <!-- Centered Brand Footer -->
+  <!-- Centered Brand Footer with actual logo -->
   <div class="footer-brand">
-    <div class="brand-name">UrsaDeFi</div>
+    <img src="/ursa-logo.png" alt="UrsaDeFi" />
     <div class="powered">Powered by ursadefi.com</div>
   </div>
 
