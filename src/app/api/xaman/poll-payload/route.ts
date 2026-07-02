@@ -18,15 +18,18 @@ export async function GET(request: NextRequest) {
     const payload = await xumm.payload.get(uuid);
 
     if (payload?.meta?.signed) {
-      // Get the wallet address from the response
-      const address = payload.response?.account || payload.meta?.account;
+      // Get the wallet address from the response (correct path for signed payloads)
+      const address = payload.response?.account;
       const publicKey = payload.response?.signing_pubkey;
+
+      if (!address) {
+        return NextResponse.json({ error: 'Signed but no account found' }, { status: 400 });
+      }
 
       return NextResponse.json({
         signed: true,
         address,
         publicKey,
-        payload
       });
     }
 
