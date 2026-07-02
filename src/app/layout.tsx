@@ -30,7 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <WalletProvider>
           <nav className="fixed top-0 left-0 right-0 z-50 bg-black/90 border-b border-zinc-800 px-4 py-3 flex justify-between items-center">
             <div className="flex items-center gap-3">
-              <div className="text-2xl font-bold tracking-tighter">URSADEFI</div>
+              <img src="/ursa-logo.png" alt="UrsaDeFi" className="h-8 w-auto" />
               <div className="text-xs text-zinc-500">Dallas, TX • XRPL Invoicing</div>
             </div>
             <button
