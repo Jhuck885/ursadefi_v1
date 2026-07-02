@@ -39,14 +39,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={isDark ? 'dark' : ''}>
       <body className={`min-h-screen transition-colors duration-200 ${isDark ? 'bg-black text-white' : 'bg-white text-black'}`}>
         <WalletProvider>
-          <nav className="fixed top-0 left-0 right-0 z-50 bg-black/90 border-b border-zinc-800 px-4 py-3 flex justify-between items-center">
+          <nav className="fixed top-0 left-0 right-0 z-50 bg-[var(--bg-primary)]/95 border-b border-[var(--border-color)] px-4 py-3 flex justify-between items-center backdrop-blur">
             <div className="flex items-center gap-3">
               <img src="/ursa-logo.png" alt="UrsaDeFi" className="h-8 w-auto" />
               <div className="text-xs text-zinc-500">Dallas, TX • XRPL Invoicing</div>
             </div>
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-xl border border-zinc-700 hover:bg-zinc-800 transition flex items-center justify-center"
+              className="p-2 rounded-xl border border-[var(--border-color)] hover:bg-[var(--bg-secondary)] transition flex items-center justify-center"
               aria-label="Toggle theme"
             >
               {isDark ? <Sun size={18} className="text-yellow-400" /> : <Moon size={18} className="text-blue-400" />}
