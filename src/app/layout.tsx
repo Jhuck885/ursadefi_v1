@@ -36,8 +36,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   };
 
   return (
-    <html lang="en">
-      <body className="bg-black text-white min-h-screen">
+    <html lang="en" className={isDark ? 'dark' : ''}>
+      <body className={`min-h-screen transition-colors duration-200 ${isDark ? 'bg-black text-white' : 'bg-white text-black'}`}>
         <WalletProvider>
           <nav className="fixed top-0 left-0 right-0 z-50 bg-black/90 border-b border-zinc-800 px-4 py-3 flex justify-between items-center">
             <div className="flex items-center gap-3">
