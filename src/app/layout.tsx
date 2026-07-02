@@ -6,23 +6,47 @@ import { Moon, Sun } from 'lucide-react';
 import { WalletProvider } from '@/context/WalletContext';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const [dark, setDark] = useState(true);
+  const [dark, setDark] = useState<boolean | null>(null);
 
+  // Initialize theme on mount
   useEffect(() => {
     const saved = localStorage.getItem('theme');
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const initialDark = saved ? saved === 'dark' : prefersDark;
 
     setDark(initialDark);
-    document.documentElement.classList.toggle('dark', initialDark);
+    if (initialDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
   }, []);
 
-  const toggle = () => {
+  const toggleTheme = () => {
+    if (dark === null) return;
+
     const newDark = !dark;
     setDark(newDark);
-    localStorage.setItem('theme', newDark ? 'dark' : 'light');
-    document.documentElement.classList.toggle('dark', newDark);
+
+    if (newDark) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
   };
+
+  // Prevent flash before theme is determined
+  if (dark === null) {
+    return (
+      <html lang="en" className="dark">
+        <body className="bg-black text-white min-h-screen">
+          <div className="pt-16">{children}</div>
+        </body>
+      </html>
+    );
+  }
 
   return (
     <html lang="en" className={dark ? 'dark' : ''}>
@@ -34,7 +58,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <div className="text-xs text-zinc-500">Dallas, TX • XRPL Invoicing</div>
             </div>
             <button
-              onClick={toggle}
+              onClick={toggleTheme}
               className="p-2 rounded-xl border border-zinc-700 hover:bg-zinc-800 transition flex items-center justify-center"
               aria-label="Toggle theme"
             >
@@ -47,11 +71,3 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     </html>
   );
 }
-
-export const metadata = {
-  title: 'UrsaDeFi | XRPL Invoicing',
-  description: 'XRPL Invoicing • Dallas, TX • Pay 0.15% max, keep the rest',
-  icons: {
-    icon: '/ursa-logo.png',
-  },
-};
