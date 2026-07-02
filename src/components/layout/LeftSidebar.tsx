@@ -94,7 +94,17 @@ export default function LeftSidebar() {
             <span>Disconnect Wallet</span>
           </button>
         ) : (
-          <div className="text-xs text-zinc-500 px-4 py-2">Connect via Xaman on homepage for full features</div>
+          <div className="space-y-3 px-1">
+            <div className="text-sm text-zinc-400 px-3">
+              Wallet disconnected
+            </div>
+            <Link
+              href="/"
+              className="flex w-full items-center justify-center gap-2 px-4 py-3 rounded-full bg-[#1D9BF0] hover:bg-[#1a8cd8] text-white text-sm font-medium transition"
+            >
+              Connect Wallet
+            </Link>
+          </div>
         )}
       </div>
     </aside>
