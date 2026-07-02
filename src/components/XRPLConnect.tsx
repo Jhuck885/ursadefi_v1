@@ -121,10 +121,6 @@ export default function XRPLConnect({ onConnect }: XRPLConnectProps = {}) {
         </div>
       ) : (
         <div className="space-y-4 text-center">
-          {/* Logo in top right of QR screen */}
-          <div className="flex justify-end mb-2">
-            <img src="/ursa-logo.png" alt="UrsaDeFi" className="w-8 h-8" />
-          </div>
           <p className="text-sm text-gray-300">Scan with Xaman on your iPhone</p>
           <div className="inline-block p-4 bg-white rounded-2xl">
             <QRCodeCanvas value={qrUrl} size={220} />
