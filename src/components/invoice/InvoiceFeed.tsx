@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import InvoiceCard from './InvoiceCard';
 import { Invoice } from '@/types';
-import { supabase } from '@/lib/supabase';
+import { supabaseBrowser as supabase } from '@/lib/supabase';
 import { useWallet } from '@/context/WalletContext';
 
 export default function InvoiceFeed() {
