@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useWallet } from '@/context/WalletContext';
 import { supabaseBrowser } from '@/lib/supabase';
 import Link from 'next/link';
+import { AlertTriangle } from 'lucide-react';
 
 interface Client {
   id: string;
@@ -20,19 +21,20 @@ export default function ClientsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // New Client Form State
   const [showAddForm, setShowAddForm] = useState(false);
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newAddress, setNewAddress] = useState('');
   const [newPhone, setNewPhone] = useState('');
 
-  // Edit State
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
   const [editAddress, setEditAddress] = useState('');
   const [editPhone, setEditPhone] = useState('');
+
+  // Delete confirmation modal state
+  const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
 
   const fetchClients = async () => {
     if (!wallet?.address) return;
@@ -55,7 +57,6 @@ export default function ClientsPage() {
     (client.email && client.email.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  // Add New Client
   const handleAddClient = async () => {
     if (!newName.trim() || !wallet?.address) {
       alert('Client name is required');
@@ -83,23 +84,28 @@ export default function ClientsPage() {
     }
   };
 
-  // Delete Client
-  const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Delete client "${name}"? This cannot be undone.`)) return;
+  // Open custom delete modal
+  const confirmDelete = (client: Client) => {
+    setClientToDelete(client);
+  };
+
+  const handleDelete = async () => {
+    if (!clientToDelete) return;
 
     const { error } = await supabaseBrowser
       .from('clients')
       .delete()
-      .eq('id', id);
+      .eq('id', clientToDelete.id);
 
     if (error) {
       alert('Failed to delete client');
+      console.error('Delete error:', error);
     } else {
-      setClients(prev => prev.filter(c => c.id !== id));
+      setClients(prev => prev.filter(c => c.id !== clientToDelete.id));
     }
+    setClientToDelete(null);
   };
 
-  // Start Editing
   const startEdit = (client: Client) => {
     setEditingClient(client);
     setEditName(client.name);
@@ -108,7 +114,6 @@ export default function ClientsPage() {
     setEditPhone(client.city_state || '');
   };
 
-  // Save Edit
   const handleSaveEdit = async () => {
     if (!editingClient || !editName.trim()) return;
 
@@ -163,7 +168,6 @@ export default function ClientsPage() {
         </button>
       </div>
 
-      {/* Add New Client Form */}
       {showAddForm && (
         <div className="bg-zinc-950 border border-zinc-700 rounded-2xl p-6 mb-8 max-w-2xl">
           <h3 className="font-semibold mb-4">Add New Client</h3>
@@ -180,7 +184,6 @@ export default function ClientsPage() {
         </div>
       )}
 
-      {/* Search */}
       <div className="mb-6">
         <input
           type="text"
@@ -210,7 +213,12 @@ export default function ClientsPage() {
               </div>
 
               <div className="flex gap-2">
-                <button onClick={() => handleDelete(client.id, client.name)} className="px-4 py-2 text-sm text-red-400 hover:text-red-500 hover:bg-red-950/50 rounded-xl transition">Delete</button>
+                <button 
+                  onClick={() => confirmDelete(client)}
+                  className="px-4 py-2 text-sm text-red-400 hover:text-red-500 hover:bg-red-950/50 rounded-xl transition"
+                >
+                  Delete
+                </button>
                 <button onClick={() => startEdit(client)} className="px-4 py-2 text-sm border border-zinc-700 hover:bg-zinc-900 rounded-xl transition">Edit</button>
               </div>
             </div>
@@ -234,6 +242,38 @@ export default function ClientsPage() {
             <div className="flex gap-3 mt-8">
               <button onClick={handleSaveEdit} className="flex-1 py-3 bg-[#1D9BF0] hover:bg-[#1a8cd8] rounded-full text-sm font-semibold transition">Save Changes</button>
               <button onClick={() => setEditingClient(null)} className="flex-1 py-3 border border-zinc-700 hover:bg-zinc-900 rounded-full text-sm transition">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Delete Warning Modal */}
+      {clientToDelete && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-zinc-950 border border-zinc-700 rounded-2xl p-8 w-full max-w-md text-center">
+            <div className="flex justify-center mb-4">
+              <AlertTriangle className="w-12 h-12 text-red-500" />
+            </div>
+            
+            <h3 className="text-xl font-semibold mb-2">WARNING</h3>
+            <p className="text-zinc-300 mb-2">All client data will be lost</p>
+            <p className="text-sm text-zinc-400 mb-6">
+              This will permanently delete <span className="font-medium text-white">{clientToDelete.name}</span> and all associated information.
+            </p>
+
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setClientToDelete(null)}
+                className="flex-1 py-3 border border-zinc-700 hover:bg-zinc-900 rounded-full text-sm transition"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleDelete}
+                className="flex-1 py-3 bg-red-600 hover:bg-red-700 rounded-full text-sm font-semibold transition"
+              >
+                Delete Client
+              </button>
             </div>
           </div>
         </div>
