@@ -47,3 +47,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     </html>
   );
 }
+
+export const metadata = {
+  title: 'UrsaDeFi | XRPL Invoicing',
+  description: 'XRPL Invoicing • Dallas, TX • Pay 0.15% max, keep the rest',
+  icons: {
+    icon: '/ursa-logo.png',
+  },
+};
