@@ -23,8 +23,8 @@ export default function DashboardPage() {
       )}
 
       <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tighter">Invoices</h1>
-        <p className="text-zinc-400 mt-1 text-sm">Your XRPL invoices • Create via the blue button in the right sidebar or the form below</p>
+        <h1 className="text-3xl font-bold tracking-tighter">Activities</h1>
+        <p className="text-zinc-400 mt-1 text-sm">Your XRPL activity • Create via the blue button in the right sidebar or the form below</p>
       </div>
 
       <InvoiceFeed />
