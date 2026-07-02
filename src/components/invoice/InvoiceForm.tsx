@@ -6,6 +6,7 @@ import { useWallet } from '@/context/WalletContext';
 import BrowserInvoicePDF from './BrowserInvoicePDF';
 import { mintInvoiceNFT } from '@/lib/xrpl';
 import { Invoice } from '@/types';
+import { supabaseBrowser } from '@/lib/supabase';
 
 interface InvoiceFormData {
   invoiceName: string;
@@ -56,6 +57,11 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
       return;
     }
 
+    if (!wallet?.address) {
+      alert('Please connect your wallet first');
+      return;
+    }
+
     setLoading(true);
 
     const newInvoice: Invoice = {
@@ -70,18 +76,38 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
       description: formData.description,
       status: 'draft',
       created_at: new Date().toISOString(),
-      user_id: wallet?.address || 'demo-user',
+      user_id: wallet.address,
     };
 
     try {
+      // Save to Supabase
+      const { error } = await supabaseBrowser
+        .from('invoices')
+        .insert([{
+          id: newInvoice.id,
+          wallet_address: wallet.address,
+          from_name: newInvoice.from,
+          to_name: newInvoice.to,
+          items: newInvoice.items,
+          total: newInvoice.total,
+          xrp_amount: newInvoice.xrpAmount,
+          receiver: newInvoice.receiver,
+          due_date: newInvoice.dueDate,
+          description: newInvoice.description,
+          status: newInvoice.status,
+        }]);
+
+      if (error) throw error;
+
+      // Also keep localStorage as fallback
       const existing = JSON.parse(localStorage.getItem('invoices') || '[]');
       localStorage.setItem('invoices', JSON.stringify([newInvoice, ...existing]));
 
-      // Notify feed to refresh
+      // Notify feed
       window.dispatchEvent(new Event('invoices-updated'));
 
       onSuccess?.(newInvoice);
-      alert('✅ Invoice saved!');
+      alert('✅ Invoice saved to cloud!');
 
       reset({
         invoiceName: '',
