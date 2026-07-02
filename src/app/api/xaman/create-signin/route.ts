@@ -17,6 +17,10 @@ export async function POST() {
       }
     });
 
+    if (!payload) {
+      return NextResponse.json({ error: 'Failed to create Xaman payload' }, { status: 500 });
+    }
+
     return NextResponse.json({
       uuid: payload.uuid,
       qr_png: payload.refs.qr_png,
