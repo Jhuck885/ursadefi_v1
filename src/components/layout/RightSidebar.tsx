@@ -11,7 +11,7 @@ interface FormattedPayment {
 }
 
 const PriceCard = ({ coinId, label }: { coinId: string; label: string }) => {
-  const [price, setPrice] = useState<number | null>(null);
+  const [price, setPrice: number | null>(null);
   const [change, setChange] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -195,7 +195,7 @@ export default function RightSidebar() {
               onClick={() => setIsModalOpen(false)}
               className="absolute top-6 right-6 text-gray-400 hover:text-white text-2xl"
             >
-              &times>
+              &times;
             </button>
 
             <div className="mb-6">
