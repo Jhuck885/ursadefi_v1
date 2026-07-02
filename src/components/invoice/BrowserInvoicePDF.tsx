@@ -11,7 +11,6 @@ export default function BrowserInvoicePDF({ invoice, compact = false }: Props) {
     const qrData = `xrp:${invoice.receiver || ''}?amount=${invoice.xrpAmount}`;
     const today = new Date().toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' });
 
-    // Clean invoice number (remove PREVIEW- prefix if present)
     const cleanId = String(invoice.id || '').replace(/^PREVIEW-/, '');
 
     const html = `<!DOCTYPE html>
@@ -146,7 +145,6 @@ export default function BrowserInvoicePDF({ invoice, compact = false }: Props) {
 </head>
 <body>
 
-  <!-- Header -->
   <div class="header">
     <div class="company-info">
       <h1>${invoice.from || 'Your Company'}</h1>
@@ -164,7 +162,6 @@ export default function BrowserInvoicePDF({ invoice, compact = false }: Props) {
     </div>
   </div>
 
-  <!-- TO and FOR sections -->
   <div class="sections">
     <div class="section">
       <strong>TO:</strong>
@@ -186,7 +183,6 @@ export default function BrowserInvoicePDF({ invoice, compact = false }: Props) {
     </div>
   </div>
 
-  <!-- Items Table -->
   <table>
     <thead>
       <tr>
@@ -217,25 +213,21 @@ export default function BrowserInvoicePDF({ invoice, compact = false }: Props) {
     </tfoot>
   </table>
 
-  <!-- Payment Info -->
   <div class="payment-line">
     <strong>Pay ${invoice.xrpAmount} XRP</strong> to wallet: <span style="font-family:monospace; font-size:11px;">${invoice.receiver || ''}</span>
   </div>
 
-  <!-- QR Code -->
   <div class="qr-section">
     <img src="https://api.qrserver.com/v1/create-qr-code/?size=170x170&data=${encodeURIComponent(qrData)}" alt="XRP Payment QR Code" width="170" height="170" />
     <p style="margin: 6px 0 0; font-size:10.5px; color:#555;">Scan with Xaman to pay instantly • NFT minted on confirmation</p>
   </div>
 
-  <!-- Footer text -->
   <div class="footer-text">
     Make all checks payable to ${invoice.from || 'UrsaDeFi'}.<br>
     Total due in 15 days. Overdue accounts subject to a service charge of 1% per month.<br><br>
     <strong>THANK YOU FOR YOUR BUSINESS!</strong>
   </div>
 
-  <!-- Centered Brand Footer with actual logo -->
   <div class="footer-brand">
     <img src="/ursa-logo.png" alt="UrsaDeFi" />
     <div class="powered">Powered by ursadefi.com</div>
@@ -260,7 +252,7 @@ export default function BrowserInvoicePDF({ invoice, compact = false }: Props) {
         onClick={openPDF}
         className="px-4 py-1.5 text-xs font-medium border border-zinc-700 hover:bg-zinc-900 rounded-full transition w-full"
       >
-        Save & Email PDF
+        Save & Send Invoice
       </button>
     );
   }
@@ -270,7 +262,7 @@ export default function BrowserInvoicePDF({ invoice, compact = false }: Props) {
       onClick={openPDF}
       className="w-full py-3.5 bg-[#1D9BF0] hover:bg-[#1a8cd8] text-white font-semibold rounded-full transition"
     >
-      Save & Email PDF
+      Save & Send Invoice
     </button>
   );
 }
