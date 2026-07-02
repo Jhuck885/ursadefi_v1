@@ -86,10 +86,10 @@ export default function BrowserInvoicePDF({ invoice, compact = false }: Props) {
     }
     th { 
       text-align: left; 
-      padding: 7px 0 6px;
-      border-bottom: 1.5px solid #111;
-      font-weight: 600;
-      font-size: 11px;
+      padding: 7px 0 6px; 
+      border-bottom: 1.5px solid #111; 
+      font-weight: 600; 
+      font-size: 11px; 
       color: #333;
     }
     th.right { text-align: right; }
