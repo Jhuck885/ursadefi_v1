@@ -16,7 +16,6 @@ export default function XRPLConnect({ onConnect }: XRPLConnectProps = {}) {
   const [polling, setPolling] = useState(false);
   const [error, setError] = useState('');
 
-  // Create real Xaman SignIn payload
   const generateXamanQR = async () => {
     setLoading(true);
     setError('');
@@ -44,7 +43,6 @@ export default function XRPLConnect({ onConnect }: XRPLConnectProps = {}) {
     }
   };
 
-  // Poll for signature
   useEffect(() => {
     if (!polling || !uuid) return;
 
@@ -65,7 +63,6 @@ export default function XRPLConnect({ onConnect }: XRPLConnectProps = {}) {
           setWallet(wallet);
           onConnect?.(wallet);
 
-          // Redirect to dashboard
           setTimeout(() => {
             window.location.href = '/dashboard';
           }, 300);
@@ -81,7 +78,7 @@ export default function XRPLConnect({ onConnect }: XRPLConnectProps = {}) {
       } catch (err) {
         console.error('Polling error:', err);
       }
-    }, 2000); // Poll every 2 seconds
+    }, 2000);
 
     return () => clearInterval(interval);
   }, [polling, uuid, setWallet, onConnect]);
@@ -124,6 +121,10 @@ export default function XRPLConnect({ onConnect }: XRPLConnectProps = {}) {
         </div>
       ) : (
         <div className="space-y-4 text-center">
+          {/* Logo in top right of QR screen */}
+          <div className="flex justify-end mb-2">
+            <img src="/ursa-logo.png" alt="UrsaDeFi" className="w-8 h-8" />
+          </div>
           <p className="text-sm text-gray-300">Scan with Xaman on your iPhone</p>
           <div className="inline-block p-4 bg-white rounded-2xl">
             <QRCodeCanvas value={qrUrl} size={220} />
