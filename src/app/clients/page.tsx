@@ -20,26 +20,34 @@ export default function ClientsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // New Client Form State
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [newAddress, setNewAddress] = useState('');
+  const [newPhone, setNewPhone] = useState('');
+
+  // Edit State
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editAddress, setEditAddress] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+
   const fetchClients = async () => {
     if (!wallet?.address) return;
-    
     setLoading(true);
     const { data, error } = await supabaseBrowser
       .from('clients')
       .select('*')
       .eq('wallet_address', wallet.address)
       .order('created_at', { ascending: false });
-
-    if (!error && data) {
-      setClients(data as Client[]);
-    }
+    if (!error && data) setClients(data as Client[]);
     setLoading(false);
   };
 
   useEffect(() => {
-    if (isConnected) {
-      fetchClients();
-    }
+    if (isConnected) fetchClients();
   }, [wallet?.address, isConnected]);
 
   const filteredClients = clients.filter(client =>
@@ -47,6 +55,35 @@ export default function ClientsPage() {
     (client.email && client.email.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
+  // Add New Client
+  const handleAddClient = async () => {
+    if (!newName.trim() || !wallet?.address) {
+      alert('Client name is required');
+      return;
+    }
+
+    const { data, error } = await supabaseBrowser
+      .from('clients')
+      .insert([{
+        wallet_address: wallet.address,
+        name: newName.trim(),
+        email: newEmail.trim() || null,
+        address: newAddress.trim() || null,
+        city_state: newPhone.trim() || null,
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      alert('Failed to add client');
+    } else if (data) {
+      setClients(prev => [data as Client, ...prev]);
+      setNewName(''); setNewEmail(''); setNewAddress(''); setNewPhone('');
+      setShowAddForm(false);
+    }
+  };
+
+  // Delete Client
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`Delete client "${name}"? This cannot be undone.`)) return;
 
@@ -59,6 +96,43 @@ export default function ClientsPage() {
       alert('Failed to delete client');
     } else {
       setClients(prev => prev.filter(c => c.id !== id));
+    }
+  };
+
+  // Start Editing
+  const startEdit = (client: Client) => {
+    setEditingClient(client);
+    setEditName(client.name);
+    setEditEmail(client.email || '');
+    setEditAddress(client.address || '');
+    setEditPhone(client.city_state || '');
+  };
+
+  // Save Edit
+  const handleSaveEdit = async () => {
+    if (!editingClient || !editName.trim()) return;
+
+    const { error } = await supabaseBrowser
+      .from('clients')
+      .update({
+        name: editName.trim(),
+        email: editEmail.trim() || null,
+        address: editAddress.trim() || null,
+        city_state: editPhone.trim() || null,
+      })
+      .eq('id', editingClient.id);
+
+    if (error) {
+      alert('Failed to update client');
+    } else {
+      setClients(prev =>
+        prev.map(c =>
+          c.id === editingClient.id
+            ? { ...c, name: editName.trim(), email: editEmail.trim() || undefined, address: editAddress.trim() || undefined, city_state: editPhone.trim() || undefined }
+            : c
+        )
+      );
+      setEditingClient(null);
     }
   };
 
@@ -80,13 +154,31 @@ export default function ClientsPage() {
           <h1 className="text-3xl font-bold tracking-tight">Clients</h1>
           <p className="text-zinc-400 mt-1">Manage your client database</p>
         </div>
-        <Link 
-          href="/dashboard" 
-          className="px-4 py-2 bg-[#1D9BF0] hover:bg-[#1a8cd8] text-white rounded-full text-sm font-medium transition"
+
+        <button
+          onClick={() => setShowAddForm(!showAddForm)}
+          className="px-5 py-2 bg-[#1D9BF0] hover:bg-[#1a8cd8] text-white rounded-full text-sm font-medium transition"
         >
-          + New Invoice
-        </Link>
+          + New Client
+        </button>
       </div>
+
+      {/* Add New Client Form */}
+      {showAddForm && (
+        <div className="bg-zinc-950 border border-zinc-700 rounded-2xl p-6 mb-8 max-w-2xl">
+          <h3 className="font-semibold mb-4">Add New Client</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input type="text" placeholder="Client / Company Name *" value={newName} onChange={e => setNewName(e.target.value)} className="bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm" />
+            <input type="email" placeholder="Email" value={newEmail} onChange={e => setNewEmail(e.target.value)} className="bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm" />
+            <input type="text" placeholder="Address" value={newAddress} onChange={e => setNewAddress(e.target.value)} className="bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm md:col-span-2" />
+            <input type="text" placeholder="Phone" value={newPhone} onChange={e => setNewPhone(e.target.value)} className="bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm" />
+          </div>
+          <div className="flex gap-3 mt-5">
+            <button onClick={handleAddClient} className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 rounded-full text-sm font-medium transition">Save Client</button>
+            <button onClick={() => setShowAddForm(false)} className="px-6 py-2.5 border border-zinc-700 hover:bg-zinc-900 rounded-full text-sm transition">Cancel</button>
+          </div>
+        </div>
+      )}
 
       {/* Search */}
       <div className="mb-6">
@@ -103,53 +195,47 @@ export default function ClientsPage() {
         <div className="text-center py-12 text-zinc-400">Loading clients...</div>
       ) : filteredClients.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-zinc-400 mb-4">
-            {searchTerm ? 'No clients match your search.' : 'No clients yet.'}
-          </p>
-          <Link 
-            href="/dashboard" 
-            className="inline-block px-6 py-3 bg-zinc-800 hover:bg-zinc-700 rounded-full text-sm transition"
-          >
-            Create your first invoice
-          </Link>
+          <p className="text-zinc-400 mb-4">{searchTerm ? 'No clients match your search.' : 'No clients yet.'}</p>
         </div>
       ) : (
         <div className="grid gap-4">
           {filteredClients.map((client) => (
-            <div 
-              key={client.id} 
-              className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 flex items-start justify-between hover:border-zinc-700 transition"
-            >
+            <div key={client.id} className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 flex items-start justify-between hover:border-zinc-700 transition">
               <div className="flex-1">
                 <h3 className="font-semibold text-lg">{client.name}</h3>
-                {client.email && (
-                  <p className="text-sm text-zinc-400 mt-1">{client.email}</p>
-                )}
-                {client.address && (
-                  <p className="text-sm text-zinc-500 mt-1">{client.address}</p>
-                )}
-                {client.city_state && (
-                  <p className="text-sm text-zinc-500">{client.city_state}</p>
-                )}
-                <p className="text-xs text-zinc-600 mt-3">
-                  Added {new Date(client.created_at).toLocaleDateString()}
-                </p>
+                {client.email && <p className="text-sm text-zinc-400 mt-1">{client.email}</p>}
+                {client.address && <p className="text-sm text-zinc-500 mt-1">{client.address}</p>}
+                {client.city_state && <p className="text-sm text-zinc-500">{client.city_state}</p>}
+                <p className="text-xs text-zinc-600 mt-3">Added {new Date(client.created_at).toLocaleDateString()}</p>
               </div>
 
               <div className="flex gap-2">
-                <button
-                  onClick={() => handleDelete(client.id, client.name)}
-                  className="px-4 py-2 text-sm text-red-400 hover:text-red-500 hover:bg-red-950/50 rounded-xl transition"
-                >
-                  Delete
-                </button>
-                {/* Edit button placeholder for next step */}
-                <button className="px-4 py-2 text-sm border border-zinc-700 hover:bg-zinc-900 rounded-xl transition">
-                  Edit
-                </button>
+                <button onClick={() => handleDelete(client.id, client.name)} className="px-4 py-2 text-sm text-red-400 hover:text-red-500 hover:bg-red-950/50 rounded-xl transition">Delete</button>
+                <button onClick={() => startEdit(client)} className="px-4 py-2 text-sm border border-zinc-700 hover:bg-zinc-900 rounded-xl transition">Edit</button>
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editingClient && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-zinc-950 border border-zinc-700 rounded-2xl p-8 w-full max-w-md">
+            <h3 className="text-xl font-semibold mb-6">Edit Client</h3>
+
+            <div className="space-y-4">
+              <input type="text" value={editName} onChange={e => setEditName(e.target.value)} className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm" placeholder="Name" />
+              <input type="email" value={editEmail} onChange={e => setEditEmail(e.target.value)} className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm" placeholder="Email" />
+              <input type="text" value={editAddress} onChange={e => setEditAddress(e.target.value)} className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm" placeholder="Address" />
+              <input type="text" value={editPhone} onChange={e => setEditPhone(e.target.value)} className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm" placeholder="Phone" />
+            </div>
+
+            <div className="flex gap-3 mt-8">
+              <button onClick={handleSaveEdit} className="flex-1 py-3 bg-[#1D9BF0] hover:bg-[#1a8cd8] rounded-full text-sm font-semibold transition">Save Changes</button>
+              <button onClick={() => setEditingClient(null)} className="flex-1 py-3 border border-zinc-700 hover:bg-zinc-900 rounded-full text-sm transition">Cancel</button>
+            </div>
+          </div>
         </div>
       )}
     </div>
