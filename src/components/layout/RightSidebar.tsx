@@ -11,7 +11,7 @@ interface FormattedPayment {
 }
 
 const PriceCard = ({ coinId, label }: { coinId: string; label: string }) => {
-  const [price, setPrice: number | null>(null);
+  const [price, setPrice] = useState<number | null>(null);
   const [change, setChange] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
