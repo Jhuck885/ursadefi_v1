@@ -6,16 +6,16 @@ import { Moon, Sun } from 'lucide-react';
 import { WalletProvider } from '@/context/WalletContext';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const [dark, setDark] = useState<boolean | null>(null);
+  const [isDark, setIsDark] = useState(true);
 
-  // Initialize theme on mount
   useEffect(() => {
     const saved = localStorage.getItem('theme');
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const initialDark = saved ? saved === 'dark' : prefersDark;
+    const shouldBeDark = saved ? saved === 'dark' : prefersDark;
 
-    setDark(initialDark);
-    if (initialDark) {
+    setIsDark(shouldBeDark);
+
+    if (shouldBeDark) {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
@@ -23,12 +23,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   }, []);
 
   const toggleTheme = () => {
-    if (dark === null) return;
+    const newIsDark = !isDark;
+    setIsDark(newIsDark);
 
-    const newDark = !dark;
-    setDark(newDark);
-
-    if (newDark) {
+    if (newIsDark) {
       document.documentElement.classList.add('dark');
       localStorage.setItem('theme', 'dark');
     } else {
@@ -37,19 +35,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     }
   };
 
-  // Prevent flash before theme is determined
-  if (dark === null) {
-    return (
-      <html lang="en" className="dark">
-        <body className="bg-black text-white min-h-screen">
-          <div className="pt-16">{children}</div>
-        </body>
-      </html>
-    );
-  }
-
   return (
-    <html lang="en" className={dark ? 'dark' : ''}>
+    <html lang="en">
       <body className="bg-black text-white min-h-screen">
         <WalletProvider>
           <nav className="fixed top-0 left-0 right-0 z-50 bg-black/90 border-b border-zinc-800 px-4 py-3 flex justify-between items-center">
@@ -62,7 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               className="p-2 rounded-xl border border-zinc-700 hover:bg-zinc-800 transition flex items-center justify-center"
               aria-label="Toggle theme"
             >
-              {dark ? <Sun size={18} className="text-yellow-400" /> : <Moon size={18} className="text-blue-400" />}
+              {isDark ? <Sun size={18} className="text-yellow-400" /> : <Moon size={18} className="text-blue-400" />}
             </button>
           </nav>
           <div className="pt-16">{children}</div>
