@@ -55,7 +55,9 @@ export default function LeftSidebar() {
   return (
     <aside className="hidden lg:flex w-72 flex-col border-r border-gray-800 bg-black fixed inset-y-0 left-0">
       <div className="p-6 border-b border-gray-800">
-        <h1 className="text-3xl font-bold text-white">UrsaDeFi</h1>
+        <div className="flex items-center gap-3">
+          <img src="/ursa-logo.png" alt="UrsaDeFi" className="h-8 w-auto" />
+        </div>
         {isConnected && shortAddress && (
           <div className="mt-2 text-xs text-emerald-400 flex items-center gap-1">
             ● Connected {shortAddress}
