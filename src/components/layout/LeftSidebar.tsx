@@ -53,8 +53,8 @@ export default function LeftSidebar() {
   const shortAddress = wallet?.address ? `${wallet.address.slice(0, 6)}...${wallet.address.slice(-4)}` : null;
 
   return (
-    <aside className="hidden lg:flex w-72 flex-col border-r border-gray-800 bg-black fixed inset-y-0 left-0">
-      <div className="p-6 border-b border-gray-800">
+    <aside className="hidden lg:flex w-72 flex-col border-r border-[var(--border-color)] bg-[var(--bg-primary)] fixed inset-y-0 left-0 text-[var(--text-primary)]">
+      <div className="p-6 border-b border-[var(--border-color)]">
         <div className="flex items-center gap-3">
           <img src="/ursa-logo.png" alt="UrsaDeFi" className="h-8 w-auto" />
         </div>
@@ -70,7 +70,7 @@ export default function LeftSidebar() {
           <Link
             key={item.name}
             href={item.href}
-            className="flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-gray-900 transition text-lg"
+            className="flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-[var(--bg-secondary)] transition text-lg"
           >
             <item.icon className="w-6 h-6" />
             <span>{item.name}</span>
@@ -78,10 +78,10 @@ export default function LeftSidebar() {
         ))}
       </nav>
 
-      <div className="p-4 border-t border-gray-800 space-y-2">
+      <div className="p-4 border-t border-[var(--border-color)] space-y-2">
         <button
           onClick={handleExportCSV}
-          className="flex w-full items-center gap-3 px-4 py-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-sm transition"
+          className="flex w-full items-center gap-3 px-4 py-3 rounded-xl bg-[var(--bg-secondary)] hover:bg-zinc-200 dark:hover:bg-zinc-800 text-sm transition"
         >
           <Download className="w-5 h-5" />
           <span>Export CSV (Free)</span>
