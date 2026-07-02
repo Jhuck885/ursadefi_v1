@@ -7,7 +7,7 @@ import { useWallet } from '@/context/WalletContext';
 const navItems = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
   { name: 'Invoices', href: '/dashboard', icon: FileText },
-  { name: 'Clients', href: '/dashboard', icon: Users },
+  { name: 'Clients', href: '/clients', icon: Users },
   { name: 'Reports', href: '/dashboard', icon: BarChart3 },
   { name: 'Settings', href: '/dashboard', icon: Settings },
   { name: 'Profile', href: '/dashboard', icon: User },
