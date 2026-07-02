@@ -353,10 +353,10 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
 
         <div className="flex flex-col sm:flex-row gap-3 pt-2">
           <button type="submit" disabled={loading} className={pillButton}>
-            Save Invoice (Draft)
+            Save Invoice
           </button>
           <button type="button" onClick={handleMint} disabled={loading} className={pillButton}>
-            Mint as XRPL NFT (Testnet)
+            Mint as XRPL NFT
           </button>
         </div>
 
