@@ -161,7 +161,7 @@ export default function RightSidebar() {
 
   const handleInvoiceSuccess = () => {
     setIsModalOpen(false);
-    alert('✅ Invoice created successfully!');
+    alert('✅ Invoice created successfully! Saved to cloud.');
   };
 
   return (
@@ -195,7 +195,7 @@ export default function RightSidebar() {
               onClick={() => setIsModalOpen(false)}
               className="absolute top-6 right-6 text-gray-400 hover:text-white text-2xl"
             >
-              &times;
+              &times>
             </button>
 
             <div className="mb-6">
