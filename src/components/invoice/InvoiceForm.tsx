@@ -19,6 +19,14 @@ interface InvoiceFormData {
   dueDate: string;
 }
 
+interface Client {
+  id: string;
+  name: string;
+  email?: string;
+  address?: string;
+  city_state?: string;
+}
+
 interface Props {
   onSuccess?: (data: Invoice) => void;
 }
@@ -27,6 +35,11 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
   const { wallet } = useWallet();
   const [loading, setLoading] = useState(false);
   const [xrpRate] = useState(2.45);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [selectedClientId, setSelectedClientId] = useState('');
+  const [showNewClientForm, setShowNewClientForm] = useState(false);
+  const [newClientName, setNewClientName] = useState('');
+  const [newClientEmail, setNewClientEmail] = useState('');
 
   const { register, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm<InvoiceFormData>({
     defaultValues: {
@@ -43,6 +56,86 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
 
   const watchedAmount = watch('amount');
   const watchedXrp = watch('xrpAmount');
+
+  // Fetch user's saved clients
+  const fetchClients = async () => {
+    if (!wallet?.address) return;
+
+    const { data, error } = await supabaseBrowser
+      .from('clients')
+      .select('*')
+      .eq('wallet_address', wallet.address)
+      .order('created_at', { ascending: false });
+
+    if (!error && data) {
+      setClients(data as Client[]);
+    }
+  };
+
+  useEffect(() => {
+    fetchClients();
+  }, [wallet?.address]);
+
+  // Auto-fill when client is selected
+  const handleClientSelect = (clientId: string) => {
+    setSelectedClientId(clientId);
+
+    if (!clientId) {
+      setValue('to', '');
+      return;
+    }
+
+    const selected = clients.find(c => c.id === clientId);
+    if (selected) {
+      setValue('to', selected.name);
+      // You can expand this later to also set address/description if needed
+    }
+  };
+
+  // Add new client
+  const handleAddNewClient = async () => {
+    if (!newClientName.trim() || !wallet?.address) {
+      alert('Please enter a client name');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const { data, error } = await supabaseBrowser
+        .from('clients')
+        .insert([{
+          wallet_address: wallet.address,
+          name: newClientName.trim(),
+          email: newClientEmail.trim() || null,
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Refresh clients list
+      await fetchClients();
+
+      // Auto-select the new client
+      if (data) {
+        setSelectedClientId(data.id);
+        setValue('to', data.name);
+      }
+
+      // Reset new client form
+      setNewClientName('');
+      setNewClientEmail('');
+      setShowNewClientForm(false);
+
+      alert('Client added successfully!');
+    } catch (e) {
+      console.error(e);
+      alert('Failed to add client');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     const total = Number(watchedAmount) || 0;
@@ -80,7 +173,6 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
     };
 
     try {
-      // Save to Supabase
       const { error } = await supabaseBrowser
         .from('invoices')
         .insert([{
@@ -99,11 +191,9 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
 
       if (error) throw error;
 
-      // Also keep localStorage as fallback
       const existing = JSON.parse(localStorage.getItem('invoices') || '[]');
       localStorage.setItem('invoices', JSON.stringify([newInvoice, ...existing]));
 
-      // Notify feed
       window.dispatchEvent(new Event('invoices-updated'));
 
       onSuccess?.(newInvoice);
@@ -119,6 +209,9 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
         receiver: formData.receiver,
         dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       });
+
+      setSelectedClientId('');
+      setShowNewClientForm(false);
     } catch (e) {
       console.error(e);
       alert('Save failed — try again');
@@ -164,6 +257,7 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
   return (
     <div className="space-y-5">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        {/* Invoice Name */}
         <div>
           <label className="block text-xs text-zinc-400 mb-1">INVOICE NAME</label>
           <input
@@ -174,16 +268,73 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
           {errors.invoiceName && <p className="text-red-400 text-xs mt-1">{errors.invoiceName.message}</p>}
         </div>
 
+        {/* Client Selection */}
         <div>
-          <label className="block text-xs text-zinc-400 mb-1">TO (Client / Company)</label>
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-xs text-zinc-400">TO (Client / Company)</label>
+            <button
+              type="button"
+              onClick={() => setShowNewClientForm(!showNewClientForm)}
+              className="text-xs text-[#1D9BF0] hover:underline"
+            >
+              {showNewClientForm ? 'Cancel' : '+ New Client'}
+            </button>
+          </div>
+
+          {/* Client Dropdown */}
+          {clients.length > 0 && !showNewClientForm && (
+            <select
+              value={selectedClientId}
+              onChange={(e) => handleClientSelect(e.target.value)}
+              className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm mb-2 focus:outline-none focus:border-[#1D9BF0]"
+            >
+              <option value="">-- Select existing client --</option>
+              {clients.map((client) => (
+                <option key={client.id} value={client.id}>
+                  {client.name}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {/* New Client Form */}
+          {showNewClientForm && (
+            <div className="bg-zinc-950 border border-zinc-700 rounded-xl p-4 mb-3 space-y-3">
+              <input
+                type="text"
+                placeholder="Client / Company Name *"
+                value={newClientName}
+                onChange={(e) => setNewClientName(e.target.value)}
+                className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm"
+              />
+              <input
+                type="email"
+                placeholder="Email (optional)"
+                value={newClientEmail}
+                onChange={(e) => setNewClientEmail(e.target.value)}
+                className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm"
+              />
+              <button
+                type="button"
+                onClick={handleAddNewClient}
+                disabled={loading || !newClientName.trim()}
+                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl transition disabled:opacity-50"
+              >
+                Save New Client
+              </button>
+            </div>
+          )}
+
+          {/* Manual TO input (always visible) */}
           <input
             {...register('to', { required: 'Client is required' })}
             className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#1D9BF0]"
-            placeholder="Acme Corp or client@email.com"
+            placeholder="Client name or email"
           />
           {errors.to && <p className="text-red-400 text-xs mt-1">{errors.to.message}</p>}
         </div>
 
+        {/* Description */}
         <div>
           <label className="block text-xs text-zinc-400 mb-1">DESCRIPTION (max 1500 characters)</label>
           <textarea
