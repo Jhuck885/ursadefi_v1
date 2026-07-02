@@ -5,6 +5,7 @@ import { useWallet } from '@/context/WalletContext';
 import { supabaseBrowser } from '@/lib/supabase';
 import Link from 'next/link';
 import { AlertTriangle } from 'lucide-react';
+import LeftSidebar from '@/components/layout/LeftSidebar';
 
 interface Client {
   id: string;
@@ -33,7 +34,6 @@ export default function ClientsPage() {
   const [editAddress, setEditAddress] = useState('');
   const [editPhone, setEditPhone] = useState('');
 
-  // Delete confirmation modal state
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
 
   const fetchClients = async () => {
@@ -84,7 +84,6 @@ export default function ClientsPage() {
     }
   };
 
-  // Open custom delete modal
   const confirmDelete = (client: Client) => {
     setClientToDelete(client);
   };
@@ -153,78 +152,83 @@ export default function ClientsPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-6 py-8">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Clients</h1>
-          <p className="text-zinc-400 mt-1">Manage your client database</p>
-        </div>
-
-        <button
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="px-5 py-2 bg-[#1D9BF0] hover:bg-[#1a8cd8] text-white rounded-full text-sm font-medium transition"
-        >
-          + New Client
-        </button>
+    <div className="flex min-h-screen bg-black text-white">
+      {/* Left Navigation Only */}
+      <div className="w-72 border-r border-gray-800 hidden lg:block flex-shrink-0">
+        <LeftSidebar />
       </div>
 
-      {showAddForm && (
-        <div className="bg-zinc-950 border border-zinc-700 rounded-2xl p-6 mb-8 max-w-2xl">
-          <h3 className="font-semibold mb-4">Add New Client</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input type="text" placeholder="Client / Company Name *" value={newName} onChange={e => setNewName(e.target.value)} className="bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm" />
-            <input type="email" placeholder="Email" value={newEmail} onChange={e => setNewEmail(e.target.value)} className="bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm" />
-            <input type="text" placeholder="Address" value={newAddress} onChange={e => setNewAddress(e.target.value)} className="bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm md:col-span-2" />
-            <input type="text" placeholder="Phone" value={newPhone} onChange={e => setNewPhone(e.target.value)} className="bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm" />
-          </div>
-          <div className="flex gap-3 mt-5">
-            <button onClick={handleAddClient} className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 rounded-full text-sm font-medium transition">Save Client</button>
-            <button onClick={() => setShowAddForm(false)} className="px-6 py-2.5 border border-zinc-700 hover:bg-zinc-900 rounded-full text-sm transition">Cancel</button>
-          </div>
-        </div>
-      )}
+      {/* Main Content */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-5xl mx-auto px-6 py-8">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">Clients</h1>
+              <p className="text-zinc-400 mt-1">Manage your client database</p>
+            </div>
 
-      <div className="mb-6">
-        <input
-          type="text"
-          placeholder="Search clients by name or email..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full max-w-md bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#1D9BF0]"
-        />
-      </div>
+            <button
+              onClick={() => setShowAddForm(!showAddForm)}
+              className="px-5 py-2 bg-[#1D9BF0] hover:bg-[#1a8cd8] text-white rounded-full text-sm font-medium transition"
+            >
+              + New Client
+            </button>
+          </div>
 
-      {loading ? (
-        <div className="text-center py-12 text-zinc-400">Loading clients...</div>
-      ) : filteredClients.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-zinc-400 mb-4">{searchTerm ? 'No clients match your search.' : 'No clients yet.'}</p>
-        </div>
-      ) : (
-        <div className="grid gap-4">
-          {filteredClients.map((client) => (
-            <div key={client.id} className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 flex items-start justify-between hover:border-zinc-700 transition">
-              <div className="flex-1">
-                <h3 className="font-semibold text-lg">{client.name}</h3>
-                {client.email && <p className="text-sm text-zinc-400 mt-1">{client.email}</p>}
-                {client.address && <p className="text-sm text-zinc-500 mt-1">{client.address}</p>}
-                {client.city_state && <p className="text-sm text-zinc-500">{client.city_state}</p>}
-                <p className="text-xs text-zinc-600 mt-3">Added {new Date(client.created_at).toLocaleDateString()}</p>
+          {showAddForm && (
+            <div className="bg-zinc-950 border border-zinc-700 rounded-2xl p-6 mb-8 max-w-2xl">
+              <h3 className="font-semibold mb-4">Add New Client</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input type="text" placeholder="Client / Company Name *" value={newName} onChange={e => setNewName(e.target.value)} className="bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm" />
+                <input type="email" placeholder="Email" value={newEmail} onChange={e => setNewEmail(e.target.value)} className="bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm" />
+                <input type="text" placeholder="Address" value={newAddress} onChange={e => setNewAddress(e.target.value)} className="bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm md:col-span-2" />
+                <input type="text" placeholder="Phone" value={newPhone} onChange={e => setNewPhone(e.target.value)} className="bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm" />
               </div>
-
-              <div className="flex gap-2">
-                <button 
-                  onClick={() => confirmDelete(client)}
-                  className="px-4 py-2 text-sm text-red-400 hover:text-red-500 hover:bg-red-950/50 rounded-xl transition"
-                >
-                  Delete
-                </button>
-                <button onClick={() => startEdit(client)} className="px-4 py-2 text-sm border border-zinc-700 hover:bg-zinc-900 rounded-xl transition">Edit</button>
+              <div className="flex gap-3 mt-5">
+                <button onClick={handleAddClient} className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 rounded-full text-sm font-medium transition">Save Client</button>
+                <button onClick={() => setShowAddForm(false)} className="px-6 py-2.5 border border-zinc-700 hover:bg-zinc-900 rounded-full text-sm transition">Cancel</button>
               </div>
             </div>
-          ))}
+          )}
+
+          <div className="mb-6">
+            <input
+              type="text"
+              placeholder="Search clients by name or email..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full max-w-md bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#1D9BF0]"
+            />
+          </div>
+
+          {loading ? (
+            <div className="text-center py-12 text-zinc-400">Loading clients...</div>
+          ) : filteredClients.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-zinc-400 mb-4">{searchTerm ? 'No clients match your search.' : 'No clients yet.'}</p>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {filteredClients.map((client) => (
+                <div key={client.id} className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 flex items-start justify-between hover:border-zinc-700 transition">
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-lg">{client.name}</h3>
+                    {client.email && <p className="text-sm text-zinc-400 mt-1">{client.email}</p>}
+                    {client.address && <p className="text-sm text-zinc-500 mt-1">{client.address}</p>}
+                    {client.city_state && <p className="text-sm text-zinc-500">{client.city_state}</p>}
+                    <p className="text-xs text-zinc-600 mt-3">Added {new Date(client.created_at).toLocaleDateString()}</p>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button onClick={() => confirmDelete(client)} className="px-4 py-2 text-sm text-red-400 hover:text-red-500 hover:bg-red-950/50 rounded-xl transition">Delete</button>
+                    <button onClick={() => startEdit(client)} className="px-4 py-2 text-sm border border-zinc-700 hover:bg-zinc-900 rounded-xl transition">Edit</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Edit Modal */}
       {editingClient && (
@@ -254,7 +258,6 @@ export default function ClientsPage() {
             <div className="flex justify-center mb-4">
               <AlertTriangle className="w-12 h-12 text-red-500" />
             </div>
-            
             <h3 className="text-xl font-semibold mb-2">WARNING</h3>
             <p className="text-zinc-300 mb-2">All client data will be lost</p>
             <p className="text-sm text-zinc-400 mb-6">
@@ -262,18 +265,8 @@ export default function ClientsPage() {
             </p>
 
             <div className="flex gap-3">
-              <button 
-                onClick={() => setClientToDelete(null)}
-                className="flex-1 py-3 border border-zinc-700 hover:bg-zinc-900 rounded-full text-sm transition"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleDelete}
-                className="flex-1 py-3 bg-red-600 hover:bg-red-700 rounded-full text-sm font-semibold transition"
-              >
-                Delete Client
-              </button>
+              <button onClick={() => setClientToDelete(null)} className="flex-1 py-3 border border-zinc-700 hover:bg-zinc-900 rounded-full text-sm transition">Cancel</button>
+              <button onClick={handleDelete} className="flex-1 py-3 bg-red-600 hover:bg-red-700 rounded-full text-sm font-semibold transition">Delete Client</button>
             </div>
           </div>
         </div>
