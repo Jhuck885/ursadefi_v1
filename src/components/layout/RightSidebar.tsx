@@ -169,7 +169,7 @@ export default function RightSidebar() {
       <XRPPriceCard />
       <BTCPriceCard />
 
-      <h2 className="text-xl font-bold mb-4">Tax Overview (Free)</h2>
+      <h2 className="text-xl font-bold mb-4">Tax Overview</h2>
       <div className="bg-[#16181c] rounded-xl p-4 mb-6 border border-yellow-600">
         <p className="text-sm text-gray-400">Next est. payment</p>
         <p className="text-2xl font-bold">$6,283</p>
