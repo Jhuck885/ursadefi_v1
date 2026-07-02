@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useWallet } from '@/context/WalletContext';
 
@@ -11,24 +11,80 @@ interface XRPLConnectProps {
 export default function XRPLConnect({ onConnect }: XRPLConnectProps = {}) {
   const { setWallet } = useWallet();
   const [qrUrl, setQrUrl] = useState('');
+  const [uuid, setUuid] = useState('');
   const [loading, setLoading] = useState(false);
+  const [polling, setPolling] = useState(false);
   const [error, setError] = useState('');
 
-  const generateXamanQR = () => {
+  // Create real Xaman SignIn payload
+  const generateXamanQR = async () => {
     setLoading(true);
     setError('');
+    setQrUrl('');
+    setUuid('');
 
     try {
-      const payload = { TransactionType: 'SignIn' };
-      const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64');
-      const qrCodeUrl = `https://xumm.app/sign/${base64Payload}`;
-      setQrUrl(qrCodeUrl);
+      const res = await fetch('/api/xaman/create-signin', {
+        method: 'POST'
+      });
+
+      if (!res.ok) throw new Error('Failed to create Xaman payload');
+
+      const data = await res.json();
+
+      if (data.error) throw new Error(data.error);
+
+      setQrUrl(data.qr_png || data.next_always);
+      setUuid(data.uuid);
+      setPolling(true);
     } catch (err: any) {
-      setError('Failed to generate QR: ' + err.message);
+      setError(err.message || 'Failed to connect to Xaman');
     } finally {
       setLoading(false);
     }
   };
+
+  // Poll for signature
+  useEffect(() => {
+    if (!polling || !uuid) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/xaman/poll-payload?uuid=${uuid}`);
+        const data = await res.json();
+
+        if (data.signed && data.address) {
+          clearInterval(interval);
+          setPolling(false);
+
+          const wallet = {
+            address: data.address,
+            publicKey: data.publicKey || ''
+          };
+
+          setWallet(wallet);
+          onConnect?.(wallet);
+
+          // Redirect to dashboard
+          setTimeout(() => {
+            window.location.href = '/dashboard';
+          }, 300);
+        }
+
+        if (data.expired) {
+          clearInterval(interval);
+          setPolling(false);
+          setError('QR code expired. Please try again.');
+          setQrUrl('');
+          setUuid('');
+        }
+      } catch (err) {
+        console.error('Polling error:', err);
+      }
+    }, 2000); // Poll every 2 seconds
+
+    return () => clearInterval(interval);
+  }, [polling, uuid, setWallet, onConnect]);
 
   const handleDemoConnect = () => {
     const testAddress = 'rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh';
@@ -55,7 +111,7 @@ export default function XRPLConnect({ onConnect }: XRPLConnectProps = {}) {
             disabled={loading}
             className={pillButton}
           >
-            {loading ? 'Generating QR...' : 'Connect with Xaman (Recommended)'}
+            {loading ? 'Connecting to Xaman...' : 'Connect with Xaman (Recommended)'}
           </button>
           <button
             onClick={handleDemoConnect}
@@ -78,6 +134,9 @@ export default function XRPLConnect({ onConnect }: XRPLConnectProps = {}) {
             <p>3. Scan QR code</p>
             <p>4. Approve SignIn</p>
           </div>
+
+          {polling && <p className="text-xs text-[#1D9BF0]">Waiting for approval in Xaman...</p>}
+
           <button
             onClick={handleDemoConnect}
             className={outlineButton}
@@ -85,7 +144,12 @@ export default function XRPLConnect({ onConnect }: XRPLConnectProps = {}) {
             [MVP Demo] I already signed → Continue
           </button>
           <button
-            onClick={() => setQrUrl('')}
+            onClick={() => {
+              setQrUrl('');
+              setUuid('');
+              setPolling(false);
+              setError('');
+            }}
             className="text-xs text-gray-500 hover:text-white"
           >
             Back
