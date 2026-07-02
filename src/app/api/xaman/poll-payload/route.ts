@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     if (payload?.meta?.signed) {
       // Get the wallet address from the response (correct path for signed payloads)
       const address = payload.response?.account;
-      const publicKey = payload.response?.signing_pubkey;
+      const publicKey = payload.response?.signer_pubkey;
 
       if (!address) {
         return NextResponse.json({ error: 'Signed but no account found' }, { status: 400 });
