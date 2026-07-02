@@ -15,6 +15,13 @@ export interface Invoice {
   description?: string;
   dueDate?: string;
   clientName?: string;
+  // Company profile (for dynamic invoice PDF header)
+  companyTagline?: string;
+  companyAddress?: string;
+  companyPhone?: string;
+  companyFax?: string;
+  clientAddress?: string;
+  clientCityState?: string;
   // on-chain immutable proof (deferred NFTokenMint)
   nftoken_id?: string | null;
   nft_uri?: string | null;
