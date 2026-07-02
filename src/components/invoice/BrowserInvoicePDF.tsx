@@ -11,19 +11,22 @@ export default function BrowserInvoicePDF({ invoice, compact = false }: Props) {
     const qrData = `xrp:${invoice.receiver || ''}?amount=${invoice.xrpAmount}`;
     const today = new Date().toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' });
 
+    // Clean invoice number (remove PREVIEW- prefix if present)
+    const cleanId = String(invoice.id || '').replace(/^PREVIEW-/, '');
+
     const html = `<!DOCTYPE html>
 <html>
 <head>
-  <title>Invoice #${invoice.id}</title>
+  <title>Invoice #${cleanId}</title>
   <meta charset="utf-8">
   <style>
     @page { size: letter; margin: 0.5in; }
     body { 
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
       margin: 0; 
-      padding: 0.6in 0.7in; 
+      padding: 0.55in 0.65in; 
       color: #111; 
-      line-height: 1.4; 
+      line-height: 1.35; 
       font-size: 13px;
     }
     .header { 
@@ -31,14 +34,14 @@ export default function BrowserInvoicePDF({ invoice, compact = false }: Props) {
       justify-content: space-between; 
       align-items: flex-start; 
       border-bottom: 2.5px solid #111; 
-      padding-bottom: 14px; 
-      margin-bottom: 22px;
+      padding-bottom: 12px; 
+      margin-bottom: 20px;
     }
     .company-info h1 { 
-      margin: 0 0 2px 0; 
-      font-size: 21px; 
+      margin: 0 0 3px 0; 
+      font-size: 20px; 
       font-weight: 700; 
-      letter-spacing: -0.3px;
+      letter-spacing: -0.4px;
     }
     .company-info p { 
       margin: 1px 0; 
@@ -50,48 +53,48 @@ export default function BrowserInvoicePDF({ invoice, compact = false }: Props) {
     }
     .invoice-title h1 { 
       margin: 0; 
-      font-size: 32px; 
+      font-size: 30px; 
       font-weight: 800; 
-      letter-spacing: 3px;
+      letter-spacing: 2.5px;
     }
     .invoice-meta { 
       text-align: right; 
-      margin-top: 6px; 
+      margin-top: 5px; 
       font-size: 12px;
     }
     .sections { 
       display: flex; 
       justify-content: space-between; 
-      margin-bottom: 24px;
-      gap: 40px;
+      margin-bottom: 20px;
+      gap: 35px;
     }
     .section { 
       width: 48%;
     }
     .section strong { 
       display: block; 
-      font-size: 11px; 
+      font-size: 10.5px; 
       color: #555; 
-      margin-bottom: 4px;
+      margin-bottom: 3px;
       letter-spacing: 0.5px;
     }
     table { 
       width: 100%; 
       border-collapse: collapse; 
-      margin: 18px 0 8px;
+      margin: 14px 0 6px;
       font-size: 12.5px;
     }
     th { 
       text-align: left; 
-      padding: 9px 0 8px; 
-      border-bottom: 1.5px solid #111; 
-      font-weight: 600; 
-      font-size: 11px; 
+      padding: 7px 0 6px;
+      border-bottom: 1.5px solid #111;
+      font-weight: 600;
+      font-size: 11px;
       color: #333;
     }
     th.right { text-align: right; }
     td { 
-      padding: 9px 0; 
+      padding: 7px 0; 
       border-bottom: 1px solid #ddd;
       vertical-align: top;
     }
@@ -101,31 +104,41 @@ export default function BrowserInvoicePDF({ invoice, compact = false }: Props) {
       font-weight: 700;
     }
     .total-row td { 
-      padding-top: 10px; 
+      padding-top: 8px; 
       border-bottom: none;
     }
-    .footer { 
-      margin-top: 38px; 
-      font-size: 11px; 
-      color: #444;
-      line-height: 1.5;
-    }
-    .powered { 
-      margin-top: 32px; 
-      font-size: 10px; 
-      color: #666; 
-      display: flex; 
-      justify-content: space-between; 
-      align-items: center;
+    .payment-line { 
+      margin-top: 14px; 
+      font-size: 12px;
     }
     .qr-section { 
-      margin-top: 25px; 
+      margin-top: 18px; 
       text-align: center;
     }
     .qr-section img { 
       border: 1px solid #ddd; 
-      padding: 6px; 
+      padding: 5px; 
       background: white;
+    }
+    .footer-text { 
+      margin-top: 28px; 
+      font-size: 11px; 
+      color: #444; 
+      line-height: 1.45;
+    }
+    .footer-brand { 
+      text-align: center; 
+      margin-top: 22px;
+      font-size: 12px;
+    }
+    .footer-brand .brand-name { 
+      font-weight: 700; 
+      font-size: 13px;
+      margin-bottom: 1px;
+    }
+    .footer-brand .powered { 
+      font-size: 10px; 
+      color: #666;
     }
     @media print {
       body { padding: 0.4in; }
@@ -137,16 +150,16 @@ export default function BrowserInvoicePDF({ invoice, compact = false }: Props) {
   <!-- Header -->
   <div class="header">
     <div class="company-info">
-      <h1>${invoice.from || 'Ursa User Company Name'}</h1>
-      <p>Ursa User Tagline</p>
-      <p>450 East 78th Ave • Denver, CO 80205</p>
-      <p>Phone: (123) 456-7890 &nbsp;&nbsp; Fax: (123) 456-7891</p>
+      <h1>${invoice.from || 'Your Company'}</h1>
+      <p>${invoice.companyTagline || ''}</p>
+      <p>${invoice.companyAddress || ''}</p>
+      <p>${invoice.companyPhone ? 'Phone: ' + invoice.companyPhone : ''} ${invoice.companyFax ? ' • Fax: ' + invoice.companyFax : ''}</p>
     </div>
     
     <div class="invoice-title">
       <h1>INVOICE</h1>
       <div class="invoice-meta">
-        <div><strong>INVOICE:</strong> #${invoice.id}</div>
+        <div><strong>INVOICE:</strong> #${cleanId}</div>
         <div><strong>DATE:</strong> ${today}</div>
       </div>
     </div>
@@ -156,17 +169,17 @@ export default function BrowserInvoicePDF({ invoice, compact = false }: Props) {
   <div class="sections">
     <div class="section">
       <strong>TO:</strong>
-      <div style="margin-top:4px; line-height:1.35;">
+      <div style="margin-top:3px; line-height:1.3;">
         ${invoice.to || 'Client Name'}<br>
-        Client Address Line 1<br>
-        City, State ZIP<br>
+        ${invoice.clientAddress || 'Client Address Line 1'}<br>
+        ${invoice.clientCityState || 'City, State ZIP'}<br>
         United States
       </div>
     </div>
     
     <div class="section" style="text-align:right;">
       <strong>FOR:</strong>
-      <div style="margin-top:4px; line-height:1.35;">
+      <div style="margin-top:3px; line-height:1.3;">
         ${invoice.description || 'Professional Services'}<br>
         XRPL Invoicing & Payments<br>
         UrsaDeFi Platform
@@ -179,9 +192,9 @@ export default function BrowserInvoicePDF({ invoice, compact = false }: Props) {
     <thead>
       <tr>
         <th>DESCRIPTION</th>
-        <th class="right" style="width: 90px;">HOURS</th>
-        <th class="right" style="width: 90px;">RATE</th>
-        <th class="right" style="width: 110px;">AMOUNT</th>
+        <th class="right" style="width: 85px;">HOURS</th>
+        <th class="right" style="width: 85px;">RATE</th>
+        <th class="right" style="width: 105px;">AMOUNT</th>
       </tr>
     </thead>
     <tbody>
@@ -199,33 +212,34 @@ export default function BrowserInvoicePDF({ invoice, compact = false }: Props) {
     </tbody>
     <tfoot>
       <tr class="total-row">
-        <td colspan="3" style="text-align:right; padding-right:12px;"><strong>TOTAL</strong></td>
+        <td colspan="3" style="text-align:right; padding-right:10px;"><strong>TOTAL</strong></td>
         <td class="right" style="font-size:15px;"><strong>$${invoice.total}</strong></td>
       </tr>
     </tfoot>
   </table>
 
   <!-- Payment Info -->
-  <div style="margin-top: 18px; font-size:12px;">
-    <strong>Pay ${invoice.xrpAmount} XRP</strong> to wallet: <span style="font-family:monospace; font-size:11px;">${invoice.receiver || 'r...'}</span>
+  <div class="payment-line">
+    <strong>Pay ${invoice.xrpAmount} XRP</strong> to wallet: <span style="font-family:monospace; font-size:11px;">${invoice.receiver || ''}</span>
   </div>
 
   <!-- QR Code -->
   <div class="qr-section">
-    <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(qrData)}" alt="XRP Payment QR Code" width="180" height="180" />
-    <p style="margin: 8px 0 0; font-size:11px; color:#555;">Scan with Xaman to pay instantly • NFT minted on confirmation</p>
+    <img src="https://api.qrserver.com/v1/create-qr-code/?size=170x170&data=${encodeURIComponent(qrData)}" alt="XRP Payment QR Code" width="170" height="170" />
+    <p style="margin: 6px 0 0; font-size:10.5px; color:#555;">Scan with Xaman to pay instantly • NFT minted on confirmation</p>
   </div>
 
-  <!-- Footer -->
-  <div class="footer">
+  <!-- Footer text -->
+  <div class="footer-text">
     Make all checks payable to ${invoice.from || 'UrsaDeFi'}.<br>
     Total due in 15 days. Overdue accounts subject to a service charge of 1% per month.<br><br>
     <strong>THANK YOU FOR YOUR BUSINESS!</strong>
   </div>
 
-  <div class="powered">
-    <div>Powered by <a href="https://ursadefi.com" style="color:#1D9BF0; text-decoration:none;">ursadefi.com</a></div>
-    <div style="font-size:9px; color:#888;">UrsaDeFi • XRPL Invoicing</div>
+  <!-- Centered Brand Footer -->
+  <div class="footer-brand">
+    <div class="brand-name">UrsaDeFi</div>
+    <div class="powered">Powered by ursadefi.com</div>
   </div>
 
   <script>window.print();</script>
@@ -236,7 +250,7 @@ export default function BrowserInvoicePDF({ invoice, compact = false }: Props) {
     win.document.close();
 
     setTimeout(() => {
-      const mailto = `mailto:?subject=Invoice%20%23${invoice.id}&body=Please%20find%20attached%20invoice%20via%20UrsaDeFi%20(XRPL).%20Pay%20with%20Xaman.`;
+      const mailto = `mailto:?subject=Invoice%20%23${cleanId}&body=Please%20find%20attached%20invoice%20via%20UrsaDeFi%20(XRPL).%20Pay%20with%20Xaman.`;
       window.location.href = mailto;
     }, 1800);
   };
