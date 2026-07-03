@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Light mode base styles */
+/* X.com-style theme variables */
 :root {
   --bg-primary: #ffffff;
   --bg-secondary: #f8f9fa;
@@ -13,8 +13,6 @@
   --card-border: #e5e7eb;
   --button-primary: #1D9BF0;
   --button-primary-hover: #1a8cd8;
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
 }
 
 .dark {
@@ -25,8 +23,8 @@
   --border-color: #333333;
   --card-bg: #1f2937;
   --card-border: #374151;
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+  --button-primary: #1D9BF0;
+  --button-primary-hover: #1a8cd8;
 }
 
 body {
@@ -36,69 +34,50 @@ body {
 }
 
 /* X.com-style cards */
-.card,
-.invoice-card,
-.bg-zinc-950,
-.bg-zinc-900 {
+.card, .invoice-card {
   background-color: var(--card-bg);
   border: 1px solid var(--card-border);
   color: var(--text-primary);
-  box-shadow: var(--shadow-sm);
-  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  transition: all 0.2s ease;
 }
 
-.card:hover,
-.invoice-card:hover {
-  box-shadow: var(--shadow-md);
+.card:hover, .invoice-card:hover {
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
 }
 
-/* Button styles (X.com inspired) */
+/* Consistent X.com-style buttons */
 button, .btn {
   transition: all 0.15s ease;
   font-weight: 600;
   border-radius: 9999px;
 }
 
+/* Primary action button */
 .btn-primary {
   background-color: var(--button-primary);
   color: white;
-  padding: 12px 24px;
-  font-size: 15px;
 }
 
 .btn-primary:hover {
   background-color: var(--button-primary-hover);
 }
 
-.btn-secondary {
+/* Secondary / outline buttons (including Share to X) */
+.btn-secondary, .btn-share-x {
   background-color: transparent;
   border: 1px solid var(--border-color);
   color: var(--text-primary);
-  padding: 10px 20px;
-  font-size: 14px;
 }
 
-.btn-secondary:hover {
-  background-color: var(--bg-secondary);
-}
-
-.btn-share-x {
-  background-color: transparent;
-  border: 1px solid var(--border-color);
-  color: var(--text-primary);
-  padding: 8px 16px;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.btn-share-x:hover {
+.btn-secondary:hover, .btn-share-x:hover {
   background-color: var(--bg-secondary);
   border-color: #1D9BF0;
   color: #1D9BF0;
 }
 
-/* Invoice card specific */
-.invoice-card {
-  padding: 20px;
-  border-radius: 16px;
+/* Make Share to X stand out slightly less than primary but consistent */
+.btn-share-x {
+  font-size: 13px;
+  padding: 8px 14px;
 }
