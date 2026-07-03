@@ -2,7 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* X.com-style theme variables */
 :root {
   --bg-primary: #ffffff;
   --bg-secondary: #f8f9fa;
@@ -11,8 +10,6 @@
   --border-color: #e5e7eb;
   --card-bg: #ffffff;
   --card-border: #e5e7eb;
-  --button-primary: #1D9BF0;
-  --button-primary-hover: #1a8cd8;
 }
 
 .dark {
@@ -23,8 +20,6 @@
   --border-color: #333333;
   --card-bg: #1f2937;
   --card-border: #374151;
-  --button-primary: #1D9BF0;
-  --button-primary-hover: #1a8cd8;
 }
 
 body {
@@ -33,37 +28,36 @@ body {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* X.com-style cards */
-.card, .invoice-card {
+/* Cards - work in both modes */
+.card,
+.invoice-card {
   background-color: var(--card-bg);
   border: 1px solid var(--card-border);
   color: var(--text-primary);
   box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  transition: all 0.2s ease;
 }
 
-.card:hover, .invoice-card:hover {
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+.dark .card,
+.dark .invoice-card {
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.3);
 }
 
-/* Consistent X.com-style buttons */
+/* Buttons - consistent */
 button, .btn {
   transition: all 0.15s ease;
   font-weight: 600;
   border-radius: 9999px;
 }
 
-/* Primary action button */
 .btn-primary {
-  background-color: var(--button-primary);
+  background-color: #1D9BF0;
   color: white;
 }
 
 .btn-primary:hover {
-  background-color: var(--button-primary-hover);
+  background-color: #1a8cd8;
 }
 
-/* Secondary / outline buttons (including Share to X) */
 .btn-secondary, .btn-share-x {
   background-color: transparent;
   border: 1px solid var(--border-color);
@@ -74,10 +68,4 @@ button, .btn {
   background-color: var(--bg-secondary);
   border-color: #1D9BF0;
   color: #1D9BF0;
-}
-
-/* Make Share to X stand out slightly less than primary but consistent */
-.btn-share-x {
-  font-size: 13px;
-  padding: 8px 14px;
 }
