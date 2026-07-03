@@ -11,6 +11,8 @@
   --border-color: #e5e7eb;
   --card-bg: #ffffff;
   --card-border: #e5e7eb;
+  --button-primary: #1D9BF0;
+  --button-primary-hover: #1a8cd8;
 }
 
 .dark {
@@ -21,6 +23,8 @@
   --border-color: #333333;
   --card-bg: #1f2937;
   --card-border: #374151;
+  --button-primary: #1D9BF0;
+  --button-primary-hover: #1a8cd8;
 }
 
 body {
@@ -36,9 +40,52 @@ body {
   color: var(--text-primary);
 }
 
-/* Button improvements */
-button {
+/* X.com-style buttons */
+button, .btn {
   transition: all 0.15s ease;
+  font-weight: 600;
+  border-radius: 9999px;
+}
+
+/* Primary button */
+.btn-primary {
+  background-color: var(--button-primary);
+  color: white;
+  padding: 12px 24px;
+  font-size: 15px;
+}
+
+.btn-primary:hover {
+  background-color: var(--button-primary-hover);
+}
+
+/* Secondary / outline button */
+.btn-secondary {
+  background-color: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 10px 20px;
+  font-size: 14px;
+}
+
+.btn-secondary:hover {
+  background-color: var(--bg-secondary);
+}
+
+/* Share to X button - special styling */
+.btn-share-x {
+  background-color: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.btn-share-x:hover {
+  background-color: var(--bg-secondary);
+  border-color: #1D9BF0;
+  color: #1D9BF0;
 }
 
 /* Invoice card specific */
@@ -46,9 +93,4 @@ button {
   background-color: var(--card-bg);
   border: 1px solid var(--card-border);
   color: var(--text-primary);
-}
-
-/* Make sure text in buttons has good contrast in light mode */
-.light button {
-  color: inherit;
 }
