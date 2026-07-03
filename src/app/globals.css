@@ -13,6 +13,8 @@
   --card-border: #e5e7eb;
   --button-primary: #1D9BF0;
   --button-primary-hover: #1a8cd8;
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
 }
 
 .dark {
@@ -23,8 +25,8 @@
   --border-color: #333333;
   --card-bg: #1f2937;
   --card-border: #374151;
-  --button-primary: #1D9BF0;
-  --button-primary-hover: #1a8cd8;
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.3);
 }
 
 body {
@@ -33,21 +35,30 @@ body {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* Card styling for both modes */
-.card, .bg-zinc-950, .bg-zinc-900 {
+/* X.com-style cards */
+.card,
+.invoice-card,
+.bg-zinc-950,
+.bg-zinc-900 {
   background-color: var(--card-bg);
-  border-color: var(--card-border);
+  border: 1px solid var(--card-border);
   color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
-/* X.com-style buttons */
+.card:hover,
+.invoice-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+/* Button styles (X.com inspired) */
 button, .btn {
   transition: all 0.15s ease;
   font-weight: 600;
   border-radius: 9999px;
 }
 
-/* Primary button */
 .btn-primary {
   background-color: var(--button-primary);
   color: white;
@@ -59,7 +70,6 @@ button, .btn {
   background-color: var(--button-primary-hover);
 }
 
-/* Secondary / outline button */
 .btn-secondary {
   background-color: transparent;
   border: 1px solid var(--border-color);
@@ -72,7 +82,6 @@ button, .btn {
   background-color: var(--bg-secondary);
 }
 
-/* Share to X button - special styling */
 .btn-share-x {
   background-color: transparent;
   border: 1px solid var(--border-color);
@@ -90,7 +99,6 @@ button, .btn {
 
 /* Invoice card specific */
 .invoice-card {
-  background-color: var(--card-bg);
-  border: 1px solid var(--card-border);
-  color: var(--text-primary);
+  padding: 20px;
+  border-radius: 16px;
 }
