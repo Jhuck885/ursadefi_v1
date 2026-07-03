@@ -8,8 +8,6 @@
   --text-primary: #111111;
   --text-secondary: #555555;
   --border-color: #e5e7eb;
-  --card-bg: #ffffff;
-  --card-border: #e5e7eb;
 }
 
 .dark {
@@ -18,54 +16,33 @@
   --text-primary: #ffffff;
   --text-secondary: #aaaaaa;
   --border-color: #333333;
-  --card-bg: #1f2937;
-  --card-border: #374151;
 }
 
 body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* Cards - work in both modes */
-.card,
-.invoice-card {
-  background-color: var(--card-bg);
-  border: 1px solid var(--card-border);
-  color: var(--text-primary);
-  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-}
-
-.dark .card,
-.dark .invoice-card {
-  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.3);
-}
-
-/* Buttons - consistent */
-button, .btn {
+/* Make all secondary/outline buttons consistent, including Share to X */
+.btn-secondary,
+.btn-share-x {
+  background-color: transparent !important;
+  border: 1px solid var(--border-color) !important;
+  color: var(--text-primary) !important;
+  border-radius: 9999px !important;
   transition: all 0.15s ease;
-  font-weight: 600;
-  border-radius: 9999px;
 }
 
+.btn-secondary:hover,
+.btn-share-x:hover {
+  background-color: var(--bg-secondary) !important;
+  border-color: #1D9BF0 !important;
+  color: #1D9BF0 !important;
+}
+
+/* Primary button stays blue */
 .btn-primary {
   background-color: #1D9BF0;
   color: white;
-}
-
-.btn-primary:hover {
-  background-color: #1a8cd8;
-}
-
-.btn-secondary, .btn-share-x {
-  background-color: transparent;
-  border: 1px solid var(--border-color);
-  color: var(--text-primary);
-}
-
-.btn-secondary:hover, .btn-share-x:hover {
-  background-color: var(--bg-secondary);
-  border-color: #1D9BF0;
-  color: #1D9BF0;
+  border-radius: 9999px;
 }
