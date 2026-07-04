@@ -2,9 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ===========================================
-   X.com Style Theme System (Clean)
-   =========================================== */
+/* X.com Style Theme System - Final Clean Version */
 
 :root {
   --bg-primary: #ffffff;
@@ -14,12 +12,6 @@
   --border-color: #e5e7eb;
   --card-bg: #ffffff;
   --card-border: #e5e7eb;
-  --button-secondary-bg: transparent;
-  --button-secondary-border: #e5e7eb;
-  --button-secondary-text: #111111;
-  --button-secondary-hover-bg: #f8f9fa;
-  --button-secondary-hover-border: #1D9BF0;
-  --button-secondary-hover-text: #1D9BF0;
 }
 
 .dark {
@@ -30,12 +22,6 @@
   --border-color: #333333;
   --card-bg: #1f2937;
   --card-border: #374151;
-  --button-secondary-bg: transparent;
-  --button-secondary-border: #333333;
-  --button-secondary-text: #ffffff;
-  --button-secondary-hover-bg: #111111;
-  --button-secondary-hover-border: #1D9BF0;
-  --button-secondary-hover-text: #1D9BF0;
 }
 
 body {
@@ -44,47 +30,51 @@ body {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* Cards - consistent in both modes */
-.card,
-.invoice-card,
+/* Force all common zinc classes to respect theme */
 .bg-zinc-950,
-.bg-zinc-900 {
+.bg-zinc-900,
+.bg-zinc-800,
+.bg-zinc-700 {
   background-color: var(--card-bg) !important;
-  border-color: var(--card-border) !important;
-  color: var(--text-primary) !important;
 }
 
-/* Borders */
+.border-zinc-800,
 .border-zinc-700,
-.border-zinc-800 {
+.border-zinc-600 {
   border-color: var(--border-color) !important;
 }
 
-/* Text colors */
 .text-zinc-400,
 .text-zinc-500,
-.text-zinc-600 {
+.text-zinc-600,
+.text-zinc-700 {
   color: var(--text-secondary) !important;
 }
 
-/* Secondary / Outline buttons (including Share to X) */
+/* Cards */
+.card,
+.invoice-card {
+  background-color: var(--card-bg) !important;
+  border: 1px solid var(--card-border) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Buttons */
 .btn-secondary,
 .btn-share-x {
   background-color: var(--button-secondary-bg) !important;
   border: 1px solid var(--button-secondary-border) !important;
   color: var(--button-secondary-text) !important;
   border-radius: 9999px !important;
-  transition: all 0.15s ease;
 }
 
 .btn-secondary:hover,
 .btn-share-x:hover {
-  background-color: var(--button-secondary-hover-bg) !important;
-  border-color: var(--button-secondary-hover-border) !important;
-  color: var(--button-secondary-hover-text) !important;
+  background-color: var(--bg-secondary) !important;
+  border-color: #1D9BF0 !important;
+  color: #1D9BF0 !important;
 }
 
-/* Primary button */
 .btn-primary {
   background-color: #1D9BF0;
   color: white;
