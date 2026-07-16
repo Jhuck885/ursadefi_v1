@@ -61,12 +61,16 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
 
   const fetchClients = async () => {
     if (!wallet?.address) return;
-    const { data, error } = await supabaseBrowser
-      .from('clients')
-      .select('*')
-      .eq('wallet_address', wallet.address)
-      .order('created_at', { ascending: false });
-    if (!error && data) setClients(data as Client[]);
+    try {
+      const { data, error } = await supabaseBrowser
+        .from('clients')
+        .select('*')
+        .eq('wallet_address', wallet.address)
+        .order('created_at', { ascending: false });
+      if (!error && data) setClients(data as Client[]);
+    } catch (err) {
+      console.warn('Supabase clients fetch failed (offline mode)', err);
+    }
   };
 
   useEffect(() => { fetchClients(); }, [wallet?.address]);
@@ -85,23 +89,44 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
     }
     setLoading(true);
     try {
-      const { data, error } = await supabaseBrowser
-        .from('clients')
-        .insert([{
-          wallet_address: wallet.address,
-          name: newClientName.trim(),
-          email: newClientEmail.trim() || null,
-          address: newClientAddress.trim() || null,
-          city_state: newClientPhone.trim() || null,
-        }])
-        .select()
-        .single();
-      if (error) throw error;
-      await fetchClients();
-      if (data) {
-        setSelectedClientId(data.id);
-        setValue('to', data.name);
+      // Always save locally first
+      const localClient = {
+        id: 'local-' + Date.now(),
+        name: newClientName.trim(),
+        email: newClientEmail.trim() || undefined,
+        address: newClientAddress.trim() || undefined,
+        city_state: newClientPhone.trim() || undefined,
+      };
+
+      // Try Supabase
+      try {
+        const { data, error } = await supabaseBrowser
+          .from('clients')
+          .insert([{
+            wallet_address: wallet.address,
+            name: newClientName.trim(),
+            email: newClientEmail.trim() || null,
+            address: newClientAddress.trim() || null,
+            city_state: newClientPhone.trim() || null,
+          }])
+          .select()
+          .single();
+        if (!error && data) {
+          setClients(prev => [data as Client, ...prev]);
+          setSelectedClientId(data.id);
+          setValue('to', data.name);
+        } else {
+          // Fallback to local
+          setClients(prev => [localClient as Client, ...prev]);
+          setSelectedClientId(localClient.id);
+          setValue('to', localClient.name);
+        }
+      } catch {
+        setClients(prev => [localClient as Client, ...prev]);
+        setSelectedClientId(localClient.id);
+        setValue('to', localClient.name);
       }
+
       setNewClientName(''); setNewClientEmail(''); setNewClientAddress(''); setNewClientPhone('');
       setShowNewClientForm(false);
       alert('Client added successfully!');
@@ -148,6 +173,17 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
       user_id: wallet.address,
     };
 
+    // Always save to localStorage first (MVP reliability)
+    try {
+      const existing = JSON.parse(localStorage.getItem('invoices') || '[]');
+      localStorage.setItem('invoices', JSON.stringify([newInvoice, ...existing]));
+      window.dispatchEvent(new Event('invoices-updated'));
+    } catch (e) {
+      console.error('localStorage save failed', e);
+    }
+
+    // Try Supabase (non-blocking)
+    let cloudSaved = false;
     try {
       const { error } = await supabaseBrowser
         .from('invoices')
@@ -165,35 +201,37 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
           status: newInvoice.status,
         }]);
 
-      if (error) throw error;
-
-      const existing = JSON.parse(localStorage.getItem('invoices') || '[]');
-      localStorage.setItem('invoices', JSON.stringify([newInvoice, ...existing]));
-
-      window.dispatchEvent(new Event('invoices-updated'));
-
-      onSuccess?.(newInvoice);
-      alert('✅ Invoice saved to cloud!');
-
-      reset({
-        invoiceName: '',
-        to: '',
-        description: '',
-        amount: 0,
-        total: 0,
-        xrpAmount: 0,
-        receiver: formData.receiver,
-        dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      });
-
-      setSelectedClientId('');
-      setShowNewClientForm(false);
+      if (!error) {
+        cloudSaved = true;
+      } else {
+        console.warn('Supabase invoice insert error (saved locally):', error);
+      }
     } catch (e) {
-      console.error(e);
-      alert('Save failed — try again');
-    } finally {
-      setLoading(false);
+      console.warn('Supabase unreachable — invoice saved locally only', e);
     }
+
+    onSuccess?.(newInvoice);
+
+    if (cloudSaved) {
+      alert('✅ Invoice saved to cloud + local!');
+    } else {
+      alert('✅ Invoice saved locally!\n\n(Cloud sync unavailable — Supabase project may be paused or misconfigured)');
+    }
+
+    reset({
+      invoiceName: '',
+      to: '',
+      description: '',
+      amount: 0,
+      total: 0,
+      xrpAmount: 0,
+      receiver: formData.receiver,
+      dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    });
+
+    setSelectedClientId('');
+    setShowNewClientForm(false);
+    setLoading(false);
   };
 
   const handleMint = async () => {
