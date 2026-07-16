@@ -1,15 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import InvoiceForm from '@/components/invoice/InvoiceForm';
-import { Client } from 'xrpl';
-
-interface FormattedPayment {
-  amount: number;
-  date: string;
-  hash: string;
-  tag: number | null;
-}
+import { Invoice } from '@/types';
+import { supabaseBrowser } from '@/lib/supabase';
 
 const PriceCard = ({ coinId, label }: { coinId: string; label: string }) => {
   const [price, setPrice] = useState<number | null>(null);
@@ -74,85 +69,133 @@ const PriceCard = ({ coinId, label }: { coinId: string; label: string }) => {
 const XRPPriceCard = () => <PriceCard coinId="ripple" label="XRP Price" />;
 const BTCPriceCard = () => <PriceCard coinId="bitcoin" label="BTC Price" />;
 
-const RecentPaymentsCard = () => {
-  const [payments, setPayments] = useState<FormattedPayment[]>([]);
+const OutstandingCard = () => {
+  const [outstanding, setOutstanding] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
-  const RECEIVING_ADDRESS = process.env.NEXT_PUBLIC_XRPL_RECEIVER_ADDRESS || 'rNb4AKqA6QwhD8Nfff7rVxg5RPmyTE1vVn';
+
+  const loadOutstanding = async () => {
+    setLoading(true);
+    let all: Invoice[] = [];
+
+    // Local first
+    try {
+      const local = JSON.parse(localStorage.getItem('invoices') || '[]');
+      all = [...local];
+    } catch {}
+
+    // Try Supabase
+    try {
+      const { data, error } = await supabaseBrowser
+        .from('invoices')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!error && data) {
+        const mapped: Invoice[] = data.map((row: any) => ({
+          id: row.id,
+          from: row.from_name || row.from || '',
+          to: row.to_name || row.to || '',
+          items: row.items || [{ desc: row.description || '', qty: 1, price: row.total || 0 }],
+          total: Number(row.total) || 0,
+          xrpAmount: Number(row.xrp_amount || row.xrpAmount) || 0,
+          receiver: row.receiver || '',
+          dueDate: row.due_date || row.dueDate || '',
+          description: row.description || '',
+          status: row.status || 'draft',
+          created_at: row.created_at,
+          user_id: row.wallet_address,
+        }));
+
+        const supabaseIds = new Set(mapped.map(i => i.id));
+        const localOnly = all.filter(i => !supabaseIds.has(i.id));
+        all = [...mapped, ...localOnly];
+      }
+    } catch (err) {
+      console.warn('Supabase outstanding fetch failed', err);
+    }
+
+    // Outstanding = not paid
+    const unpaid = all
+      .filter(inv => (inv.status || 'draft') !== 'paid')
+      .sort((a, b) => {
+        // Soonest due first
+        const da = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
+        const db = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+        return da - db;
+      })
+      .slice(0, 5);
+
+    setOutstanding(unpaid);
+    setLoading(false);
+  };
 
   useEffect(() => {
-    const fetchPayments = async () => {
-      try {
-        const client = new Client('wss://s.altnet.rippletest.net:51233');
-        await client.connect();
-        const response = await client.request({
-          command: 'account_tx',
-          account: RECEIVING_ADDRESS,
-          limit: 10,
-          ledger_index_min: -1,
-          ledger_index_max: -1,
-          forward: false,
-        });
+    loadOutstanding();
+    const handler = () => loadOutstanding();
+    window.addEventListener('invoices-updated', handler);
+    return () => window.removeEventListener('invoices-updated', handler);
+  }, []);
 
-        const transactions = response.result.transactions || [];
+  const totalOutstanding = outstanding.reduce((sum, i) => sum + (Number(i.total) || 0), 0);
 
-        const filteredTransactions = transactions.filter((tx: any) =>
-          tx.tx?.TransactionType === 'Payment' &&
-          tx.tx?.Destination === RECEIVING_ADDRESS &&
-          tx.validated === true
-        ).slice(0, 5);
+  if (loading) {
+    return <p className="text-[var(--text-secondary)] mb-8 text-sm">Loading outstanding...</p>;
+  }
 
-        const formatted = filteredTransactions.map((tx: any) => {
-          const txData = tx.tx;
-          const amountDrops = typeof txData?.Amount === 'string' ? Number(txData.Amount) : 0;
-          const amountXRP = amountDrops / 1000000;
-          const xrplTime = txData?.date || 0;
-          const unixTime = (xrplTime + 946684800) * 1000;
-          const date = new Date(unixTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-
-          return {
-            amount: amountXRP,
-            date,
-            hash: txData?.hash || '',
-            tag: txData?.DestinationTag || null,
-          };
-        });
-
-        setPayments(formatted);
-        await client.disconnect();
-      } catch (err: unknown) {
-        console.error('Payments fetch failed', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchPayments();
-    const interval = setInterval(fetchPayments, 60000);
-    return () => clearInterval(interval);
-  }, [RECEIVING_ADDRESS]);
-
-  if (loading) return <p className="text-[var(--text-secondary)] mb-8">Loading recent payments...</p>;
-  if (payments.length === 0) return <p className="text-[var(--text-secondary)] mb-8">No recent payments</p>;
+  if (outstanding.length === 0) {
+    return (
+      <div className="mb-8">
+        <p className="text-[var(--text-secondary)] text-sm">No outstanding invoices 🎉</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="mb-8 space-y-3">
-      {payments.map((p) => (
-        <div key={p.hash} className="p-3 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)]">
-          <div className="flex justify-between items-center mb-1">
-            <span className="font-bold text-[var(--text-primary)]">+{p.amount.toFixed(2)} XRP</span>
-            <span className="text-sm text-[var(--text-secondary)]">{p.date}</span>
-          </div>
-          {p.tag && <span className="text-xs text-[var(--text-secondary)]">Tag: {p.tag}</span>}
-          <a
-            href={`https://test.bithomp.com/explorer/${p.hash}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block mt-2 text-xs text-[var(--brand-primary)] hover:underline"
-          >
-            View transaction
-          </a>
-        </div>
-      ))}
+    <div className="mb-8">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-sm text-[var(--text-secondary)]">
+          {outstanding.length} open · ${totalOutstanding.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </p>
+        <Link href="/invoices" className="text-xs text-[var(--brand-primary)] hover:underline">
+          View all
+        </Link>
+      </div>
+
+      <div className="space-y-3">
+        {outstanding.map((inv) => {
+          const isOverdue = inv.dueDate && new Date(inv.dueDate) < new Date() && (inv.status || 'draft') !== 'paid';
+          return (
+            <div
+              key={inv.id}
+              className="p-3 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)]"
+            >
+              <div className="flex justify-between items-start gap-2 mb-1">
+                <span className="font-semibold text-[var(--text-primary)] truncate">
+                  {inv.to || 'Unknown client'}
+                </span>
+                <span className="font-bold text-sm whitespace-nowrap">
+                  ${Number(inv.total || 0).toFixed(2)}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between text-xs text-[var(--text-secondary)]">
+                <span className="font-mono truncate max-w-[120px]">{inv.id}</span>
+                {inv.dueDate && (
+                  <span className={isOverdue ? 'text-red-400 font-medium' : ''}>
+                    {isOverdue ? 'Overdue ' : 'Due '}{new Date(inv.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </span>
+                )}
+              </div>
+
+              {Number(inv.xrpAmount) > 0 && (
+                <p className="text-xs text-[var(--text-muted)] mt-1">
+                  ≈ {Number(inv.xrpAmount).toFixed(2)} XRP
+                </p>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };
@@ -162,7 +205,8 @@ export default function RightSidebar() {
 
   const handleInvoiceSuccess = () => {
     setIsModalOpen(false);
-    alert('✅ Invoice created successfully! Saved to cloud.');
+    // Fire event so Outstanding + Invoices pages refresh
+    window.dispatchEvent(new Event('invoices-updated'));
   };
 
   return (
@@ -178,8 +222,8 @@ export default function RightSidebar() {
         <p className="text-[var(--brand-accent)] text-sm mt-2">Upcoming</p>
       </div>
 
-      <h3 className="text-lg font-bold mb-4">Recent Payments</h3>
-      <RecentPaymentsCard />
+      <h3 className="text-lg font-bold mb-4">Outstanding</h3>
+      <OutstandingCard />
 
       <h3 className="text-lg font-bold mb-4">Quick Actions</h3>
       <button
