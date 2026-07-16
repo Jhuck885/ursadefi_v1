@@ -228,16 +228,16 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
   };
 
   const pillButton =
-    'flex-1 py-3.5 bg-[#1D9BF0] hover:bg-[#1a8cd8] text-white font-semibold rounded-full transition disabled:opacity-60';
+    'flex-1 py-3.5 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-semibold rounded-full transition disabled:opacity-60';
 
   return (
     <div className="space-y-5">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div>
-          <label className="block text-xs text-zinc-400 mb-1">INVOICE NAME</label>
+          <label className="block text-xs text-[var(--text-secondary)] mb-1">INVOICE NAME</label>
           <input
             {...register('invoiceName', { required: 'Invoice name is required' })}
-            className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#1D9BF0]"
+            className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[var(--brand-primary)]"
             placeholder="Project Alpha - Phase 1"
           />
           {errors.invoiceName && <p className="text-red-400 text-xs mt-1">{errors.invoiceName.message}</p>}
@@ -245,11 +245,11 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
 
         <div>
           <div className="flex items-center justify-between mb-1">
-            <label className="block text-xs text-zinc-400">TO (Client / Company)</label>
+            <label className="block text-xs text-[var(--text-secondary)]">TO (Client / Company)</label>
             <button
               type="button"
               onClick={() => setShowNewClientForm(!showNewClientForm)}
-              className="px-3 py-1 text-xs font-medium border border-zinc-700 hover:bg-zinc-900 rounded-full transition">
+              className="px-3 py-1 text-xs font-medium border border-[var(--border-color)] hover:bg-[var(--bg-secondary)] rounded-full transition">
               {showNewClientForm ? 'Cancel' : '+ New Client'}
             </button>
           </div>
@@ -258,7 +258,7 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
             <select
               value={selectedClientId}
               onChange={(e) => handleClientSelect(e.target.value)}
-              className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm mb-2 focus:outline-none focus:border-[#1D9BF0]"
+              className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl px-4 py-3 text-sm mb-2 focus:outline-none focus:border-[var(--brand-primary)]"
             >
               <option value="">-- Select existing client --</option>
               {clients.map((client) => (
@@ -270,34 +270,34 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
           )}
 
           {showNewClientForm && (
-            <div className="bg-zinc-950 border border-zinc-700 rounded-2xl p-4 mb-3 space-y-3">
+            <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-4 mb-3 space-y-3">
               <input
                 type="text"
                 placeholder="Client / Company Name *"
                 value={newClientName}
                 onChange={(e) => setNewClientName(e.target.value)}
-                className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm"
+                className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-4 py-2.5 text-sm"
               />
               <input
                 type="email"
                 placeholder="Email (optional)"
                 value={newClientEmail}
                 onChange={(e) => setNewClientEmail(e.target.value)}
-                className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm"
+                className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-4 py-2.5 text-sm"
               />
               <input
                 type="text"
                 placeholder="Address (optional)"
                 value={newClientAddress}
                 onChange={(e) => setNewClientAddress(e.target.value)}
-                className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm"
+                className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-4 py-2.5 text-sm"
               />
               <input
                 type="text"
                 placeholder="Phone (optional)"
                 value={newClientPhone}
                 onChange={(e) => setNewClientPhone(e.target.value)}
-                className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm"
+                className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-4 py-2.5 text-sm"
               />
               <button
                 type="button"
@@ -311,43 +311,43 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
 
           <input
             {...register('to', { required: 'Client is required' })}
-            className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#1D9BF0]"
+            className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[var(--brand-primary)]"
             placeholder="Client name or email"
           />
           {errors.to && <p className="text-red-400 text-xs mt-1">{errors.to.message}</p>}
         </div>
 
         <div>
-          <label className="block text-xs text-zinc-400 mb-1">DESCRIPTION (max 1500 characters)</label>
+          <label className="block text-xs text-[var(--text-secondary)] mb-1">DESCRIPTION (max 1500 characters)</label>
           <textarea
             {...register('description', { maxLength: 1500 })}
             rows={5}
             maxLength={1500}
-            className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm resize-y focus:outline-none focus:border-[#1D9BF0]"
+            className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl px-4 py-3 text-sm resize-y focus:outline-none focus:border-[var(--brand-primary)]"
             placeholder="Detailed description of work..."
           />
-          <p className="text-[10px] text-zinc-500 text-right mt-1">{watch('description')?.length || 0}/1500</p>
+          <p className="text-[10px] text-[var(--text-muted)] text-right mt-1">{watch('description')?.length || 0}/1500</p>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs text-zinc-400 mb-1">AMOUNT (USD)</label>
+            <label className="block text-xs text-[var(--text-secondary)] mb-1">AMOUNT (USD)</label>
             <input
               type="number"
               step="0.01"
               {...register('amount', { valueAsNumber: true, required: true })}
-              className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-lg font-semibold focus:outline-none focus:border-[#1D9BF0]"
+              className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl px-4 py-3 text-lg font-semibold focus:outline-none focus:border-[var(--brand-primary)]"
             />
           </div>
           <div>
-            <label className="block text-xs text-zinc-400 mb-1">DUE DATE</label>
-            <input type="date" {...register('dueDate')} className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm" />
+            <label className="block text-xs text-[var(--text-secondary)] mb-1">DUE DATE</label>
+            <input type="date" {...register('dueDate')} className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl px-4 py-3 text-sm" />
           </div>
         </div>
 
         {watchedAmount > 0 && (
-          <div className="text-sm text-zinc-400">
-            ≈ <span className="font-semibold text-white">{watchedXrp.toFixed(2)} XRP</span> (auto)
+          <div className="text-sm text-[var(--text-secondary)]">
+            ≈ <span className="font-semibold text-[var(--text-primary)]">{watchedXrp.toFixed(2)} XRP</span> (auto)
           </div>
         )}
 
@@ -360,7 +360,7 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
           </button>
         </div>
 
-        <div className="text-[10px] text-zinc-500 text-center">Fee ~0.15% max • Non-custodial • PDF + email ready</div>
+        <div className="text-[10px] text-[var(--text-muted)] text-center">Fee ~0.15% max • Non-custodial • PDF + email ready</div>
       </form>
 
       <div className="pt-1">
