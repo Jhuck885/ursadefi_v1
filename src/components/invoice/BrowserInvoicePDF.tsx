@@ -1,12 +1,48 @@
 'use client';
 import { Invoice } from '@/types';
 
+interface CompanyProfile {
+  username?: string;
+  companyName?: string;
+  website?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  cityStateZip?: string;
+  country?: string;
+  ein?: string;
+  tagline?: string;
+  logoDataUrl?: string;
+}
+
 interface Props { invoice: Invoice; compact?: boolean; }
+
+function loadCompanyProfile(): CompanyProfile {
+  try {
+    const raw = localStorage.getItem('ursadefi_company_profile');
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return {};
+}
 
 export default function BrowserInvoicePDF({ invoice, compact = false }: Props) {
   const openPDF = async () => {
     const win = window.open('', '_blank');
     if (!win) { alert('Pop-up blocked — allow for PDF'); return; }
+
+    const profile = loadCompanyProfile();
+
+    // Prefer company profile data, fall back to invoice fields
+    const companyName = profile.companyName || invoice.from || 'Your Company';
+    const companyTagline = profile.tagline || invoice.companyTagline || '';
+    const companyAddress = profile.address || invoice.companyAddress || '';
+    const companyCity = profile.cityStateZip || '';
+    const companyCountry = profile.country || 'United States';
+    const companyPhone = profile.phone || invoice.companyPhone || '';
+    const companyEmail = profile.email || '';
+    const companyWebsite = profile.website || '';
+    const companyEin = profile.ein || '';
+    const companyLogo = profile.logoDataUrl || '';
 
     const qrData = `xrp:${invoice.receiver || ''}?amount=${invoice.xrpAmount}`;
     const today = new Date().toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' });
@@ -27,6 +63,22 @@ export default function BrowserInvoicePDF({ invoice, compact = false }: Props) {
       console.error('QR generation failed', err);
       qrDataUrl = `https://api.qrserver.com/v1/create-qr-code/?size=170x170&data=${encodeURIComponent(qrData)}`;
     }
+
+    // Build company info lines for the header
+    const companyLines = [
+      companyTagline ? `<p>${companyTagline}</p>` : '',
+      companyAddress ? `<p>${companyAddress}</p>` : '',
+      companyCity ? `<p>${companyCity}</p>` : '',
+      companyCountry ? `<p>${companyCountry}</p>` : '',
+      companyPhone ? `<p>Phone: ${companyPhone}</p>` : '',
+      companyEmail ? `<p>${companyEmail}</p>` : '',
+      companyWebsite ? `<p>${companyWebsite}</p>` : '',
+      companyEin ? `<p>EIN: ${companyEin}</p>` : '',
+    ].filter(Boolean).join('');
+
+    const logoHtml = companyLogo
+      ? `<img src="${companyLogo}" alt="${companyName}" style="height: 48px; max-width: 160px; object-fit: contain; margin-bottom: 8px;" />`
+      : '';
 
     const html = `<!DOCTYPE html>
 <html>
@@ -162,10 +214,9 @@ export default function BrowserInvoicePDF({ invoice, compact = false }: Props) {
 
   <div class="header">
     <div class="company-info">
-      <h1>${invoice.from || 'Your Company'}</h1>
-      <p>${invoice.companyTagline || ''}</p>
-      <p>${invoice.companyAddress || ''}</p>
-      <p>${invoice.companyPhone ? 'Phone: ' + invoice.companyPhone : ''} ${invoice.companyFax ? ' • Fax: ' + invoice.companyFax : ''}</p>
+      ${logoHtml}
+      <h1>${companyName}</h1>
+      ${companyLines}
     </div>
     
     <div class="invoice-title">
@@ -182,8 +233,8 @@ export default function BrowserInvoicePDF({ invoice, compact = false }: Props) {
       <strong>TO:</strong>
       <div style="margin-top:3px; line-height:1.3;">
         ${invoice.to || 'Client Name'}<br>
-        ${invoice.clientAddress || 'Client Address Line 1'}<br>
-        ${invoice.clientCityState || 'City, State ZIP'}<br>
+        ${invoice.clientAddress || ''}<br>
+        ${invoice.clientCityState || ''}<br>
         United States
       </div>
     </div>
@@ -238,13 +289,13 @@ export default function BrowserInvoicePDF({ invoice, compact = false }: Props) {
   </div>
 
   <div class="footer-text">
-    Make all checks payable to ${invoice.from || 'UrsaDeFi'}.<br>
+    Make all checks payable to ${companyName}.<br>
     Total due in 15 days. Overdue accounts subject to a service charge of 1% per month.<br><br>
     <strong>THANK YOU FOR YOUR BUSINESS!</strong>
   </div>
 
   <div class="footer-brand">
-    <img src="/ursa-logo.png" alt="UrsaDeFi" />
+    ${companyLogo ? `<img src="${companyLogo}" alt="${companyName}" style="height: 28px; max-width: 120px; object-fit: contain;" />` : '<img src="/ursa-logo.png" alt="UrsaDeFi" />'}
     <div class="powered">Powered by ursadefi.com</div>
   </div>
 
