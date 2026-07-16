@@ -12,7 +12,7 @@ export default function BrowserInvoicePDF({ invoice, compact = false }: Props) {
     const today = new Date().toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' });
     const cleanId = String(invoice.id || '').replace(/^PREVIEW-/, '');
 
-    // Generate QR as base64 data URL so it always embeds (no external load failure)
+    // Generate QR as base64 data URL so it always embeds
     let qrDataUrl = '';
     try {
       const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=170x170&data=${encodeURIComponent(qrData)}`;
@@ -25,7 +25,6 @@ export default function BrowserInvoicePDF({ invoice, compact = false }: Props) {
       });
     } catch (err) {
       console.error('QR generation failed', err);
-      // fallback to direct URL if fetch fails
       qrDataUrl = `https://api.qrserver.com/v1/create-qr-code/?size=170x170&data=${encodeURIComponent(qrData)}`;
     }
 
@@ -250,7 +249,6 @@ export default function BrowserInvoicePDF({ invoice, compact = false }: Props) {
   </div>
 
   <script>
-    // Wait for images to load then print
     window.onload = function() {
       setTimeout(function() { window.print(); }, 400);
     };
@@ -281,7 +279,7 @@ export default function BrowserInvoicePDF({ invoice, compact = false }: Props) {
   return (
     <button
       onClick={openPDF}
-      className="w-full py-3.5 bg-[#1D9BF0] hover:bg-[#1a8cd8] text-white font-semibold rounded-full transition"
+      className="w-full py-3.5 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-semibold rounded-full transition"
     >
       Save & Send Invoice
     </button>
