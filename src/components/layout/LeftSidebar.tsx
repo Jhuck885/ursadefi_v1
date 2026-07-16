@@ -70,7 +70,7 @@ export default function LeftSidebar() {
           <Link
             key={item.name}
             href={item.href}
-            className="flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-[var(--bg-secondary)] transition text-lg"
+            className="flex items-center gap-4 px-4 py-3 rounded-full hover:bg-[var(--bg-secondary)] transition text-lg"
           >
             <item.icon className="w-6 h-6" />
             <span>{item.name}</span>
@@ -81,7 +81,7 @@ export default function LeftSidebar() {
       <div className="p-4 border-t border-[var(--border-color)] space-y-2">
         <button
           onClick={handleExportCSV}
-          className="flex w-full items-center gap-3 px-4 py-3 rounded-xl bg-[var(--bg-secondary)] hover:bg-zinc-200 dark:hover:bg-zinc-800 text-sm transition"
+          className="flex w-full items-center gap-3 px-4 py-3 rounded-full bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] text-sm transition border border-[var(--border-color)]"
         >
           <Download className="w-5 h-5" />
           <span>Export CSV (Free)</span>
@@ -90,19 +90,19 @@ export default function LeftSidebar() {
         {isConnected ? (
           <button
             onClick={disconnect}
-            className="flex w-full items-center gap-3 px-4 py-3 rounded-xl hover:bg-red-950 text-red-400 text-sm transition"
+            className="flex w-full items-center gap-3 px-4 py-3 rounded-full hover:bg-red-950/30 text-red-400 text-sm transition border border-transparent hover:border-red-900"
           >
             <LogOut className="w-5 h-5" />
             <span>Disconnect Wallet</span>
           </button>
         ) : (
           <div className="space-y-3 px-1">
-            <div className="text-sm text-zinc-400 px-3">
+            <div className="text-sm text-[var(--text-secondary)] px-3">
               Wallet disconnected
             </div>
             <Link
               href="/"
-              className="flex w-full items-center justify-center gap-2 px-4 py-3 rounded-full bg-[#1D9BF0] hover:bg-[#1a8cd8] text-white text-sm font-medium transition"
+              className="flex w-full items-center justify-center gap-2 px-4 py-3 rounded-full bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white text-sm font-medium transition"
             >
               Connect Wallet
             </Link>
