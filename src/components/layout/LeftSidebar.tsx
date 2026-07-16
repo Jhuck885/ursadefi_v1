@@ -1,54 +1,20 @@
 'use client';
 
 import Link from 'next/link';
-import { Home, FileText, Users, BarChart3, Settings, User, LogOut, Download } from 'lucide-react';
+import { Home, FileText, Users, BarChart3, Settings, User, LogOut } from 'lucide-react';
 import { useWallet } from '@/context/WalletContext';
 
 const navItems = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
   { name: 'Invoices', href: '/invoices', icon: FileText },
   { name: 'Clients', href: '/clients', icon: Users },
-  { name: 'Reports', href: '/dashboard', icon: BarChart3 },
+  { name: 'Reports', href: '/reports', icon: BarChart3 },
   { name: 'Settings', href: '/dashboard', icon: Settings },
   { name: 'Profile', href: '/profile', icon: User },
 ];
 
 export default function LeftSidebar() {
   const { wallet, disconnect, isConnected } = useWallet();
-
-  const handleExportCSV = () => {
-    const invoices = JSON.parse(localStorage.getItem('invoices') || '[]');
-    if (invoices.length === 0) {
-      alert('No invoices to export yet');
-      return;
-    }
-
-    const headers = ['id', 'created_at', 'from', 'to', 'total', 'xrpAmount', 'status', 'dueDate'];
-    const csvRows = [
-      headers.join(','),
-      ...invoices.map((inv: any) =>
-        [
-          inv.id,
-          inv.created_at || '',
-          `"${(inv.from || '').replace(/"/g, '""')}"`,
-          `"${(inv.to || '').replace(/"/g, '""')}"`,
-          inv.total || 0,
-          inv.xrpAmount || 0,
-          inv.status || 'draft',
-          inv.dueDate || '',
-        ].join(',')
-      ),
-    ];
-
-    const csvContent = csvRows.join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `ursadefi_invoices_${new Date().toISOString().slice(0,10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-  };
 
   const shortAddress = wallet?.address ? `${wallet.address.slice(0, 6)}...${wallet.address.slice(-4)}` : null;
 
@@ -79,14 +45,6 @@ export default function LeftSidebar() {
       </nav>
 
       <div className="p-4 border-t border-[var(--border-color)] space-y-2">
-        <button
-          onClick={handleExportCSV}
-          className="flex w-full items-center gap-3 px-4 py-3 rounded-full bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] text-sm transition border border-[var(--border-color)]"
-        >
-          <Download className="w-5 h-5" />
-          <span>Export CSV (Free)</span>
-        </button>
-
         {isConnected ? (
           <button
             onClick={disconnect}
