@@ -84,3 +84,15 @@ body {
 .btn-primary:hover {
   background-color: #1a8cd8;
 }
+
+/* Kill any logo shadow completely (baked-in or CSS) */
+img[src*="ursa-logo"],
+img[alt*="UrsaDeFi"],
+img[alt*="ursa"] {
+  filter: none !important;
+  box-shadow: none !important;
+  drop-shadow: none !important;
+  -webkit-filter: none !important;
+  -webkit-box-shadow: none !important;
+  outline: none !important;
+}
