@@ -10,7 +10,7 @@ const navItems = [
   { name: 'Clients', href: '/clients', icon: Users },
   { name: 'Reports', href: '/dashboard', icon: BarChart3 },
   { name: 'Settings', href: '/dashboard', icon: Settings },
-  { name: 'Profile', href: '/dashboard', icon: User },
+  { name: 'Profile', href: '/profile', icon: User },
 ];
 
 export default function LeftSidebar() {
