@@ -49,7 +49,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   style={{
                     filter: 'none',
                     boxShadow: 'none',
-                    dropShadow: 'none',
                     WebkitFilter: 'none',
                     outline: 'none',
                     border: 'none'
