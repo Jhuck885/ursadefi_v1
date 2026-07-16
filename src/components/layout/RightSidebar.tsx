@@ -147,7 +147,7 @@ const RecentPaymentsCard = () => {
             href={`https://test.bithomp.com/explorer/${p.hash}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="block mt-2 text-xs text-[#1D9BF0] hover:underline"
+            className="block mt-2 text-xs text-[var(--brand-primary)] hover:underline"
           >
             View transaction
           </a>
@@ -175,7 +175,7 @@ export default function RightSidebar() {
         <p className="text-sm text-[var(--text-secondary)]">Next est. payment</p>
         <p className="text-2xl font-bold">$6,283</p>
         <p className="text-sm text-[var(--text-secondary)]">Apr 15, 2026</p>
-        <p className="text-yellow-500 text-sm mt-2">Upcoming</p>
+        <p className="text-[var(--brand-accent)] text-sm mt-2">Upcoming</p>
       </div>
 
       <h3 className="text-lg font-bold mb-4">Recent Payments</h3>
@@ -184,7 +184,7 @@ export default function RightSidebar() {
       <h3 className="text-lg font-bold mb-4">Quick Actions</h3>
       <button
         onClick={() => setIsModalOpen(true)}
-        className="w-full py-4 bg-[#1D9BF0] rounded-full font-bold hover:bg-[#1a8cd8] text-white transition"
+        className="w-full py-4 bg-[var(--brand-primary)] rounded-full font-bold hover:bg-[var(--brand-primary-hover)] text-white transition"
       >
         Create New Invoice
       </button>
