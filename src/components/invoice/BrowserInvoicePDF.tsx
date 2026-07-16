@@ -4,14 +4,30 @@ import { Invoice } from '@/types';
 interface Props { invoice: Invoice; compact?: boolean; }
 
 export default function BrowserInvoicePDF({ invoice, compact = false }: Props) {
-  const openPDF = () => {
+  const openPDF = async () => {
     const win = window.open('', '_blank');
     if (!win) { alert('Pop-up blocked — allow for PDF'); return; }
 
     const qrData = `xrp:${invoice.receiver || ''}?amount=${invoice.xrpAmount}`;
     const today = new Date().toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' });
-
     const cleanId = String(invoice.id || '').replace(/^PREVIEW-/, '');
+
+    // Generate QR as base64 data URL so it always embeds (no external load failure)
+    let qrDataUrl = '';
+    try {
+      const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=170x170&data=${encodeURIComponent(qrData)}`;
+      const response = await fetch(qrApiUrl);
+      const blob = await response.blob();
+      qrDataUrl = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(blob);
+      });
+    } catch (err) {
+      console.error('QR generation failed', err);
+      // fallback to direct URL if fetch fails
+      qrDataUrl = `https://api.qrserver.com/v1/create-qr-code/?size=170x170&data=${encodeURIComponent(qrData)}`;
+    }
 
     const html = `<!DOCTYPE html>
 <html>
@@ -218,7 +234,7 @@ export default function BrowserInvoicePDF({ invoice, compact = false }: Props) {
   </div>
 
   <div class="qr-section">
-    <img src="https://api.qrserver.com/v1/create-qr-code/?size=170x170&data=${encodeURIComponent(qrData)}" alt="XRP Payment QR Code" width="170" height="170" />
+    <img src="${qrDataUrl}" alt="XRP Payment QR Code" width="170" height="170" />
     <p style="margin: 6px 0 0; font-size:10.5px; color:#555;">Scan with Xaman to pay instantly • NFT minted on confirmation</p>
   </div>
 
@@ -233,7 +249,12 @@ export default function BrowserInvoicePDF({ invoice, compact = false }: Props) {
     <div class="powered">Powered by ursadefi.com</div>
   </div>
 
-  <script>window.print();</script>
+  <script>
+    // Wait for images to load then print
+    window.onload = function() {
+      setTimeout(function() { window.print(); }, 400);
+    };
+  </script>
 </body>
 </html>`;
 
@@ -243,14 +264,14 @@ export default function BrowserInvoicePDF({ invoice, compact = false }: Props) {
     setTimeout(() => {
       const mailto = `mailto:?subject=Invoice%20%23${cleanId}&body=Please%20find%20attached%20invoice%20via%20UrsaDeFi%20(XRPL).%20Pay%20with%20Xaman.`;
       window.location.href = mailto;
-    }, 1800);
+    }, 2200);
   };
 
   if (compact) {
     return (
       <button
         onClick={openPDF}
-        className="px-4 py-1.5 text-xs font-medium border border-zinc-700 hover:bg-zinc-900 rounded-full transition w-full"
+        className="px-4 py-1.5 text-xs font-medium border border-[var(--border-color)] hover:bg-[var(--bg-secondary)] rounded-full transition w-full"
       >
         Save & Send Invoice
       </button>
