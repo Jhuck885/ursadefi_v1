@@ -2,148 +2,195 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ===========================================
-   UrsaDeFi Brand Theme System
-   Turquoise / Teal + Amber
-   =========================================== */
+/* =====================================================
+   UrsaDeFi — Clean X.com Style Theme System
+   Single source of truth. No !important hacks.
+   ===================================================== */
 
 :root {
-  /* Brand Colors */
+  /* Brand */
   --brand-primary: #0D9488;
   --brand-primary-hover: #0F766E;
-  --brand-primary-light: #14B8A6;
   --brand-accent: #F59E0B;
-  --brand-accent-hover: #D97706;
 
-  /* Surfaces */
+  /* Surfaces (X.com inspired) */
   --bg-primary: #ffffff;
-  --bg-secondary: #f8fafc;
-  --bg-tertiary: #f1f5f9;
+  --bg-secondary: #f7f9f9;
+  --bg-tertiary: #eff3f4;
+  --bg-elevated: #ffffff;
 
   /* Text */
-  --text-primary: #0f172a;
-  --text-secondary: #64748b;
-  --text-muted: #94a3b8;
+  --text-primary: #0f1419;
+  --text-secondary: #536471;
+  --text-muted: #8b98a5;
 
   /* Borders & Cards */
-  --border-color: #e2e8f0;
+  --border-color: #eff3f4;
   --card-bg: #ffffff;
-  --card-border: #e2e8f0;
+  --card-border: #eff3f4;
 
-  /* Buttons */
-  --button-secondary-bg: transparent;
-  --button-secondary-border: #e2e8f0;
-  --button-secondary-text: #0f172a;
-  --button-secondary-hover-bg: #f1f5f9;
-  --button-secondary-hover-border: #0D9488;
-  --button-secondary-hover-text: #0D9488;
+  /* Buttons — X.com style */
+  --btn-secondary-bg: transparent;
+  --btn-secondary-border: #cfd9de;
+  --btn-secondary-text: #0f1419;
+  --btn-secondary-hover-bg: #eff3f4;
+  --btn-secondary-hover-border: #0D9488;
+  --btn-secondary-hover-text: #0D9488;
+
+  --btn-share-bg: transparent;
+  --btn-share-border: #cfd9de;
+  --btn-share-text: #0f1419;
+  --btn-share-hover-bg: #eff3f4;
+  --btn-share-hover-border: #0D9488;
+  --btn-share-hover-text: #0D9488;
 }
 
 .dark {
+  /* Brand (slightly brighter in dark) */
   --brand-primary: #14B8A6;
   --brand-primary-hover: #2DD4BF;
-  --brand-primary-light: #5EEAD4;
   --brand-accent: #FBBF24;
-  --brand-accent-hover: #F59E0B;
 
-  --bg-primary: #0a0a0a;
-  --bg-secondary: #111111;
-  --bg-tertiary: #1a1a1a;
+  /* Surfaces — X.com dark */
+  --bg-primary: #000000;
+  --bg-secondary: #16181c;
+  --bg-tertiary: #202327;
+  --bg-elevated: #16181c;
 
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  /* Text */
+  --text-primary: #e7e9ea;
+  --text-secondary: #8b98a5;
+  --text-muted: #71767b;
 
-  --border-color: #1e293b;
-  --card-bg: #111111;
-  --card-border: #1e293b;
+  /* Borders & Cards */
+  --border-color: #2f3336;
+  --card-bg: #16181c;
+  --card-border: #2f3336;
 
-  --button-secondary-bg: transparent;
-  --button-secondary-border: #1e293b;
-  --button-secondary-text: #f8fafc;
-  --button-secondary-hover-bg: #1a1a1a;
-  --button-secondary-hover-border: #14B8A6;
-  --button-secondary-hover-text: #14B8A6;
+  /* Buttons — X.com dark style */
+  --btn-secondary-bg: transparent;
+  --btn-secondary-border: #536471;
+  --btn-secondary-text: #e7e9ea;
+  --btn-secondary-hover-bg: #202327;
+  --btn-secondary-hover-border: #14B8A6;
+  --btn-secondary-hover-text: #14B8A6;
+
+  --btn-share-bg: transparent;
+  --btn-share-border: #536471;
+  --btn-share-text: #e7e9ea;
+  --btn-share-hover-bg: #202327;
+  --btn-share-hover-border: #14B8A6;
+  --btn-share-hover-text: #14B8A6;
 }
 
-body {
+/* Base */
+html, body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* Force common zinc classes to respect theme */
-.bg-zinc-950,
-.bg-zinc-900,
-.bg-zinc-800,
-.bg-zinc-700 {
-  background-color: var(--card-bg) !important;
-}
-
-.border-zinc-800,
-.border-zinc-700,
-.border-zinc-600 {
-  border-color: var(--border-color) !important;
-}
-
-.text-zinc-400,
-.text-zinc-500,
-.text-zinc-600,
-.text-zinc-700 {
-  color: var(--text-secondary) !important;
-}
+/* =====================================================
+   X.com Style Components (Clean — no !important)
+   ===================================================== */
 
 /* Cards */
 .card,
-.invoice-card {
-  background-color: var(--card-bg) !important;
-  border: 1px solid var(--card-border) !important;
-  color: var(--text-primary) !important;
+.invoice-card,
+[data-card] {
+  background-color: var(--card-bg);
+  border: 1px solid var(--card-border);
+  color: var(--text-primary);
+  transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 
-/* Primary buttons (Create Invoice, main CTAs) */
-.btn-primary,
-button.bg-\[\#1D9BF0\],
-.bg-\[\#1D9BF0\] {
-  background-color: var(--brand-primary) !important;
-  color: white !important;
+/* Primary CTAs (Create Invoice, Connect, etc.) */
+.btn-primary {
+  background-color: var(--brand-primary);
+  color: white;
   border-radius: 9999px;
+  font-weight: 600;
+  transition: background-color 0.2s ease;
 }
 
-.btn-primary:hover,
-button.bg-\[\#1D9BF0\]:hover,
-.bg-\[\#1D9BF0\]:hover {
-  background-color: var(--brand-primary-hover) !important;
+.btn-primary:hover {
+  background-color: var(--brand-primary-hover);
 }
 
-/* Secondary / outline buttons */
-.btn-secondary,
+/* Secondary / Outline buttons (X.com style) */
+.btn-secondary {
+  background-color: var(--btn-secondary-bg);
+  border: 1px solid var(--btn-secondary-border);
+  color: var(--btn-secondary-text);
+  border-radius: 9999px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+  background-color: var(--btn-secondary-hover-bg);
+  border-color: var(--btn-secondary-hover-border);
+  color: var(--btn-secondary-hover-text);
+}
+
+/* Share to X button — perfectly matched to secondary */
 .btn-share-x {
-  background-color: var(--button-secondary-bg) !important;
-  border: 1px solid var(--button-secondary-border) !important;
-  color: var(--button-secondary-text) !important;
-  border-radius: 9999px !important;
+  background-color: var(--btn-share-bg);
+  border: 1px solid var(--btn-share-border);
+  color: var(--btn-share-text);
+  border-radius: 9999px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.btn-secondary:hover,
 .btn-share-x:hover {
-  background-color: var(--button-secondary-hover-bg) !important;
-  border-color: var(--button-secondary-hover-border) !important;
-  color: var(--button-secondary-hover-text) !important;
+  background-color: var(--btn-share-hover-bg);
+  border-color: var(--btn-share-hover-border);
+  color: var(--btn-share-hover-text);
 }
 
-/* Accent text (Upcoming, highlights) */
-.text-yellow-500,
-.text-amber-500 {
-  color: var(--brand-accent) !important;
+/* Status badges — clean and theme aware */
+.badge {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 10px;
+  border-radius: 9999px;
+  border: 1px solid;
 }
 
-/* Kill any logo shadow */
-img[src*="ursa-logo"],
-img[alt*="UrsaDeFi"],
-img[alt*="ursa"] {
-  filter: none !important;
-  box-shadow: none !important;
-  -webkit-filter: none !important;
-  outline: none !important;
+.badge-draft {
+  background-color: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border-color: var(--border-color);
+}
+
+.badge-paid {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.2);
+}
+
+.badge-overdue,
+.badge-minted {
+  background-color: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  border-color: rgba(59, 130, 246, 0.2);
+}
+
+/* Clean focus states (X.com style) */
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--brand-primary);
+  outline: none;
+  box-shadow: 0 0 0 1px var(--brand-primary);
+}
+
+/* Remove any old logo shadows */
+img[alt*="Ursa"], img[alt*="ursa"], .logo {
+  filter: none;
+  box-shadow: none;
 }
