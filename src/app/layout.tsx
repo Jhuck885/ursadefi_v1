@@ -42,16 +42,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <nav className="fixed top-0 left-0 right-0 z-50 bg-[var(--bg-primary)]/95 border-b border-[var(--border-color)] px-4 py-3 flex justify-between items-center backdrop-blur">
             <div className="flex items-center gap-3">
               <div className="h-8 w-8 overflow-hidden flex items-center justify-center">
-                <img 
-                  src="/ursa-logo.png" 
-                  alt="UrsaDeFi" 
-                  className="h-8 w-auto max-w-none" 
+                <img
+                  src="/ursa-logo.png"
+                  alt="UrsaDeFi"
+                  className="h-8 w-auto max-w-none logo-clean"
                   style={{
                     filter: 'none',
-                    boxShadow: 'none',
                     WebkitFilter: 'none',
+                    boxShadow: 'none',
                     outline: 'none',
-                    border: 'none'
+                    border: 'none',
                   }}
                 />
               </div>

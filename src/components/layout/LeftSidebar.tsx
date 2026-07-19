@@ -22,7 +22,18 @@ export default function LeftSidebar() {
     <aside className="hidden lg:flex w-72 flex-col border-r border-[var(--border-color)] bg-[var(--bg-primary)] fixed inset-y-0 left-0 text-[var(--text-primary)]">
       <div className="p-6 border-b border-[var(--border-color)]">
         <div className="flex items-center gap-3">
-          <img src="/ursa-logo.png" alt="UrsaDeFi" className="h-8 w-auto" />
+          <img
+            src="/ursa-logo.png"
+            alt="UrsaDeFi"
+            className="h-8 w-auto logo-clean"
+            style={{
+              filter: 'none',
+              WebkitFilter: 'none',
+              boxShadow: 'none',
+              outline: 'none',
+              border: 'none',
+            }}
+          />
         </div>
         {isConnected && shortAddress && (
           <div className="mt-2 text-xs text-emerald-400 flex items-center gap-1">
