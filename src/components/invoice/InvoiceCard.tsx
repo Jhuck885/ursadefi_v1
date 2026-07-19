@@ -22,19 +22,19 @@ export default function InvoiceCard({ invoice }: Props) {
     const amount = invoice.total;
     const client = invoice.to || invoice.clientName || 'client';
 
-    const text = `Just sent a $${amount} invoice to ${client} powered by @ursadefi + @xAI ⚡\n\nInstant XRPL invoicing, payments & accounting — all free.\n\nTry it: ursadefi.com`;
+    const text = `Just sent a $${amount} invoice to ${client} powered by @ursadefi + @xAI \u26A1\n\nInstant XRPL invoicing, payments & accounting — all free.\n\nTry it: ursadefi.com`;
 
     const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
     window.open(url, '_blank');
   };
 
-  // Dynamic status badge with X.com style colors
+  // Dynamic status badge — clean theme-aware styles
   const getStatusBadge = () => {
     const status = invoice.status || (invoice.nftoken_id ? 'minted' : 'draft');
 
     if (status === 'minted' || status === 'confirmed' || invoice.nftoken_id) {
       return (
-        <div className="inline-flex items-center px-2.5 py-0.5 text-[10px] font-medium rounded-full bg-blue-950 text-blue-400 border border-blue-900">
+        <div className="badge badge-minted">
           Minted
         </div>
       );
@@ -42,7 +42,7 @@ export default function InvoiceCard({ invoice }: Props) {
 
     if (status === 'paid') {
       return (
-        <div className="inline-flex items-center px-2.5 py-0.5 text-[10px] font-medium rounded-full bg-emerald-950 text-emerald-400 border border-emerald-900">
+        <div className="badge badge-paid">
           Paid
         </div>
       );
@@ -50,27 +50,27 @@ export default function InvoiceCard({ invoice }: Props) {
 
     // Default / Draft
     return (
-      <div className="inline-flex items-center px-2.5 py-0.5 text-[10px] font-medium rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700">
+      <div className="badge badge-draft">
         XRPL NFT Ready
       </div>
     );
   };
 
   return (
-    <div className="border border-zinc-800 rounded-3xl p-5 bg-zinc-950 hover:border-zinc-700 transition-all group">
+    <div className="border border-[var(--card-border)] rounded-3xl p-5 bg-[var(--card-bg)] hover:border-[var(--brand-primary)]/40 transition-all group" data-card>
       {/* Header */}
       <div className="flex justify-between items-start mb-3">
         <div>
-          <div className="font-mono text-[10px] text-zinc-500 tracking-[1px]">#{invoice.id}</div>
+          <div className="font-mono text-[10px] text-[var(--text-muted)] tracking-[1px]">#{invoice.id}</div>
           
           {/* Prominent Amount */}
-          <div className="text-3xl font-semibold tracking-[-1.5px] mt-1 text-white">
+          <div className="text-3xl font-semibold tracking-[-1.5px] mt-1 text-[var(--text-primary)]">
             ${invoice.total}
           </div>
           
           {/* Prominent Client */}
-          <div className="text-sm text-zinc-300 mt-0.5">
-            To: <span className="font-medium text-white">{invoice.to || invoice.clientName}</span>
+          <div className="text-sm text-[var(--text-secondary)] mt-0.5">
+            To: <span className="font-medium text-[var(--text-primary)]">{invoice.to || invoice.clientName}</span>
           </div>
         </div>
 
@@ -82,27 +82,27 @@ export default function InvoiceCard({ invoice }: Props) {
 
       {/* Description */}
       {invoice.description && (
-        <div className="text-sm text-zinc-400 mb-4 line-clamp-2 pr-2">
+        <div className="text-sm text-[var(--text-secondary)] mb-4 line-clamp-2 pr-2">
           {invoice.description}
         </div>
       )}
 
-      {/* Action Bar - X.com style with light grey border */}
-      <div className="flex items-center gap-2 pt-3 border-t border-zinc-800 mt-1">
+      {/* Action Bar — X.com style */}
+      <div className="flex items-center gap-2 pt-3 border-t border-[var(--border-color)] mt-1">
         <div className="flex-1">
           <BrowserInvoicePDF invoice={invoice} compact />
         </div>
 
         <button
           onClick={handleMint}
-          className="px-3.5 py-1.5 text-xs font-medium border border-zinc-700 hover:bg-zinc-900 active:bg-zinc-800 rounded-full transition-colors"
+          className="btn-secondary text-xs px-3.5 py-1.5"
         >
           Mint as XRPL NFT
         </button>
 
         <button
           onClick={handleShareToX}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium border border-zinc-700 hover:bg-zinc-900 active:bg-zinc-800 rounded-full transition-colors text-zinc-300 hover:text-white"
+          className="btn-share-x text-xs px-3.5 py-1.5"
         >
           {/* X Logo SVG */}
           <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" className="shrink-0">
