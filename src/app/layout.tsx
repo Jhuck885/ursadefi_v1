@@ -37,7 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="en" className={isDark ? 'dark' : ''}>
-      <body className={`min-h-screen transition-colors duration-200 ${isDark ? 'bg-black text-white' : 'bg-white text-black'}`}>
+      <body className="min-h-screen transition-colors duration-200 bg-[var(--bg-primary)] text-[var(--text-primary)]">
         <WalletProvider>
           <nav className="fixed top-0 left-0 right-0 z-50 bg-[var(--bg-primary)]/95 border-b border-[var(--border-color)] px-4 py-3 flex justify-between items-center backdrop-blur">
             <div className="flex items-center gap-3">
@@ -55,7 +55,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   }}
                 />
               </div>
-              <div className="text-xs text-zinc-500">Dallas, TX • XRPL Invoicing</div>
+              <div className="text-xs text-[var(--text-secondary)]">Dallas, TX • XRPL Invoicing</div>
             </div>
             <button
               onClick={toggleTheme}
