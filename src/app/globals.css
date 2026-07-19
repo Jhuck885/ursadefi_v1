@@ -4,7 +4,7 @@
 
 /* =====================================================
    UrsaDeFi — Clean X.com Style Theme System
-   Single source of truth. No !important hacks.
+   Single source of truth.
    ===================================================== */
 
 :root {
@@ -91,7 +91,7 @@ html, body {
 }
 
 /* =====================================================
-   X.com Style Components (Clean)
+   X.com Style Components
    ===================================================== */
 
 /* Cards */
@@ -104,7 +104,7 @@ html, body {
   transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 
-/* Primary CTAs (Create Invoice, Connect, etc.) */
+/* Primary CTAs */
 .btn-primary {
   background-color: var(--brand-primary);
   color: white;
@@ -117,7 +117,7 @@ html, body {
   background-color: var(--brand-primary-hover);
 }
 
-/* Secondary / Outline buttons (X.com style) */
+/* Secondary / Outline buttons */
 .btn-secondary {
   background-color: var(--btn-secondary-bg);
   border: 1px solid var(--btn-secondary-border);
@@ -133,7 +133,7 @@ html, body {
   color: var(--btn-secondary-hover-text);
 }
 
-/* Share to X button — perfectly matched to secondary */
+/* Share to X button */
 .btn-share-x {
   background-color: var(--btn-share-bg);
   border: 1px solid var(--btn-share-border);
@@ -152,7 +152,7 @@ html, body {
   color: var(--btn-share-hover-text);
 }
 
-/* Status badges — clean and theme aware */
+/* Status badges */
 .badge {
   font-size: 10px;
   font-weight: 500;
@@ -180,7 +180,7 @@ html, body {
   border-color: rgba(59, 130, 246, 0.2);
 }
 
-/* Clean focus states (X.com style) */
+/* Clean focus states */
 input:focus,
 textarea:focus,
 select:focus {
@@ -190,7 +190,7 @@ select:focus {
 }
 
 /* =====================================================
-   LOGO — Kill any shadow / glow definitively
+   LOGO — Force completely clean render (no shadow/glow)
    ===================================================== */
 .logo-clean,
 img[alt*="Ursa"],
@@ -200,7 +200,17 @@ img[src*="ursa-logo"] {
   -webkit-filter: none !important;
   box-shadow: none !important;
   -webkit-box-shadow: none !important;
-  drop-shadow: none !important;
   outline: none !important;
   border: none !important;
+  isolation: isolate;
+  mix-blend-mode: normal;
+  background: transparent !important;
+}
+
+/* Kill any accidental parent effects on the logo container */
+.logo-wrapper {
+  filter: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  overflow: visible !important;
 }

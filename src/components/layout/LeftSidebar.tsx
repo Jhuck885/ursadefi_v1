@@ -21,17 +21,18 @@ export default function LeftSidebar() {
   return (
     <aside className="hidden lg:flex w-72 flex-col border-r border-[var(--border-color)] bg-[var(--bg-primary)] fixed inset-y-0 left-0 text-[var(--text-primary)]">
       <div className="p-6 border-b border-[var(--border-color)]">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 logo-wrapper">
           <img
             src="/ursa-logo.png"
             alt="UrsaDeFi"
-            className="h-8 w-auto logo-clean"
+            className="h-8 w-auto object-contain logo-clean"
             style={{
               filter: 'none',
               WebkitFilter: 'none',
               boxShadow: 'none',
               outline: 'none',
               border: 'none',
+              background: 'transparent',
             }}
           />
         </div>

@@ -40,21 +40,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen transition-colors duration-200 bg-[var(--bg-primary)] text-[var(--text-primary)]">
         <WalletProvider>
           <nav className="fixed top-0 left-0 right-0 z-50 bg-[var(--bg-primary)]/95 border-b border-[var(--border-color)] px-4 py-3 flex justify-between items-center backdrop-blur">
-            <div className="flex items-center gap-3">
-              <div className="h-8 w-8 overflow-hidden flex items-center justify-center">
-                <img
-                  src="/ursa-logo.png"
-                  alt="UrsaDeFi"
-                  className="h-8 w-auto max-w-none logo-clean"
-                  style={{
-                    filter: 'none',
-                    WebkitFilter: 'none',
-                    boxShadow: 'none',
-                    outline: 'none',
-                    border: 'none',
-                  }}
-                />
-              </div>
+            <div className="flex items-center gap-3 logo-wrapper">
+              <img
+                src="/ursa-logo.png"
+                alt="UrsaDeFi"
+                className="h-8 w-auto object-contain logo-clean"
+                style={{
+                  filter: 'none',
+                  WebkitFilter: 'none',
+                  boxShadow: 'none',
+                  outline: 'none',
+                  border: 'none',
+                  background: 'transparent',
+                }}
+              />
               <div className="text-xs text-[var(--text-secondary)]">Dallas, TX • XRPL Invoicing</div>
             </div>
             <button
