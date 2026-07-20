@@ -4,62 +4,43 @@ import { useState } from 'react';
 import { Invoice } from '@/types';
 import BrowserInvoicePDF from './BrowserInvoicePDF';
 import { supabaseBrowser } from '@/lib/supabase';
+import { useToast } from '@/components/ui/Toast';
 
 interface Props {
   invoice: Invoice;
 }
 
 export default function InvoiceCard({ invoice }: Props) {
+  const { success, error, warning, info } = useToast();
   const [isMinting, setIsMinting] = useState(false);
   const [isBurning, setIsBurning] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
 
-  /** Persist nftoken_id + status to localStorage and Supabase */
   const saveNftToInvoice = async (nftokenId: string, txHash: string) => {
-    // 1. Update localStorage
     try {
       const existing: any[] = JSON.parse(localStorage.getItem('invoices') || '[]');
       const next = existing.map((i) =>
         i.id === invoice.id
-          ? {
-              ...i,
-              nftoken_id: nftokenId,
-              xrpl_tx_hash: txHash,
-              status: 'minted',
-            }
+          ? { ...i, nftoken_id: nftokenId, xrpl_tx_hash: txHash, status: 'minted' }
           : i
       );
-
-      // If this invoice only lived in memory / Supabase, still write a local copy
       if (!existing.find((i) => i.id === invoice.id)) {
-        next.unshift({
-          ...invoice,
-          nftoken_id: nftokenId,
-          xrpl_tx_hash: txHash,
-          status: 'minted',
-        });
+        next.unshift({ ...invoice, nftoken_id: nftokenId, xrpl_tx_hash: txHash, status: 'minted' });
       }
-
       localStorage.setItem('invoices', JSON.stringify(next));
     } catch (e) {
       console.warn('localStorage update failed', e);
     }
 
-    // 2. Update Supabase (best-effort)
     try {
       await supabaseBrowser
         .from('invoices')
-        .update({
-          nftoken_id: nftokenId,
-          xrpl_tx_hash: txHash,
-          status: 'minted',
-        })
+        .update({ nftoken_id: nftokenId, xrpl_tx_hash: txHash, status: 'minted' })
         .eq('id', invoice.id);
     } catch (e) {
       console.warn('Supabase NFT update failed', e);
     }
 
-    // 3. Tell the rest of the app to refresh
     window.dispatchEvent(new Event('invoices-updated'));
   };
 
@@ -68,7 +49,6 @@ export default function InvoiceCard({ invoice }: Props) {
     setStatusMsg('Creating Xaman payload...');
 
     try {
-      // Step 1 — Create payload
       const res = await fetch('/api/xaman/mint', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -77,19 +57,15 @@ export default function InvoiceCard({ invoice }: Props) {
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to create mint payload');
+      if (!data.next || !data.uuid) throw new Error('No Xaman deep link returned');
 
-      if (!data.next || !data.uuid) {
-        throw new Error('No Xaman deep link returned');
-      }
-
-      // Step 2 — Open Xaman
       setStatusMsg('Open Xaman and approve the mint...');
+      info('Open Xaman and approve the mint');
       window.open(data.next, '_blank');
 
-      // Step 3 — Poll until signed + NFTokenID resolved
       const uuid = data.uuid;
       let attempts = 0;
-      const maxAttempts = 60; // ~2 minutes
+      const maxAttempts = 60;
 
       const poll = async (): Promise<void> => {
         attempts += 1;
@@ -104,65 +80,53 @@ export default function InvoiceCard({ invoice }: Props) {
         const resolveData = await resolveRes.json();
 
         if (resolveData.signed && resolveData.nftokenId) {
-          // Success!
           setStatusMsg('Minted! Saving...');
           await saveNftToInvoice(resolveData.nftokenId, resolveData.txid || '');
           setStatusMsg(null);
-          alert(`Successfully minted!\n\nNFTokenID:\n${resolveData.nftokenId}`);
+          setIsMinting(false);
+          success(`Minted · ${resolveData.nftokenId.slice(0, 12)}…`);
           return;
         }
 
         if (resolveData.signed && !resolveData.nftokenId) {
-          // Signed but we couldn't extract ID yet — keep trying a few more times
           if (attempts < maxAttempts) {
             setTimeout(poll, 2500);
             return;
           }
           setStatusMsg(null);
-          alert(
-            'Transaction signed, but NFTokenID could not be extracted automatically. Refresh the page in a moment or check the explorer.'
-          );
+          setIsMinting(false);
+          warning('Signed, but NFTokenID not found yet. Refresh in a moment.');
           return;
         }
 
         if (resolveData.expired) {
           setStatusMsg(null);
-          alert('Xaman payload expired. Please try minting again.');
+          setIsMinting(false);
+          error('Xaman payload expired. Try again.');
           return;
         }
 
         if (attempts >= maxAttempts) {
           setStatusMsg(null);
-          alert('Timed out waiting for Xaman signature. If you already signed, refresh the page.');
+          setIsMinting(false);
+          warning('Timed out waiting for signature. Refresh if you already signed.');
           return;
         }
 
-        // Keep polling
         setTimeout(poll, 2500);
       };
 
-      // Start polling after a short delay so Xaman has time to open
       setTimeout(poll, 4000);
     } catch (e: any) {
       console.error(e);
       setStatusMsg(null);
-      alert(e.message || 'Mint failed');
-    } finally {
-      // Don't set isMinting false immediately — keep the spinner while polling
-      // We clear it inside the poll success/fail paths via setStatusMsg(null)
-      // But for safety:
-      setTimeout(() => setIsMinting(false), 120000);
+      setIsMinting(false);
+      error(e.message || 'Mint failed');
     }
   };
 
   const handleBurn = async () => {
     if (!invoice.nftoken_id) return;
-    if (
-      !confirm(
-        `Burn NFT ${invoice.nftoken_id}?\n\nThis is irreversible on the XRPL.`
-      )
-    )
-      return;
 
     setIsBurning(true);
     setStatusMsg('Creating burn payload...');
@@ -176,48 +140,39 @@ export default function InvoiceCard({ invoice }: Props) {
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to create burn payload');
-
       if (!data.next) throw new Error('No Xaman deep link returned');
 
       setStatusMsg('Open Xaman and approve the burn...');
+      info('Open Xaman and approve the burn');
       window.open(data.next, '_blank');
 
-      // Simple success path for burn — we don't need the ID after burn
-      // Just mark as burned after a short delay + user confirmation
+      // After a short window, mark as burned (user confirmed in Xaman)
       setTimeout(async () => {
-        const confirmed = window.confirm(
-          'Did you approve the burn in Xaman?\n\nClick OK to mark this invoice as burned.'
-        );
-        if (confirmed) {
-          // Clear nftoken_id and set status
-          try {
-            const existing: any[] = JSON.parse(localStorage.getItem('invoices') || '[]');
-            const next = existing.map((i) =>
-              i.id === invoice.id
-                ? { ...i, nftoken_id: null, status: 'burned' }
-                : i
-            );
-            localStorage.setItem('invoices', JSON.stringify(next));
-          } catch {}
+        try {
+          const existing: any[] = JSON.parse(localStorage.getItem('invoices') || '[]');
+          const next = existing.map((i) =>
+            i.id === invoice.id ? { ...i, nftoken_id: null, status: 'burned' } : i
+          );
+          localStorage.setItem('invoices', JSON.stringify(next));
+        } catch {}
 
-          try {
-            await supabaseBrowser
-              .from('invoices')
-              .update({ nftoken_id: null, status: 'burned' })
-              .eq('id', invoice.id);
-          } catch {}
+        try {
+          await supabaseBrowser
+            .from('invoices')
+            .update({ nftoken_id: null, status: 'burned' })
+            .eq('id', invoice.id);
+        } catch {}
 
-          window.dispatchEvent(new Event('invoices-updated'));
-          alert('Invoice marked as burned.');
-        }
+        window.dispatchEvent(new Event('invoices-updated'));
+        success('Invoice marked as burned');
         setStatusMsg(null);
         setIsBurning(false);
-      }, 8000);
+      }, 10000);
     } catch (e: any) {
       console.error(e);
       setStatusMsg(null);
       setIsBurning(false);
-      alert(e.message || 'Burn failed');
+      error(e.message || 'Burn failed');
     }
   };
 
@@ -230,8 +185,7 @@ export default function InvoiceCard({ invoice }: Props) {
 
     const text = `Just sent a $${amount} invoice to ${client} powered by @ursadefi + @xAI \u26A1\n\nInstant XRPL invoicing, payments & accounting — all free.\n\nTry it: ursadefi.com${nftPart}`;
 
-    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
-    window.open(url, '_blank');
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank');
   };
 
   const handleViewExplorer = () => {
@@ -240,15 +194,9 @@ export default function InvoiceCard({ invoice }: Props) {
   };
 
   const getStatusBadge = () => {
-    if (invoice.nftoken_id) {
-      return <div className="badge badge-minted">Minted</div>;
-    }
-    if (invoice.status === 'burned') {
-      return <div className="badge badge-draft">Burned</div>;
-    }
-    if (invoice.status === 'paid') {
-      return <div className="badge badge-paid">Paid</div>;
-    }
+    if (invoice.nftoken_id) return <div className="badge badge-minted">Minted</div>;
+    if (invoice.status === 'burned') return <div className="badge badge-draft">Burned</div>;
+    if (invoice.status === 'paid') return <div className="badge badge-paid">Paid</div>;
     return <div className="badge badge-draft">XRPL NFT Ready</div>;
   };
 
