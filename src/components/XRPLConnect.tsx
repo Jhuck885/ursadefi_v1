@@ -114,7 +114,7 @@ export default function XRPLConnect({ onConnect }: XRPLConnectProps = {}) {
             onClick={handleDemoConnect}
             className={outlineButton}
           >
-            Existing User
+            Try me
           </button>
           {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
         </div>
@@ -137,7 +137,7 @@ export default function XRPLConnect({ onConnect }: XRPLConnectProps = {}) {
             onClick={handleDemoConnect}
             className={outlineButton}
           >
-            Existing User
+            Try me
           </button>
           <button
             onClick={() => {
