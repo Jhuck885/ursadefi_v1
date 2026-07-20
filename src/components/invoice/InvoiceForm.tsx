@@ -6,6 +6,7 @@ import { useWallet } from '@/context/WalletContext';
 import BrowserInvoicePDF from './BrowserInvoicePDF';
 import { Invoice } from '@/types';
 import { supabaseBrowser } from '@/lib/supabase';
+import { useToast } from '@/components/ui/Toast';
 
 interface InvoiceFormData {
   invoiceName: string;
@@ -32,6 +33,7 @@ interface Props {
 
 export default function InvoiceForm({ onSuccess }: Props = {}) {
   const { wallet } = useWallet();
+  const { success, error, warning, info } = useToast();
   const [loading, setLoading] = useState(false);
   const [mintStatus, setMintStatus] = useState<string | null>(null);
   const [xrpRate] = useState(2.45);
@@ -62,12 +64,12 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
   const fetchClients = async () => {
     if (!wallet?.address) return;
     try {
-      const { data, error } = await supabaseBrowser
+      const { data, error: err } = await supabaseBrowser
         .from('clients')
         .select('*')
         .eq('wallet_address', wallet.address)
         .order('created_at', { ascending: false });
-      if (!error && data) setClients(data as Client[]);
+      if (!err && data) setClients(data as Client[]);
     } catch (err) {
       console.warn('Supabase clients fetch failed (offline mode)', err);
     }
@@ -84,7 +86,7 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
 
   const handleAddNewClient = async () => {
     if (!newClientName.trim() || !wallet?.address) {
-      alert('Please enter a client name');
+      warning('Please enter a client name');
       return;
     }
     setLoading(true);
@@ -98,7 +100,7 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
       };
 
       try {
-        const { data, error } = await supabaseBrowser
+        const { data, error: err } = await supabaseBrowser
           .from('clients')
           .insert([{
             wallet_address: wallet.address,
@@ -109,7 +111,7 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
           }])
           .select()
           .single();
-        if (!error && data) {
+        if (!err && data) {
           setClients(prev => [data as Client, ...prev]);
           setSelectedClientId(data.id);
           setValue('to', data.name);
@@ -126,10 +128,10 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
 
       setNewClientName(''); setNewClientEmail(''); setNewClientAddress(''); setNewClientPhone('');
       setShowNewClientForm(false);
-      alert('Client added successfully!');
+      success('Client added');
     } catch (e) {
       console.error(e);
-      alert('Failed to add client');
+      error('Failed to add client');
     } finally {
       setLoading(false);
     }
@@ -142,14 +144,13 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
     setValue('xrpAmount', parseFloat(xrpAmount.toFixed(6)));
   }, [watchedAmount, xrpRate, setValue]);
 
-  /** Save invoice to local + Supabase, return the saved Invoice object */
   const saveInvoice = async (formData: InvoiceFormData): Promise<Invoice | null> => {
     if (!formData.to || !formData.invoiceName) {
-      alert('Please enter Invoice Name and Client');
+      warning('Please enter Invoice Name and Client');
       return null;
     }
     if (!wallet?.address) {
-      alert('Please connect your wallet first');
+      warning('Please connect your wallet first');
       return null;
     }
 
@@ -168,7 +169,6 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
       user_id: wallet.address,
     };
 
-    // localStorage first
     try {
       const existing = JSON.parse(localStorage.getItem('invoices') || '[]');
       localStorage.setItem('invoices', JSON.stringify([newInvoice, ...existing]));
@@ -177,7 +177,6 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
       console.error('localStorage save failed', e);
     }
 
-    // Supabase best-effort
     try {
       await supabaseBrowser.from('invoices').insert([{
         id: newInvoice.id,
@@ -205,7 +204,7 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
     try {
       const inv = await saveInvoice(formData);
       if (inv) {
-        alert('✅ Invoice saved!');
+        success('Invoice saved');
         reset({
           invoiceName: '',
           to: '',
@@ -224,21 +223,20 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
     }
   };
 
-  /** Mint flow: save first, then mint with real invoice ID */
   const handleMint = async () => {
     const formValues = watch();
     const currentTotal = Number(formValues.total) || 0;
 
     if (currentTotal < 5) {
-      alert('Minimum $5 to mint an NFT');
+      warning('Minimum $5 to mint an NFT');
       return;
     }
     if (!formValues.invoiceName || !formValues.to) {
-      alert('Please fill Invoice Name and Client before minting');
+      warning('Please fill Invoice Name and Client before minting');
       return;
     }
     if (!wallet?.address) {
-      alert('Please connect your wallet first');
+      warning('Please connect your wallet first');
       return;
     }
 
@@ -246,7 +244,6 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
     setMintStatus('Saving invoice...');
 
     try {
-      // 1. Save the invoice first so we have a real ID
       const invoice = await saveInvoice(formValues as InvoiceFormData);
       if (!invoice) {
         setLoading(false);
@@ -254,7 +251,6 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
         return;
       }
 
-      // 2. Create Xaman mint payload (server-side)
       setMintStatus('Creating Xaman payload...');
       const res = await fetch('/api/xaman/mint', {
         method: 'POST',
@@ -266,11 +262,10 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
       if (!res.ok) throw new Error(data.error || 'Failed to create mint payload');
       if (!data.next || !data.uuid) throw new Error('No Xaman deep link returned');
 
-      // 3. Open Xaman
       setMintStatus('Open Xaman and approve the mint...');
+      info('Open Xaman and approve the mint');
       window.open(data.next, '_blank');
 
-      // 4. Poll for result
       const uuid = data.uuid;
       let attempts = 0;
       const maxAttempts = 60;
@@ -288,7 +283,6 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
           const resolveData = await resolveRes.json();
 
           if (resolveData.signed && resolveData.nftokenId) {
-            // Success — save NFT ID
             setMintStatus('Minted! Saving NFT ID...');
 
             try {
@@ -315,9 +309,8 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
             window.dispatchEvent(new Event('invoices-updated'));
             setMintStatus(null);
             setLoading(false);
-            alert(`Successfully minted!\n\nNFTokenID:\n${resolveData.nftokenId}`);
+            success(`Minted successfully · ${resolveData.nftokenId.slice(0, 12)}…`);
 
-            // Reset form
             reset({
               invoiceName: '',
               to: '',
@@ -335,14 +328,14 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
           if (resolveData.expired) {
             setMintStatus(null);
             setLoading(false);
-            alert('Xaman payload expired. Please try again.');
+            error('Xaman payload expired. Please try again.');
             return;
           }
 
           if (attempts >= maxAttempts) {
             setMintStatus(null);
             setLoading(false);
-            alert('Timed out waiting for signature. If you already signed, check the Activities feed — the NFT may still appear.');
+            warning('Timed out waiting for signature. Check Activities if you already signed.');
             return;
           }
 
@@ -362,7 +355,7 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
       console.error(e);
       setMintStatus(null);
       setLoading(false);
-      alert(e.message || 'Mint failed');
+      error(e.message || 'Mint failed');
     }
   };
 
