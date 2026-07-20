@@ -6,8 +6,43 @@ import Link from 'next/link';
 import LeftSidebar from '@/components/layout/LeftSidebar';
 import BrowserInvoicePDF from '@/components/invoice/BrowserInvoicePDF';
 import { Invoice } from '@/types';
-import { FileText, Search, Plus, Trash2, Home, Users, User, CheckCircle2, RotateCcw } from 'lucide-react';
+import {
+  FileText, Search, Plus, Trash2, Home, Users, User,
+  CheckCircle2, RotateCcw, Bell, X, CalendarPlus
+} from 'lucide-react';
 import { supabaseBrowser } from '@/lib/supabase';
+
+type InvoiceReminder = {
+  invoiceId: string;
+  remindAt: string; // YYYY-MM-DD
+  note?: string;
+  client?: string;
+};
+
+const REMINDERS_KEY = 'ursadefi_invoice_reminders';
+
+function loadReminders(): InvoiceReminder[] {
+  try {
+    return JSON.parse(localStorage.getItem(REMINDERS_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function saveReminders(list: InvoiceReminder[]) {
+  localStorage.setItem(REMINDERS_KEY, JSON.stringify(list));
+}
+
+function googleCalendarUrl(inv: Invoice, remindAt: string, note: string) {
+  const title = encodeURIComponent(`Follow up: Invoice ${inv.id} — ${inv.to || 'Client'}`);
+  const details = encodeURIComponent(
+    `UrsaDeFi reminder\nInvoice: ${inv.id}\nAmount: $${Number(inv.total).toFixed(2)} (≈ ${Number(inv.xrpAmount).toFixed(6)} XRP)\n${note || ''}`
+  );
+  // All-day event on remindAt
+  const day = remindAt.replace(/-/g, '');
+  const dates = `${day}/${day}`;
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&dates=${dates}`;
+}
 
 export default function InvoicesPage() {
   const { wallet, isConnected } = useWallet();
@@ -16,6 +51,14 @@ export default function InvoicesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [reminders, setReminders] = useState<InvoiceReminder[]>([]);
+  const [reminderFor, setReminderFor] = useState<Invoice | null>(null);
+  const [remindDate, setRemindDate] = useState('');
+  const [remindNote, setRemindNote] = useState('');
+
+  useEffect(() => {
+    setReminders(loadReminders());
+  }, []);
 
   const loadInvoices = async () => {
     setLoading(true);
@@ -44,7 +87,6 @@ export default function InvoicesPage() {
               to: row.to_name || row.to || '',
               items: row.items || [{ desc: row.description || '', qty: 1, price: row.total || 0 }],
               total: row.total || 0,
-              // Prefer frozen local XRP amount / paymentUri so QR never drifts
               xrpAmount: localCopy.xrpAmount ?? row.xrp_amount ?? row.xrpAmount ?? 0,
               receiver: row.receiver || localCopy.receiver || '',
               dueDate: row.due_date || row.dueDate || '',
@@ -94,6 +136,38 @@ export default function InvoicesPage() {
     );
   });
 
+  const reminderForId = (id: string) => reminders.find(r => r.invoiceId === id);
+
+  const openReminderModal = (inv: Invoice) => {
+    const existing = reminderForId(inv.id);
+    const defaultDate = existing?.remindAt
+      || inv.dueDate
+      || new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
+    setRemindDate(defaultDate);
+    setRemindNote(existing?.note || '');
+    setReminderFor(inv);
+  };
+
+  const saveReminder = () => {
+    if (!reminderFor || !remindDate) return;
+    const next = reminders.filter(r => r.invoiceId !== reminderFor.id);
+    next.push({
+      invoiceId: reminderFor.id,
+      remindAt: remindDate,
+      note: remindNote.trim(),
+      client: reminderFor.to || '',
+    });
+    saveReminders(next);
+    setReminders(next);
+    setReminderFor(null);
+  };
+
+  const clearReminder = (invoiceId: string) => {
+    const next = reminders.filter(r => r.invoiceId !== invoiceId);
+    saveReminders(next);
+    setReminders(next);
+  };
+
   const updateLocalStatus = (id: string, status: string) => {
     try {
       const existing: Invoice[] = JSON.parse(localStorage.getItem('invoices') || '[]');
@@ -110,14 +184,13 @@ export default function InvoicesPage() {
     setUpdatingId(invoice.id);
     updateLocalStatus(invoice.id, status);
     setInvoices(prev => prev.map(i => (i.id === invoice.id ? { ...i, status } : i)));
-    if (selectedInvoice?.id === invoice.id) {
-      setSelectedInvoice({ ...invoice, status });
-    }
+    if (selectedInvoice?.id === invoice.id) setSelectedInvoice({ ...invoice, status });
     try {
       await supabaseBrowser.from('invoices').update({ status }).eq('id', invoice.id);
     } catch (err) {
       console.warn('Status cloud update failed (local updated)', err);
     }
+    if (status === 'paid') clearReminder(invoice.id);
     window.dispatchEvent(new Event('invoices-updated'));
     setUpdatingId(null);
   };
@@ -129,6 +202,7 @@ export default function InvoicesPage() {
     try {
       await supabaseBrowser.from('invoices').delete().eq('id', invoice.id);
     } catch {}
+    clearReminder(invoice.id);
     setInvoices(prev => prev.filter(i => i.id !== invoice.id));
     if (selectedInvoice?.id === invoice.id) setSelectedInvoice(null);
     window.dispatchEvent(new Event('invoices-updated'));
@@ -160,6 +234,11 @@ export default function InvoicesPage() {
               <h1 className="text-3xl font-bold tracking-tight">Invoices</h1>
               <p className="text-[var(--text-secondary)] mt-1">
                 {invoices.length} invoice{invoices.length !== 1 ? 's' : ''} total
+                {reminders.length > 0 && (
+                  <span className="ml-2 text-[var(--brand-primary)]">
+                    · {reminders.length} reminder{reminders.length !== 1 ? 's' : ''}
+                  </span>
+                )}
               </p>
             </div>
 
@@ -202,6 +281,7 @@ export default function InvoicesPage() {
               {filtered.map((inv) => {
                 const isPaid = inv.status === 'paid';
                 const isUpdating = updatingId === inv.id;
+                const rem = reminderForId(inv.id);
 
                 return (
                   <div
@@ -211,7 +291,7 @@ export default function InvoicesPage() {
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3 mb-1">
+                        <div className="flex items-center gap-3 mb-1 flex-wrap">
                           <span className="font-mono text-sm text-[var(--brand-primary)]">{inv.id}</span>
                           <span className={`text-xs px-2 py-0.5 rounded-full ${
                             isPaid
@@ -222,6 +302,12 @@ export default function InvoicesPage() {
                           }`}>
                             {inv.status || 'draft'}
                           </span>
+                          {rem && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-500 flex items-center gap-1">
+                              <Bell className="w-3 h-3" />
+                              Remind {new Date(rem.remindAt + 'T12:00:00').toLocaleDateString()}
+                            </span>
+                          )}
                         </div>
                         <h3 className="font-semibold text-lg truncate">{inv.to || 'Unknown Client'}</h3>
                         <p className="text-sm text-[var(--text-secondary)] truncate mt-0.5">
@@ -235,9 +321,6 @@ export default function InvoicesPage() {
                           {inv.dueDate && (
                             <span className="text-[var(--text-muted)]">Due {new Date(inv.dueDate).toLocaleDateString()}</span>
                           )}
-                          {inv.created_at && (
-                            <span className="text-[var(--text-muted)]">Created {new Date(inv.created_at).toLocaleDateString()}</span>
-                          )}
                         </div>
                       </div>
 
@@ -247,7 +330,6 @@ export default function InvoicesPage() {
                             onClick={() => handleSetStatus(inv, 'paid')}
                             disabled={isUpdating}
                             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-full transition disabled:opacity-50"
-                            title="Mark as Paid"
                           >
                             <CheckCircle2 className="w-3.5 h-3.5" />
                             {isUpdating ? '...' : 'Mark Paid'}
@@ -257,14 +339,20 @@ export default function InvoicesPage() {
                             onClick={() => handleSetStatus(inv, 'draft')}
                             disabled={isUpdating}
                             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-[var(--border-color)] hover:bg-[var(--bg-primary)] rounded-full transition disabled:opacity-50"
-                            title="Mark as Unpaid"
                           >
                             <RotateCcw className="w-3.5 h-3.5" />
                             {isUpdating ? '...' : 'Unpaid'}
                           </button>
                         )}
                         <BrowserInvoicePDF invoice={inv} mode="open" />
-                        <BrowserInvoicePDF invoice={inv} mode="reminder" />
+                        <button
+                          onClick={() => openReminderModal(inv)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-[var(--border-color)] hover:bg-[var(--bg-primary)] rounded-full transition"
+                          title="Set a follow-up reminder"
+                        >
+                          <Bell className="w-3.5 h-3.5" />
+                          {rem ? 'Edit Reminder' : 'Set Reminder'}
+                        </button>
                         <button
                           onClick={() => handleDelete(inv)}
                           className="p-2 text-red-400 hover:bg-red-950/40 rounded-xl transition"
@@ -289,6 +377,15 @@ export default function InvoicesPage() {
                           <p className="text-[var(--text-muted)] text-xs mb-1">Locked XRP amount (QR)</p>
                           <p className="font-mono text-xs">{Number(inv.xrpAmount).toFixed(6)} XRP</p>
                         </div>
+                        {rem && (
+                          <div className="md:col-span-2">
+                            <p className="text-[var(--text-muted)] text-xs mb-1">Reminder</p>
+                            <p>
+                              {new Date(rem.remindAt + 'T12:00:00').toLocaleDateString()}
+                              {rem.note ? ` — ${rem.note}` : ''}
+                            </p>
+                          </div>
+                        )}
                         <div className="md:col-span-2">
                           <p className="text-[var(--text-muted)] text-xs mb-1">Line Items</p>
                           <ul className="space-y-1">
@@ -310,23 +407,101 @@ export default function InvoicesPage() {
         </div>
       </div>
 
+      {/* Reminder modal */}
+      {reminderFor && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setReminderFor(null)}
+        >
+          <div
+            className="w-full max-w-md bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <Bell className="w-5 h-5 text-[var(--brand-primary)]" />
+                Set Reminder
+              </h2>
+              <button
+                onClick={() => setReminderFor(null)}
+                className="p-1 rounded-lg hover:bg-[var(--bg-primary)] transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-sm text-[var(--text-secondary)] mb-4">
+              Follow up on <span className="font-mono text-[var(--brand-primary)]">{reminderFor.id}</span>
+              {reminderFor.to ? ` · ${reminderFor.to}` : ''}
+            </p>
+
+            <label className="block text-xs text-[var(--text-muted)] mb-1">Remind me on</label>
+            <input
+              type="date"
+              value={remindDate}
+              onChange={(e) => setRemindDate(e.target.value)}
+              className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-4 py-2.5 text-sm mb-4 focus:outline-none focus:border-[var(--brand-primary)]"
+            />
+
+            <label className="block text-xs text-[var(--text-muted)] mb-1">Note (optional)</label>
+            <input
+              type="text"
+              value={remindNote}
+              onChange={(e) => setRemindNote(e.target.value)}
+              placeholder="e.g. Call if still unpaid"
+              className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-4 py-2.5 text-sm mb-6 focus:outline-none focus:border-[var(--brand-primary)]"
+            />
+
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={saveReminder}
+                disabled={!remindDate}
+                className="w-full py-2.5 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white rounded-full text-sm font-medium transition disabled:opacity-50"
+              >
+                Save Reminder
+              </button>
+              <a
+                href={remindDate ? googleCalendarUrl(reminderFor, remindDate, remindNote) : '#'}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => {
+                  if (!remindDate) e.preventDefault();
+                  else saveReminder();
+                }}
+                className="w-full py-2.5 border border-[var(--border-color)] hover:bg-[var(--bg-primary)] rounded-full text-sm font-medium transition flex items-center justify-center gap-2"
+              >
+                <CalendarPlus className="w-4 h-4" />
+                Save & add to Google Calendar
+              </a>
+              {reminderForId(reminderFor.id) && (
+                <button
+                  onClick={() => {
+                    clearReminder(reminderFor.id);
+                    setReminderFor(null);
+                  }}
+                  className="w-full py-2 text-xs text-red-400 hover:underline"
+                >
+                  Clear reminder
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="fixed bottom-0 left-0 right-0 bg-[var(--bg-primary)] border-t border-[var(--border-color)] md:hidden z-10 safe-bottom">
         <div className="flex justify-around py-2 text-[var(--text-primary)] text-xs">
           <Link href="/dashboard" className="flex flex-col items-center gap-1 hover:text-[var(--brand-primary)] transition">
-            <Home className="w-5 h-5" />
-            <span>Dashboard</span>
+            <Home className="w-5 h-5" /><span>Dashboard</span>
           </Link>
           <Link href="/invoices" className="flex flex-col items-center gap-1 hover:text-[var(--brand-primary)] transition">
-            <FileText className="w-5 h-5" />
-            <span>Invoices</span>
+            <FileText className="w-5 h-5" /><span>Invoices</span>
           </Link>
           <Link href="/clients" className="flex flex-col items-center gap-1 hover:text-[var(--brand-primary)] transition">
-            <Users className="w-5 h-5" />
-            <span>Clients</span>
+            <Users className="w-5 h-5" /><span>Clients</span>
           </Link>
           <Link href="/profile" className="flex flex-col items-center gap-1 hover:text-[var(--brand-primary)] transition">
-            <User className="w-5 h-5" />
-            <span>Profile</span>
+            <User className="w-5 h-5" /><span>Profile</span>
           </Link>
         </div>
       </div>
