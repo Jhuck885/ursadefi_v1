@@ -1,16 +1,13 @@
+'use client';
+
 // src/app/dashboard/layout.tsx
 import '../globals.css';
-import { Inter } from 'next/font/google'; // kept for reference but no longer used globally
-// Note: Global font is now Poppins from root layout for consistent branding
 import LeftSidebar from '@/components/layout/LeftSidebar';
 import RightSidebar from '@/components/layout/RightSidebar';
 import CreateInvoiceButton from '@/components/layout/CreateInvoiceButton';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, FileText, Users, User } from 'lucide-react';
-
-// Removed Inter here - now handled globally via Poppins in root layout for UrsaDeFi branding identity
-const inter = Inter({ subsets: ['latin'] }); // legacy, safe to remove later
 
 export default function DashboardLayout({
   children,
@@ -22,7 +19,7 @@ export default function DashboardLayout({
   const isActive = (href: string) => pathname === href || (href === '/dashboard' && pathname.startsWith('/dashboard'));
 
   return (
-    <div className={`flex min-h-screen flex-col ${inter.className}`}>
+    <div className="flex min-h-screen flex-col">
       <div className="flex flex-1">
         {/* Left Sidebar — desktop only */}
         <aside className="w-64 bg-[var(--bg-primary)] border-r border-[var(--border-color)] overflow-y-auto hidden md:block flex-shrink-0">

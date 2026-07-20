@@ -15,12 +15,6 @@ const poppins = Poppins({
   display: 'swap',
 });
 
-export const metadata = {
-  icons: {
-    icon: '/ursa-logo.png',
-  },
-};
-
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const [isDark, setIsDark] = useState(true);
 

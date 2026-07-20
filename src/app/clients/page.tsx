@@ -225,7 +225,7 @@ export default function ClientsPage() {
                     <h3 className="font-semibold text-lg">{client.name}</h3>
                     {client.email && <p className="text-sm text-[var(--text-secondary)] mt-1">{client.email}</p>}
                     {client.address && <p className="text-sm text-[var(--text-secondary)] mt-1">{client.address}</p>}
-                    {client.city_state && <p className="text-sm text-[var(--text-secondary)]">{client.city_state}</p>
+                    {client.city_state && <p className="text-sm text-[var(--text-secondary)]">{client.city_state}</p>}
                     <p className="text-xs text-[var(--text-secondary)] mt-3">Added {new Date(client.created_at).toLocaleDateString()}</p>
                   </div>
 
