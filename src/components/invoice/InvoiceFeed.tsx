@@ -25,7 +25,7 @@ export default function InvoiceFeed() {
       }
 
       if (data) {
-        // Map Supabase rows to our Invoice type if needed
+        // Map Supabase rows to our Invoice type (include NFT fields)
         const mapped = data.map((row: any) => ({
           id: row.id,
           from: row.from_name || '',
@@ -37,6 +37,10 @@ export default function InvoiceFeed() {
           dueDate: row.due_date || '',
           description: row.description || '',
           status: row.status || 'draft',
+          nftoken_id: row.nftoken_id || null,
+          nft_uri: row.nft_uri || null,
+          xrpl_tx_hash: row.xrpl_tx_hash || null,
+          created_at: row.created_at,
         }));
         setInvoices(mapped);
       }
