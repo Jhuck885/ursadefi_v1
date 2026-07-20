@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Invoice } from '@/types';
 import BrowserInvoicePDF from './BrowserInvoicePDF';
 import { mintInvoiceNFT, burnInvoiceNFT } from '@/lib/xrpl';
