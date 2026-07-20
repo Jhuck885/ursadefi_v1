@@ -1,13 +1,20 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { useWallet } from '@/context/WalletContext';
 import BrowserInvoicePDF from './BrowserInvoicePDF';
 import { Invoice } from '@/types';
 import { supabaseBrowser } from '@/lib/supabase';
 import { useToast } from '@/components/ui/Toast';
-import { MIN_INVOICE_USD, MIN_MINT_USD } from '@/lib/constants';
+import {
+  MIN_INVOICE_USD,
+  MIN_MINT_USD,
+  PLATFORM_FEE_RATE,
+  PLATFORM_FEE_PERCENT_LABEL,
+  MIN_PLATFORM_FEE_USD,
+  calcPlatformFee,
+} from '@/lib/constants';
 
 interface InvoiceFormData {
   invoiceName: string;
@@ -61,6 +68,13 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
 
   const watchedAmount = watch('amount');
   const watchedXrp = watch('xrpAmount');
+
+  const subtotal = Number(watchedAmount) || 0;
+  const platformFee = useMemo(() => calcPlatformFee(subtotal), [subtotal]);
+  const amountDue = useMemo(
+    () => (subtotal > 0 ? parseFloat((subtotal + platformFee).toFixed(2)) : 0),
+    [subtotal, platformFee]
+  );
 
   const fetchClients = async () => {
     if (!wallet?.address) return;
@@ -139,11 +153,12 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
   };
 
   useEffect(() => {
-    const total = Number(watchedAmount) || 0;
-    const xrpAmount = xrpRate > 0 ? total / xrpRate : 0;
-    setValue('total', parseFloat(total.toFixed(2)));
+    const fee = calcPlatformFee(subtotal);
+    const due = subtotal > 0 ? parseFloat((subtotal + fee).toFixed(2)) : 0;
+    const xrpAmount = xrpRate > 0 && due > 0 ? due / xrpRate : 0;
+    setValue('total', due);
     setValue('xrpAmount', parseFloat(xrpAmount.toFixed(6)));
-  }, [watchedAmount, xrpRate, setValue]);
+  }, [subtotal, xrpRate, setValue]);
 
   const saveInvoice = async (formData: InvoiceFormData): Promise<Invoice | null> => {
     if (!formData.to || !formData.invoiceName) {
@@ -155,19 +170,26 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
       return null;
     }
 
-    const total = Number(formData.total) || Number(formData.amount) || 0;
-    if (total < MIN_INVOICE_USD) {
+    const serviceAmount = Number(formData.amount) || 0;
+    if (serviceAmount < MIN_INVOICE_USD) {
       warning(`Minimum invoice amount is $${MIN_INVOICE_USD}`);
       return null;
     }
+
+    const fee = calcPlatformFee(serviceAmount);
+    const due = parseFloat((serviceAmount + fee).toFixed(2));
+    const xrpAmount = xrpRate > 0 ? parseFloat((due / xrpRate).toFixed(6)) : 0;
 
     const newInvoice: Invoice = {
       id: 'INV-' + Date.now(),
       from: formData.invoiceName,
       to: formData.to,
-      items: [{ desc: formData.description, qty: 1, price: formData.amount }],
-      total: formData.total,
-      xrpAmount: formData.xrpAmount,
+      items: [{ desc: formData.description, qty: 1, price: serviceAmount }],
+      subtotal: serviceAmount,
+      platformFee: fee,
+      feeRate: PLATFORM_FEE_RATE,
+      total: due,
+      xrpAmount,
       receiver: formData.receiver,
       dueDate: formData.dueDate,
       description: formData.description,
@@ -232,10 +254,10 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
 
   const handleMint = async () => {
     const formValues = watch();
-    const currentTotal = Number(formValues.total) || 0;
+    const serviceAmount = Number(formValues.amount) || 0;
 
-    if (currentTotal < MIN_MINT_USD) {
-      warning(`Minimum $${MIN_MINT_USD} to mint an NFT`);
+    if (serviceAmount < MIN_MINT_USD) {
+      warning(`Minimum $${MIN_MINT_USD} service amount to mint an NFT`);
       return;
     }
     if (!formValues.invoiceName || !formValues.to) {
@@ -369,8 +391,8 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
   const pillButton =
     'flex-1 py-3.5 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-semibold rounded-full transition disabled:opacity-60';
 
-  const belowInvoiceMin = watchedAmount > 0 && watchedAmount < MIN_INVOICE_USD;
-  const belowMintMin = watchedAmount > 0 && watchedAmount < MIN_MINT_USD;
+  const belowInvoiceMin = subtotal > 0 && subtotal < MIN_INVOICE_USD;
+  const belowMintMin = subtotal > 0 && subtotal < MIN_MINT_USD;
 
   return (
     <div className="space-y-5">
@@ -451,7 +473,7 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs text-[var(--text-secondary)] mb-1">AMOUNT (USD)</label>
+            <label className="block text-xs text-[var(--text-secondary)] mb-1">SERVICE AMOUNT (USD)</label>
             <input
               type="number"
               step="0.01"
@@ -464,7 +486,7 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
               className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl px-4 py-3 text-lg font-semibold focus:outline-none focus:border-[var(--brand-primary)]"
             />
             {belowInvoiceMin && (
-              <p className="text-amber-400 text-xs mt-1">Minimum invoice is ${MIN_INVOICE_USD}</p>
+              <p className="text-amber-400 text-xs mt-1">Minimum service amount is ${MIN_INVOICE_USD}</p>
             )}
             {errors.amount && <p className="text-red-400 text-xs mt-1">{errors.amount.message}</p>}
           </div>
@@ -474,9 +496,25 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
           </div>
         </div>
 
-        {watchedAmount > 0 && (
-          <div className="text-sm text-[var(--text-secondary)]">
-            ≈ <span className="font-semibold text-[var(--text-primary)]">{watchedXrp.toFixed(2)} XRP</span> (auto)
+        {subtotal > 0 && (
+          <div className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 space-y-2 text-sm">
+            <div className="flex justify-between text-[var(--text-secondary)]">
+              <span>Service subtotal</span>
+              <span className="text-[var(--text-primary)] font-medium">${subtotal.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between text-[var(--text-secondary)]">
+              <span>
+                Platform fee ({PLATFORM_FEE_PERCENT_LABEL}, min ${MIN_PLATFORM_FEE_USD.toFixed(2)})
+              </span>
+              <span className="text-[var(--text-primary)] font-medium">${platformFee.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between pt-2 border-t border-[var(--border-color)] font-semibold text-[var(--text-primary)]">
+              <span>Amount due</span>
+              <span>${amountDue.toFixed(2)}</span>
+            </div>
+            <div className="text-xs text-[var(--text-muted)]">
+              ≈ {watchedXrp.toFixed(2)} XRP (auto) · Shown on invoice for client transparency
+            </div>
           </div>
         )}
 
@@ -496,7 +534,7 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
         </div>
 
         <div className="text-[10px] text-[var(--text-muted)] text-center">
-          Fee ~0.15% max • Non-custodial • Min ${MIN_INVOICE_USD} invoice · ${MIN_MINT_USD} to mint
+          Fee {PLATFORM_FEE_PERCENT_LABEL} (min ${MIN_PLATFORM_FEE_USD.toFixed(2)}) · Non-custodial · Min ${MIN_INVOICE_USD} · ${MIN_MINT_USD} to mint
         </div>
       </form>
 
@@ -506,10 +544,14 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
             id: 'PREVIEW-' + Date.now(),
             from: watch('invoiceName') || 'Invoice',
             to: watch('to') || 'Client',
-            items: [{ desc: watch('description') || '', qty: 1, price: watch('amount') || 0 }],
-            total: watch('total') || 0,
+            items: [{ desc: watch('description') || 'Professional services', qty: 1, price: subtotal }],
+            subtotal,
+            platformFee,
+            feeRate: PLATFORM_FEE_RATE,
+            total: amountDue,
             xrpAmount: watch('xrpAmount') || 0,
             receiver: watch('receiver'),
+            description: watch('description') || '',
           } as Invoice}
         />
       </div>
