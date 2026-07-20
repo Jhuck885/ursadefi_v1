@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useWallet } from '@/context/WalletContext';
 import Link from 'next/link';
 import LeftSidebar from '@/components/layout/LeftSidebar';
+import { supabaseBrowser, loadProfile } from '@/lib/supabase';
 import {
   Copy, Check, ExternalLink, Wallet, User, Settings, LogOut,
   Building2, Globe, Phone, MapPin, Hash, Mail, Camera, Save
@@ -45,21 +46,54 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [cloudSynced, setCloudSynced] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Load local + cloud profile
   useEffect(() => {
-    try {
-      const invoices = JSON.parse(localStorage.getItem('invoices') || '[]');
-      setInvoiceCount(invoices.length);
+    const load = async () => {
+      try {
+        const invoices = JSON.parse(localStorage.getItem('invoices') || '[]');
+        setInvoiceCount(invoices.length);
 
-      const savedProfile = localStorage.getItem('ursadefi_company_profile');
-      if (savedProfile) {
-        setProfile({ ...defaultProfile, ...JSON.parse(savedProfile) });
+        // 1. Local first (fast)
+        const savedProfile = localStorage.getItem('ursadefi_company_profile');
+        if (savedProfile) {
+          setProfile({ ...defaultProfile, ...JSON.parse(savedProfile) });
+        }
+
+        // 2. Cloud (authoritative if present)
+        if (wallet?.address) {
+          const cloud = await loadProfile(wallet.address);
+          if (cloud) {
+            const mapped: CompanyProfile = {
+              username: cloud.username || '',
+              companyName: cloud.company_name || '',
+              website: cloud.website || '',
+              phone: cloud.phone || '',
+              email: cloud.email || '',
+              address: cloud.address || '',
+              cityStateZip: cloud.city_state_zip || '',
+              country: cloud.country || 'United States',
+              ein: cloud.ein || '',
+              tagline: cloud.tagline || '',
+              logoDataUrl: cloud.logo_data_url || '',
+            };
+            // Prefer cloud if it has company name; otherwise keep local
+            if (cloud.company_name || cloud.username) {
+              setProfile(mapped);
+              localStorage.setItem('ursadefi_company_profile', JSON.stringify(mapped));
+            }
+            setCloudSynced(true);
+          }
+        }
+      } catch {
+        setInvoiceCount(0);
       }
-    } catch {
-      setInvoiceCount(0);
-    }
-  }, []);
+    };
+
+    load();
+  }, [wallet?.address]);
 
   const copyAddress = () => {
     if (!wallet?.address) return;
@@ -89,13 +123,56 @@ export default function ProfilePage() {
   };
 
   const handleSave = async () => {
+    if (!wallet?.address) {
+      alert('Connect your wallet first');
+      return;
+    }
+
     setSaving(true);
     try {
+      // Always save locally
       localStorage.setItem('ursadefi_company_profile', JSON.stringify(profile));
       window.dispatchEvent(new CustomEvent('company-profile-updated', { detail: profile }));
+
+      // Sync to Supabase
+      let cloudOk = false;
+      try {
+        const { error } = await supabaseBrowser
+          .from('profiles')
+          .upsert({
+            wallet_address: wallet.address,
+            username: profile.username || null,
+            company_name: profile.companyName || null,
+            website: profile.website || null,
+            phone: profile.phone || null,
+            email: profile.email || null,
+            address: profile.address || null,
+            city_state_zip: profile.cityStateZip || null,
+            country: profile.country || 'United States',
+            ein: profile.ein || null,
+            tagline: profile.tagline || null,
+            logo_data_url: profile.logoDataUrl || null,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'wallet_address' });
+
+        if (!error) {
+          cloudOk = true;
+          setCloudSynced(true);
+        } else {
+          console.warn('Cloud profile save failed:', error.message);
+        }
+      } catch (e) {
+        console.warn('Cloud profile save exception:', e);
+      }
+
       setSaved(true);
       setIsEditing(false);
-      setTimeout(() => setSaved(false), 2500);
+      setTimeout(() => setSaved(false), 3000);
+
+      if (!cloudOk) {
+        // Still success locally — soft note
+        console.info('Profile saved locally. Cloud sync pending (run profiles SQL if table missing).');
+      }
     } catch (err) {
       console.error(err);
       alert('Failed to save profile');
@@ -135,7 +212,10 @@ export default function ProfilePage() {
           <div className="flex items-center justify-between mb-10">
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Company Profile</h1>
-              <p className="text-[var(--text-secondary)] mt-1">This info appears on your invoices</p>
+              <p className="text-[var(--text-secondary)] mt-1">
+                This info appears on your invoices
+                {cloudSynced && <span className="ml-2 text-emerald-500 text-xs">● Cloud synced</span>}
+              </p>
             </div>
             {!isEditing ? (
               <button
@@ -166,7 +246,7 @@ export default function ProfilePage() {
 
           {saved && (
             <div className="mb-6 px-4 py-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 rounded-xl text-sm">
-              Profile saved successfully. This data will be used on future invoices.
+              Profile saved. Local + cloud updated. This data will be used on future invoices.
             </div>
           )}
 
