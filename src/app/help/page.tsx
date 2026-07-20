@@ -73,7 +73,7 @@ export default function HelpPage() {
         </Link>
 
         <div className="mb-12">
-          <h1 className="text-4xl font-bold tracking-tight mb-3">About & Help</h1>
+          <h1 className="text-4xl font-bold tracking-tight mb-3">About</h1>
           <p className="text-[var(--text-secondary)] text-lg">
             How UrsaDeFi works, docs, and answers — no login required.
           </p>
