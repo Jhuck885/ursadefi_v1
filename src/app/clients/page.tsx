@@ -202,13 +202,7 @@ export default function ClientsPage() {
           )}
 
           <div className="mb-6">
-            <input
-              type="text"
-              placeholder="Search clients by name or email..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full max-w-md bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[var(--brand-primary)]"
-            >
+            <input type="text" placeholder="Search clients by name or email..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full max-w-md bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[var(--brand-primary)]" />
           </div>
 
           {loading ? (
