@@ -1,5 +1,6 @@
 'use client';
 import { Invoice } from '@/types';
+import { calcPlatformFee, PLATFORM_FEE_PERCENT_LABEL, MIN_PLATFORM_FEE_USD } from '@/lib/constants';
 
 interface CompanyProfile {
   username?: string;
@@ -29,6 +30,25 @@ function loadCompanyProfile(): CompanyProfile {
   return {};
 }
 
+function resolveFeeBreakdown(invoice: Invoice) {
+  const subtotal =
+    typeof invoice.subtotal === 'number' && invoice.subtotal > 0
+      ? invoice.subtotal
+      : Number(invoice.items?.[0]?.price) || Number(invoice.total) || 0;
+
+  const platformFee =
+    typeof invoice.platformFee === 'number' && invoice.platformFee >= 0
+      ? invoice.platformFee
+      : calcPlatformFee(subtotal);
+
+  const total =
+    typeof invoice.total === 'number' && invoice.total > 0
+      ? invoice.total
+      : parseFloat((subtotal + platformFee).toFixed(2));
+
+  return { subtotal, platformFee, total };
+}
+
 export function buildPaymentUri(invoice: Invoice): string {
   const frozen = (invoice as any).paymentUri as string | undefined;
   if (frozen && frozen.startsWith('xrp:')) return frozen;
@@ -55,6 +75,7 @@ export default function BrowserInvoicePDF({
     }
 
     const profile = loadCompanyProfile();
+    const { subtotal, platformFee, total } = resolveFeeBreakdown(invoice);
 
     const companyName = profile.companyName || invoice.from || 'Your Company';
     const companyTagline = profile.tagline || invoice.companyTagline || '';
@@ -90,11 +111,25 @@ export default function BrowserInvoicePDF({
       const existing: any[] = JSON.parse(localStorage.getItem('invoices') || '[]');
       const next = existing.map((i) =>
         i.id === invoice.id
-          ? { ...i, paymentUri, xrpAmount: Number(xrpFixed) }
+          ? {
+              ...i,
+              paymentUri,
+              xrpAmount: Number(xrpFixed),
+              subtotal,
+              platformFee,
+              total,
+            }
           : i
       );
       if (!existing.find((i) => i.id === invoice.id)) {
-        next.unshift({ ...invoice, paymentUri, xrpAmount: Number(xrpFixed) });
+        next.unshift({
+          ...invoice,
+          paymentUri,
+          xrpAmount: Number(xrpFixed),
+          subtotal,
+          platformFee,
+          total,
+        });
       }
       localStorage.setItem('invoices', JSON.stringify(next));
     } catch {}
@@ -116,7 +151,6 @@ export default function BrowserInvoicePDF({
       ? `<img src="${companyLogo}" alt="${companyName}" class="company-logo" />`
       : '';
 
-    // Absolute URL so logo still loads in the print popup window
     const ursaLogoSrc =
       typeof window !== 'undefined'
         ? `${window.location.origin}/ursa-logo.png`
@@ -133,6 +167,11 @@ export default function BrowserInvoicePDF({
           day: 'numeric',
           year: '2-digit',
         });
+
+    const serviceDesc =
+      invoice.description ||
+      invoice.items?.[0]?.desc ||
+      'Professional services';
 
     const html = `<!DOCTYPE html>
 <html>
@@ -224,6 +263,7 @@ export default function BrowserInvoicePDF({
     th.right { text-align: right; }
     td { padding: 5px 0; border-bottom: 1px solid #ddd; vertical-align: top; }
     td.right { text-align: right; }
+    .muted { color: #555; font-size: 10.5px; }
     .total-row { border-top: 2px solid #111; font-weight: 700; }
     .total-row td { padding-top: 6px; border-bottom: none; }
     .payment-line { margin-top: 10px; font-size: 11px; }
@@ -293,9 +333,8 @@ export default function BrowserInvoicePDF({
     <div class="section" style="text-align:right;">
       <strong>FOR:</strong>
       <div style="margin-top:2px; line-height:1.3;">
-        ${invoice.description || 'Professional Services'}<br>
-        XRPL Invoicing & Payments<br>
-        UrsaDeFi Platform
+        ${serviceDesc}<br>
+        XRPL settlement via UrsaDeFi
       </div>
     </div>
   </div>
@@ -304,28 +343,40 @@ export default function BrowserInvoicePDF({
     <thead>
       <tr>
         <th>DESCRIPTION</th>
-        <th class="right" style="width: 70px;">HOURS</th>
+        <th class="right" style="width: 70px;">QTY</th>
         <th class="right" style="width: 70px;">RATE</th>
         <th class="right" style="width: 90px;">AMOUNT</th>
       </tr>
     </thead>
     <tbody>
-      ${(invoice.items || [])
-        .map((item) => {
-          const amount = (item.qty * item.price).toFixed(2);
-          return `<tr>
-            <td>${item.desc || ''}</td>
-            <td class="right">${item.qty}</td>
-            <td class="right">$${Number(item.price).toFixed(2)}</td>
-            <td class="right">$${amount}</td>
-          </tr>`;
-        })
-        .join('')}
+      <tr>
+        <td>${serviceDesc}</td>
+        <td class="right">1</td>
+        <td class="right">$${subtotal.toFixed(2)}</td>
+        <td class="right">$${subtotal.toFixed(2)}</td>
+      </tr>
+      <tr>
+        <td>
+          UrsaDeFi platform fee
+          <div class="muted">${PLATFORM_FEE_PERCENT_LABEL} of services (minimum $${MIN_PLATFORM_FEE_USD.toFixed(2)}) — processing & XRPL settlement</div>
+        </td>
+        <td class="right">1</td>
+        <td class="right">$${platformFee.toFixed(2)}</td>
+        <td class="right">$${platformFee.toFixed(2)}</td>
+      </tr>
     </tbody>
     <tfoot>
+      <tr>
+        <td colspan="3" style="text-align:right; padding-right:8px;" class="muted">Subtotal (services)</td>
+        <td class="right muted">$${subtotal.toFixed(2)}</td>
+      </tr>
+      <tr>
+        <td colspan="3" style="text-align:right; padding-right:8px;" class="muted">Platform fee</td>
+        <td class="right muted">$${platformFee.toFixed(2)}</td>
+      </tr>
       <tr class="total-row">
-        <td colspan="3" style="text-align:right; padding-right:8px;"><strong>TOTAL</strong></td>
-        <td class="right" style="font-size:13px;"><strong>$${Number(invoice.total).toFixed(2)}</strong></td>
+        <td colspan="3" style="text-align:right; padding-right:8px;"><strong>TOTAL DUE</strong></td>
+        <td class="right" style="font-size:13px;"><strong>$${total.toFixed(2)}</strong></td>
       </tr>
     </tfoot>
   </table>
@@ -345,6 +396,7 @@ export default function BrowserInvoicePDF({
   <div class="footer-text">
     Make all checks payable to ${companyName}.
     Total due in 15 days. Overdue accounts subject to a service charge of 1% per month.<br>
+    Platform fee is collected by UrsaDeFi for non-custodial XRPL invoicing & settlement (${PLATFORM_FEE_PERCENT_LABEL}, min $${MIN_PLATFORM_FEE_USD.toFixed(2)}).<br>
     <strong>THANK YOU FOR YOUR BUSINESS!</strong>
   </div>
 
@@ -373,8 +425,8 @@ export default function BrowserInvoicePDF({
           : `Invoice #${cleanId}`;
       const body =
         resolvedMode === 'reminder'
-          ? `Hi,%0A%0AThis is a friendly reminder that invoice #${cleanId} is still outstanding.%0A%0AAmount due: $${Number(invoice.total).toFixed(2)} (≈ ${xrpFixed} XRP).%0A%0APlease find the invoice via the print window. Pay with Xaman when ready.%0A%0AThank you,%0A${encodeURIComponent(companyName)}`
-          : `Please find invoice #${cleanId} via UrsaDeFi (XRPL). Pay ${xrpFixed} XRP with Xaman.`;
+          ? `Hi,%0A%0AThis is a friendly reminder that invoice #${cleanId} is still outstanding.%0A%0AAmount due: $${total.toFixed(2)} (services $${subtotal.toFixed(2)} + platform fee $${platformFee.toFixed(2)}; ≈ ${xrpFixed} XRP).%0A%0APlease find the invoice via the print window. Pay with Xaman when ready.%0A%0AThank you,%0A${encodeURIComponent(companyName)}`
+          : `Please find invoice #${cleanId} via UrsaDeFi (XRPL). Total due $${total.toFixed(2)} (includes transparent platform fee). Pay ${xrpFixed} XRP with Xaman.`;
       window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${body}`;
     }, 2200);
   };
