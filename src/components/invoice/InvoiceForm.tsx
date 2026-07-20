@@ -381,7 +381,8 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
             <button
               type="button"
               onClick={() => setShowNewClientForm(!showNewClientForm)}
-              className="px-3 py-1 text-xs font-medium border border-[var(--border-color)] hover:bg-[var(--bg-secondary)] rounded-full transition">
+              className="px-3 py-1 text-xs font-medium rounded-full transition border border-[var(--brand-primary)] text-[var(--brand-primary)] hover:bg-[var(--brand-primary)] hover:text-white"
+            >
               {showNewClientForm ? 'Cancel' : '+ New Client'}
             </button>
           </div>
@@ -407,7 +408,12 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
               <input type="email" placeholder="Email (optional)" value={newClientEmail} onChange={(e) => setNewClientEmail(e.target.value)} className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-4 py-2.5 text-sm" />
               <input type="text" placeholder="Address (optional)" value={newClientAddress} onChange={(e) => setNewClientAddress(e.target.value)} className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-4 py-2.5 text-sm" />
               <input type="text" placeholder="Phone (optional)" value={newClientPhone} onChange={(e) => setNewClientPhone(e.target.value)} className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-4 py-2.5 text-sm" />
-              <button type="button" onClick={handleAddNewClient} disabled={loading || !newClientName.trim()} className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-full transition disabled:opacity-50">
+              <button
+                type="button"
+                onClick={handleAddNewClient}
+                disabled={loading || !newClientName.trim()}
+                className="w-full py-2.5 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white text-sm font-semibold rounded-full transition disabled:opacity-50"
+              >
                 Save New Client
               </button>
             </div>
