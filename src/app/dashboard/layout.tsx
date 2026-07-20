@@ -3,12 +3,13 @@ import '../globals.css';
 import { Inter } from 'next/font/google';
 import LeftSidebar from '@/components/layout/LeftSidebar';
 import RightSidebar from '@/components/layout/RightSidebar';
+import Link from 'next/link';
+import { Home, FileText, Users, User } from 'lucide-react';
 const inter = Inter({ subsets: ['latin'] });
 export default function DashboardLayout({
   children,
 }: {
-  children: React.ReactNode;
-}) {
+  children: React.ReactNode }) {
   return (
     <div className={`flex min-h-screen flex-col ${inter.className}`}>
       <div className="flex flex-1">
@@ -29,11 +30,23 @@ export default function DashboardLayout({
       </div>
       {/* Mobile bottom nav */}
       <div className="fixed bottom-0 left-0 right-0 bg-[var(--bg-primary)] border-t border-[var(--border-color)] md:hidden z-10 safe-bottom">
-        <div className="flex justify-around py-3 text-[var(--text-primary)]">
-          <button className="text-lg font-medium">Dashboard</button>
-          <button className="text-lg font-medium">Invoices</button>
-          <button className="text-lg font-medium">Clients</button>
-          <button className="text-lg font-medium">Profile</button>
+        <div className="flex justify-around py-2 text-[var(--text-primary)] text-xs">
+          <Link href="/dashboard" className="flex flex-col items-center gap-1 hover:text-[var(--brand-primary)] transition">
+            <Home className="w-5 h-5" />
+            <span>Dashboard</span>
+          </Link>
+          <Link href="/invoices" className="flex flex-col items-center gap-1 hover:text-[var(--brand-primary)] transition">
+            <FileText className="w-5 h-5" />
+            <span>Invoices</span>
+          </Link>
+          <Link href="/clients" className="flex flex-col items-center gap-1 hover:text-[var(--brand-primary)] transition">
+            <Users className="w-5 h-5" />
+            <span>Clients</span>
+          </Link>
+          <Link href="/profile" className="flex flex-col items-center gap-1 hover:text-[var(--brand-primary)] transition">
+            <User className="w-5 h-5" />
+            <span>Profile</span>
+          </Link>
         </div>
       </div>
     </div>
