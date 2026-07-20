@@ -52,7 +52,7 @@ const faqs = [
   },
   {
     q: 'Can I export data for my accountant?',
-    a: 'Yes. Use the Reports page to export a CSV designed for tax/IRIS workflows and print a summary with your company EIN.',
+    a: 'Yes. Use the Reports page to export a CSV designed for tax/IRIS workflows and print a summary with your company EIN. IRIS upload compatible.',
   },
   {
     q: 'What does it cost?',
@@ -79,7 +79,6 @@ export default function HelpPage() {
           </p>
         </div>
 
-        {/* About */}
         <section id="about" className="mb-14">
           <div className="flex items-center gap-2 mb-4">
             <Layers className="w-5 h-5 text-[var(--brand-primary)]" />
@@ -112,7 +111,6 @@ export default function HelpPage() {
           </div>
         </section>
 
-        {/* Getting started */}
         <section id="getting-started" className="mb-14">
           <div className="flex items-center gap-2 mb-4">
             <BookOpen className="w-5 h-5 text-[var(--brand-primary)]" />
@@ -140,7 +138,6 @@ export default function HelpPage() {
           </ol>
         </section>
 
-        {/* Docs / Whitepapers */}
         <section id="docs" className="mb-14">
           <div className="flex items-center gap-2 mb-4">
             <Download className="w-5 h-5 text-[var(--brand-primary)]" />
@@ -167,7 +164,6 @@ export default function HelpPage() {
           </div>
         </section>
 
-        {/* FAQ */}
         <section id="faq" className="mb-14">
           <div className="flex items-center gap-2 mb-4">
             <HelpCircle className="w-5 h-5 text-[var(--brand-primary)]" />
@@ -186,7 +182,6 @@ export default function HelpPage() {
           </div>
         </section>
 
-        {/* AI agent teaser */}
         <section className="mb-10">
           <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6">
             <h3 className="font-semibold mb-2">AI Help Agent (planned)</h3>
