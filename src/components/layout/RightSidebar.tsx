@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import InvoiceForm from '@/components/invoice/InvoiceForm';
 import { Invoice } from '@/types';
 import { supabaseBrowser } from '@/lib/supabase';
+import CreateInvoiceButton from '@/components/layout/CreateInvoiceButton';
 
 const PriceCard = ({ coinId, label }: { coinId: string; label: string }) => {
   const [price, setPrice] = useState<number | null>(null);
@@ -77,13 +77,11 @@ const OutstandingCard = () => {
     setLoading(true);
     let all: Invoice[] = [];
 
-    // Local first
     try {
       const local = JSON.parse(localStorage.getItem('invoices') || '[]');
       all = [...local];
     } catch {}
 
-    // Try Supabase
     try {
       const { data, error } = await supabaseBrowser
         .from('invoices')
@@ -106,19 +104,17 @@ const OutstandingCard = () => {
           user_id: row.wallet_address,
         }));
 
-        const supabaseIds = new Set(mapped.map(i => i.id));
-        const localOnly = all.filter(i => !supabaseIds.has(i.id));
+        const supabaseIds = new Set(mapped.map((i) => i.id));
+        const localOnly = all.filter((i) => !supabaseIds.has(i.id));
         all = [...mapped, ...localOnly];
       }
     } catch (err) {
       console.warn('Supabase outstanding fetch failed', err);
     }
 
-    // Outstanding = not paid
     const unpaid = all
-      .filter(inv => (inv.status || 'draft') !== 'paid')
+      .filter((inv) => (inv.status || 'draft') !== 'paid')
       .sort((a, b) => {
-        // Soonest due first
         const da = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
         const db = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
         return da - db;
@@ -154,7 +150,11 @@ const OutstandingCard = () => {
     <div className="mb-8">
       <div className="flex items-center justify-between mb-3">
         <p className="text-sm text-[var(--text-secondary)]">
-          {outstanding.length} open · ${totalOutstanding.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          {outstanding.length} open · $
+          {totalOutstanding.toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}
         </p>
         <Link href="/invoices" className="text-xs text-[var(--brand-primary)] hover:underline">
           View all
@@ -163,7 +163,10 @@ const OutstandingCard = () => {
 
       <div className="space-y-3">
         {outstanding.map((inv) => {
-          const isOverdue = inv.dueDate && new Date(inv.dueDate) < new Date() && (inv.status || 'draft') !== 'paid';
+          const isOverdue =
+            inv.dueDate &&
+            new Date(inv.dueDate) < new Date() &&
+            (inv.status || 'draft') !== 'paid';
           return (
             <div
               key={inv.id}
@@ -182,7 +185,11 @@ const OutstandingCard = () => {
                 <span className="font-mono truncate max-w-[120px]">{inv.id}</span>
                 {inv.dueDate && (
                   <span className={isOverdue ? 'text-red-400 font-medium' : ''}>
-                    {isOverdue ? 'Overdue ' : 'Due '}{new Date(inv.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    {isOverdue ? 'Overdue ' : 'Due '}
+                    {new Date(inv.dueDate).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                    })}
                   </span>
                 )}
               </div>
@@ -201,14 +208,6 @@ const OutstandingCard = () => {
 };
 
 export default function RightSidebar() {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
-  const handleInvoiceSuccess = () => {
-    setIsModalOpen(false);
-    // Fire event so Outstanding + Invoices pages refresh
-    window.dispatchEvent(new Event('invoices-updated'));
-  };
-
   return (
     <div className="p-6 h-full overflow-y-auto text-[var(--text-primary)]">
       <XRPPriceCard />
@@ -226,32 +225,7 @@ export default function RightSidebar() {
       <OutstandingCard />
 
       <h3 className="text-lg font-bold mb-4">Quick Actions</h3>
-      <button
-        onClick={() => setIsModalOpen(true)}
-        className="w-full py-4 bg-[var(--brand-primary)] rounded-full font-bold hover:bg-[var(--brand-primary-hover)] text-white transition"
-      >
-        Create New Invoice
-      </button>
-
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4">
-          <div className="bg-[var(--bg-primary)] rounded-3xl p-8 w-full max-w-lg h-[95vh] overflow-y-auto border border-[var(--border-color)] relative">
-            <button
-              onClick={() => setIsModalOpen(false)}
-              className="absolute top-6 right-6 text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-2xl"
-            >
-              &times;
-            </button>
-
-            <div className="mb-6">
-              <h2 className="text-2xl font-bold">Create New Invoice</h2>
-              <p className="text-[var(--text-secondary)] text-sm">Fill in the details below</p>
-            </div>
-
-            <InvoiceForm onSuccess={handleInvoiceSuccess} />
-          </div>
-        </div>
-      )}
+      <CreateInvoiceButton variant="full" />
     </div>
   );
 }
