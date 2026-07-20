@@ -52,9 +52,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       // Create / refresh account in Supabase (non-blocking)
       upsertProfile(newWallet.address, newWallet.publicKey).then((res) => {
         setProfileSynced(res.ok);
-        if (res.ok) {
-          console.log('[UrsaDeFi] Profile synced for', newWallet.address.slice(0, 8) + '...');
-        }
       });
     } else {
       localStorage.removeItem('xrpl_wallet');

@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { AlertTriangle } from 'lucide-react';
 
 import LeftSidebar from '@/components/layout/LeftSidebar';
+import { useToast } from '@/components/ui/Toast';
 
 interface Client {
   id: string;
@@ -23,6 +24,7 @@ interface Client {
 
 export default function ClientsPage() {
   const { wallet, isConnected } = useWallet();
+  const { success, error, warning } = useToast();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -44,12 +46,12 @@ export default function ClientsPage() {
   const fetchClients = async () => {
     if (!wallet?.address) return;
     setLoading(true);
-    const { data, error } = await supabaseBrowser
+    const { data, error: err } = await supabaseBrowser
       .from('clients')
       .select('*')
       .eq('wallet_address', wallet.address)
       .order('created_at', { ascending: false });
-    if (!error && data) setClients(data as Client[]);
+    if (!err && data) setClients(data as Client[]);
     setLoading(false);
   };
 
@@ -64,11 +66,11 @@ export default function ClientsPage() {
 
   const handleAddClient = async () => {
     if (!newName.trim() || !wallet?.address) {
-      alert('Client name is required');
+      warning('Client name is required');
       return;
     }
 
-    const { data, error } = await supabaseBrowser
+    const { data, error: err } = await supabaseBrowser
       .from('clients')
       .insert([{
         wallet_address: wallet.address,
@@ -80,12 +82,13 @@ export default function ClientsPage() {
       .select()
       .single();
 
-    if (error) {
-      alert('Failed to add client');
+    if (err) {
+      error('Failed to add client');
     } else if (data) {
       setClients(prev => [data as Client, ...prev]);
       setNewName(''); setNewEmail(''); setNewAddress(''); setNewPhone('');
       setShowAddForm(false);
+      success('Client added successfully');
     }
   };
 
@@ -96,16 +99,17 @@ export default function ClientsPage() {
   const handleDelete = async () => {
     if (!clientToDelete) return;
 
-    const { error } = await supabaseBrowser
+    const { error: err } = await supabaseBrowser
       .from('clients')
       .delete()
       .eq('id', clientToDelete.id);
 
-    if (error) {
-      alert('Failed to delete client');
-      console.error('Delete error:', error);
+    if (err) {
+      error('Failed to delete client');
+      console.error('Delete error:', err);
     } else {
       setClients(prev => prev.filter(c => c.id !== clientToDelete.id));
+      success('Client deleted');
     }
     setClientToDelete(null);
   };
@@ -121,7 +125,7 @@ export default function ClientsPage() {
   const handleSaveEdit = async () => {
     if (!editingClient || !editName.trim()) return;
 
-    const { error } = await supabaseBrowser
+    const { error: err } = await supabaseBrowser
       .from('clients')
       .update({
         name: editName.trim(),
@@ -131,8 +135,8 @@ export default function ClientsPage() {
       })
       .eq('id', editingClient.id);
 
-    if (error) {
-      alert('Failed to update client');
+    if (err) {
+      error('Failed to update client');
     } else {
       setClients(prev =>
         prev.map(c =>
@@ -142,6 +146,7 @@ export default function ClientsPage() {
         )
       );
       setEditingClient(null);
+      success('Client updated');
     }
   };
 
@@ -203,7 +208,7 @@ export default function ClientsPage() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full max-w-md bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[var(--brand-primary)]"
-            />
+            >
           </div>
 
           {loading ? (
