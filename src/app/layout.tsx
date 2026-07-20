@@ -57,7 +57,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   }}
                 />
                 <div className="text-xs text-[var(--text-secondary)] hidden sm:block">
-                  Dallas, TX • XRPL Invoicing
+                  Invoicing made easy and damn near free
                 </div>
               </Link>
             </div>
@@ -66,7 +66,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 href="/help"
                 className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition"
               >
-                About & Help
+                About
               </Link>
               <button
                 onClick={toggleTheme}
