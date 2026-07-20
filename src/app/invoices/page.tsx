@@ -35,20 +35,26 @@ export default function InvoicesPage() {
           .order('created_at', { ascending: false });
 
         if (!error && data) {
-          const mapped: Invoice[] = data.map((row: any) => ({
-            id: row.id,
-            from: row.from_name || row.from || '',
-            to: row.to_name || row.to || '',
-            items: row.items || [{ desc: row.description || '', qty: 1, price: row.total || 0 }],
-            total: row.total || 0,
-            xrpAmount: row.xrp_amount || row.xrpAmount || 0,
-            receiver: row.receiver || '',
-            dueDate: row.due_date || row.dueDate || '',
-            description: row.description || '',
-            status: row.status || 'draft',
-            created_at: row.created_at,
-            user_id: row.wallet_address,
-          }));
+          const localById = new Map(all.map((i: any) => [i.id, i]));
+          const mapped: Invoice[] = data.map((row: any) => {
+            const localCopy: any = localById.get(row.id) || {};
+            return {
+              id: row.id,
+              from: row.from_name || row.from || '',
+              to: row.to_name || row.to || '',
+              items: row.items || [{ desc: row.description || '', qty: 1, price: row.total || 0 }],
+              total: row.total || 0,
+              // Prefer frozen local XRP amount / paymentUri so QR never drifts
+              xrpAmount: localCopy.xrpAmount ?? row.xrp_amount ?? row.xrpAmount ?? 0,
+              receiver: row.receiver || localCopy.receiver || '',
+              dueDate: row.due_date || row.dueDate || '',
+              description: row.description || '',
+              status: row.status || 'draft',
+              created_at: row.created_at,
+              user_id: row.wallet_address,
+              paymentUri: localCopy.paymentUri || row.payment_uri || undefined,
+            } as Invoice;
+          });
 
           const supabaseIds = new Set(mapped.map(i => i.id));
           const localOnly = all.filter(i => !supabaseIds.has(i.id));
@@ -92,7 +98,6 @@ export default function InvoicesPage() {
     try {
       const existing: Invoice[] = JSON.parse(localStorage.getItem('invoices') || '[]');
       const next = existing.map(i => (i.id === id ? { ...i, status } : i));
-      // If invoice only exists from Supabase, still keep a local copy with new status
       if (!existing.find(i => i.id === id)) {
         const fromState = invoices.find(i => i.id === id);
         if (fromState) next.unshift({ ...fromState, status });
@@ -103,39 +108,27 @@ export default function InvoicesPage() {
 
   const handleSetStatus = async (invoice: Invoice, status: 'paid' | 'draft') => {
     setUpdatingId(invoice.id);
-
-    // Local first
     updateLocalStatus(invoice.id, status);
     setInvoices(prev => prev.map(i => (i.id === invoice.id ? { ...i, status } : i)));
     if (selectedInvoice?.id === invoice.id) {
       setSelectedInvoice({ ...invoice, status });
     }
-
-    // Cloud
     try {
-      await supabaseBrowser
-        .from('invoices')
-        .update({ status })
-        .eq('id', invoice.id);
+      await supabaseBrowser.from('invoices').update({ status }).eq('id', invoice.id);
     } catch (err) {
       console.warn('Status cloud update failed (local updated)', err);
     }
-
-    // Refresh Outstanding + other listeners
     window.dispatchEvent(new Event('invoices-updated'));
     setUpdatingId(null);
   };
 
   const handleDelete = async (invoice: Invoice) => {
     if (!confirm(`Delete invoice ${invoice.id}?`)) return;
-
     const existing = JSON.parse(localStorage.getItem('invoices') || '[]');
     localStorage.setItem('invoices', JSON.stringify(existing.filter((i: Invoice) => i.id !== invoice.id)));
-
     try {
       await supabaseBrowser.from('invoices').delete().eq('id', invoice.id);
     } catch {}
-
     setInvoices(prev => prev.filter(i => i.id !== invoice.id));
     if (selectedInvoice?.id === invoice.id) setSelectedInvoice(null);
     window.dispatchEvent(new Event('invoices-updated'));
@@ -236,7 +229,9 @@ export default function InvoicesPage() {
                         </p>
                         <div className="flex flex-wrap items-center gap-4 mt-3 text-sm">
                           <span className="font-semibold">${Number(inv.total).toFixed(2)}</span>
-                          <span className="text-[var(--text-secondary)]">≈ {Number(inv.xrpAmount).toFixed(4)} XRP</span>
+                          <span className="text-[var(--text-secondary)]">
+                            ≈ {Number(inv.xrpAmount).toFixed(6)} XRP
+                          </span>
                           {inv.dueDate && (
                             <span className="text-[var(--text-muted)]">Due {new Date(inv.dueDate).toLocaleDateString()}</span>
                           )}
@@ -268,7 +263,8 @@ export default function InvoicesPage() {
                             {isUpdating ? '...' : 'Unpaid'}
                           </button>
                         )}
-                        <BrowserInvoicePDF invoice={inv} compact />
+                        <BrowserInvoicePDF invoice={inv} mode="open" />
+                        <BrowserInvoicePDF invoice={inv} mode="reminder" />
                         <button
                           onClick={() => handleDelete(inv)}
                           className="p-2 text-red-400 hover:bg-red-950/40 rounded-xl transition"
@@ -288,6 +284,10 @@ export default function InvoicesPage() {
                         <div>
                           <p className="text-[var(--text-muted)] text-xs mb-1">Receiver Wallet</p>
                           <p className="font-mono text-xs break-all">{inv.receiver || '—'}</p>
+                        </div>
+                        <div className="md:col-span-2">
+                          <p className="text-[var(--text-muted)] text-xs mb-1">Locked XRP amount (QR)</p>
+                          <p className="font-mono text-xs">{Number(inv.xrpAmount).toFixed(6)} XRP</p>
                         </div>
                         <div className="md:col-span-2">
                           <p className="text-[var(--text-muted)] text-xs mb-1">Line Items</p>
