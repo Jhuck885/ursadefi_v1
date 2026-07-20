@@ -6,6 +6,14 @@ import Link from 'next/link';
 import { Moon, Sun } from 'lucide-react';
 import { WalletProvider } from '@/context/WalletContext';
 import { ToastProvider } from '@/components/ui/Toast';
+import { Poppins } from 'next/font/google';
+
+const poppins = Poppins({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-poppins',
+  display: 'swap',
+});
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const [isDark, setIsDark] = useState(true);
@@ -38,8 +46,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   };
 
   return (
-    <html lang="en" className={isDark ? 'dark' : ''}>
-      <body className="min-h-screen transition-colors duration-200 bg-[var(--bg-primary)] text-[var(--text-primary)]">
+    <html lang="en" className={`${poppins.variable} ${isDark ? 'dark' : ''}`}>
+      <body className="min-h-screen transition-colors duration-200 bg-[var(--bg-primary)] text-[var(--text-primary)] font-sans">
         <WalletProvider>
           <ToastProvider>
             <nav className="fixed top-0 left-0 right-0 z-50 bg-[var(--bg-primary)]/95 border-b border-[var(--border-color)] px-4 py-3 flex justify-between items-center backdrop-blur">
