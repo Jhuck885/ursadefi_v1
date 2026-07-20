@@ -7,6 +7,7 @@ import BrowserInvoicePDF from './BrowserInvoicePDF';
 import { Invoice } from '@/types';
 import { supabaseBrowser } from '@/lib/supabase';
 import { useToast } from '@/components/ui/Toast';
+import { MIN_INVOICE_USD, MIN_MINT_USD } from '@/lib/constants';
 
 interface InvoiceFormData {
   invoiceName: string;
@@ -53,7 +54,7 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
       amount: 0,
       total: 0,
       xrpAmount: 0,
-      receiver: process.env.NEXT_PUBLIC_XRPL_RECEIVER_ADDRESS || 'rNb4AKqA6QwhD8Nfff7rVxg5RPmyTE1vVn',
+      receiver: process.env.NEXT_PUBLIC_XRPL_RECEIVER_ADDRESS || '',
       dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     }
   });
@@ -154,6 +155,12 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
       return null;
     }
 
+    const total = Number(formData.total) || Number(formData.amount) || 0;
+    if (total < MIN_INVOICE_USD) {
+      warning(`Minimum invoice amount is $${MIN_INVOICE_USD}`);
+      return null;
+    }
+
     const newInvoice: Invoice = {
       id: 'INV-' + Date.now(),
       from: formData.invoiceName,
@@ -227,8 +234,8 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
     const formValues = watch();
     const currentTotal = Number(formValues.total) || 0;
 
-    if (currentTotal < 5) {
-      warning('Minimum $5 to mint an NFT');
+    if (currentTotal < MIN_MINT_USD) {
+      warning(`Minimum $${MIN_MINT_USD} to mint an NFT`);
       return;
     }
     if (!formValues.invoiceName || !formValues.to) {
@@ -335,7 +342,7 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
           if (attempts >= maxAttempts) {
             setMintStatus(null);
             setLoading(false);
-            warning('Timed out waiting for signature. Check Activities if you already signed.');
+            warning('Timed out waiting for signature. Check Activity if you already signed.');
             return;
           }
 
@@ -361,6 +368,9 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
 
   const pillButton =
     'flex-1 py-3.5 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-semibold rounded-full transition disabled:opacity-60';
+
+  const belowInvoiceMin = watchedAmount > 0 && watchedAmount < MIN_INVOICE_USD;
+  const belowMintMin = watchedAmount > 0 && watchedAmount < MIN_MINT_USD;
 
   return (
     <div className="space-y-5">
@@ -445,9 +455,18 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
             <input
               type="number"
               step="0.01"
-              {...register('amount', { valueAsNumber: true, required: true })}
+              min={MIN_INVOICE_USD}
+              {...register('amount', {
+                valueAsNumber: true,
+                required: true,
+                min: { value: MIN_INVOICE_USD, message: `Minimum $${MIN_INVOICE_USD}` },
+              })}
               className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl px-4 py-3 text-lg font-semibold focus:outline-none focus:border-[var(--brand-primary)]"
             />
+            {belowInvoiceMin && (
+              <p className="text-amber-400 text-xs mt-1">Minimum invoice is ${MIN_INVOICE_USD}</p>
+            )}
+            {errors.amount && <p className="text-red-400 text-xs mt-1">{errors.amount.message}</p>}
           </div>
           <div>
             <label className="block text-xs text-[var(--text-secondary)] mb-1">DUE DATE</label>
@@ -468,16 +487,16 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
         )}
 
         <div className="flex flex-col sm:flex-row gap-3 pt-2">
-          <button type="submit" disabled={loading} className={pillButton}>
+          <button type="submit" disabled={loading || belowInvoiceMin} className={pillButton}>
             Save Invoice
           </button>
-          <button type="button" onClick={handleMint} disabled={loading} className={pillButton}>
+          <button type="button" onClick={handleMint} disabled={loading || belowMintMin} className={pillButton}>
             {loading && mintStatus ? 'Minting...' : 'Mint as XRPL NFT'}
           </button>
         </div>
 
         <div className="text-[10px] text-[var(--text-muted)] text-center">
-          Fee ~0.15% max • Non-custodial • Min $5 to mint • PDF + email ready
+          Fee ~0.15% max • Non-custodial • Min ${MIN_INVOICE_USD} invoice · ${MIN_MINT_USD} to mint
         </div>
       </form>
 
