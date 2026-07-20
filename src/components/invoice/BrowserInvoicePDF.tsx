@@ -32,7 +32,6 @@ export default function BrowserInvoicePDF({ invoice, compact = false }: Props) {
 
     const profile = loadCompanyProfile();
 
-    // Prefer company profile data, fall back to invoice fields
     const companyName = profile.companyName || invoice.from || 'Your Company';
     const companyTagline = profile.tagline || invoice.companyTagline || '';
     const companyAddress = profile.address || invoice.companyAddress || '';
@@ -48,7 +47,6 @@ export default function BrowserInvoicePDF({ invoice, compact = false }: Props) {
     const today = new Date().toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' });
     const cleanId = String(invoice.id || '').replace(/^PREVIEW-/, '');
 
-    // Generate QR as base64 data URL so it always embeds
     let qrDataUrl = '';
     try {
       const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=170x170&data=${encodeURIComponent(qrData)}`;
@@ -64,7 +62,6 @@ export default function BrowserInvoicePDF({ invoice, compact = false }: Props) {
       qrDataUrl = `https://api.qrserver.com/v1/create-qr-code/?size=170x170&data=${encodeURIComponent(qrData)}`;
     }
 
-    // Build company info lines for the header
     const companyLines = [
       companyTagline ? `<p>${companyTagline}</p>` : '',
       companyAddress ? `<p>${companyAddress}</p>` : '',
@@ -311,8 +308,13 @@ export default function BrowserInvoicePDF({ invoice, compact = false }: Props) {
     win.document.close();
 
     setTimeout(() => {
-      const mailto = `mailto:?subject=Invoice%20%23${cleanId}&body=Please%20find%20attached%20invoice%20via%20UrsaDeFi%20(XRPL).%20Pay%20with%20Xaman.`;
-      window.location.href = mailto;
+      const subject = compact
+        ? `Payment reminder — Invoice #${cleanId}`
+        : `Invoice #${cleanId}`;
+      const body = compact
+        ? `Hi,%0A%0AThis is a friendly reminder that invoice #${cleanId} is still outstanding.%0A%0AAmount due: $${invoice.total} (≈ ${invoice.xrpAmount} XRP).%0A%0APlease find the invoice attached / print window. Pay with Xaman when ready.%0A%0AThank you,%0A${encodeURIComponent(companyName)}`
+        : `Please find attached invoice via UrsaDeFi (XRPL). Pay with Xaman.`;
+      window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${body}`;
     }, 2200);
   };
 
@@ -320,9 +322,9 @@ export default function BrowserInvoicePDF({ invoice, compact = false }: Props) {
     return (
       <button
         onClick={openPDF}
-        className="px-4 py-1.5 text-xs font-medium border border-[var(--border-color)] hover:bg-[var(--bg-secondary)] rounded-full transition w-full"
+        className="px-4 py-1.5 text-xs font-medium border border-[var(--border-color)] hover:bg-[var(--bg-secondary)] rounded-full transition"
       >
-        Save & Send Invoice
+        Send Reminder
       </button>
     );
   }
