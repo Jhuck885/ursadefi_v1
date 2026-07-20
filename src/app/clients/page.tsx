@@ -150,7 +150,7 @@ export default function ClientsPage() {
       <div className="min-h-[60vh] flex items-center justify-center bg-[var(--bg-primary)] text-[var(--text-primary)]">
         <div className="text-center">
           <p className="text-[var(--text-secondary)] mb-4">Please connect your wallet to view your clients.</p>
-          <Link href="/" className="text-[#1D9BF0] hover:underline">Go to homepage</Link>
+          <Link href="/" className="text-[var(--brand-primary)] hover:underline">Go to homepage</Link>
         </div>
       </div>
     );
@@ -174,7 +174,7 @@ export default function ClientsPage() {
 
             <button
               onClick={() => setShowAddForm(!showAddForm)}
-              className="px-5 py-2 bg-[#1D9BF0] hover:bg-[#1a8cd8] text-white rounded-full text-sm font-medium transition"
+              className="px-5 py-2 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white rounded-full text-sm font-medium transition"
             >
               + New Client
             </button>
@@ -202,7 +202,7 @@ export default function ClientsPage() {
               placeholder="Search clients by name or email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full max-w-md bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#1D9BF0]"
+              className="w-full max-w-md bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[var(--brand-primary)]"
             />
           </div>
 
@@ -220,7 +220,7 @@ export default function ClientsPage() {
                     <h3 className="font-semibold text-lg">{client.name}</h3>
                     {client.email && <p className="text-sm text-[var(--text-secondary)] mt-1">{client.email}</p>}
                     {client.address && <p className="text-sm text-[var(--text-secondary)] mt-1">{client.address}</p>}
-                    {client.city_state && <p className="text-sm text-[var(--text-secondary)]">{client.city_state}</p>}
+                    {client.city_state && <p className="text-sm text-[var(--text-secondary)]">{client.city_state}</p>
                     <p className="text-xs text-[var(--text-secondary)] mt-3">Added {new Date(client.created_at).toLocaleDateString()}</p>
                   </div>
 
@@ -249,7 +249,7 @@ export default function ClientsPage() {
             </div>
 
             <div className="flex gap-3 mt-8">
-              <button onClick={handleSaveEdit} className="flex-1 py-3 bg-[#1D9BF0] hover:bg-[#1a8cd8] rounded-full text-sm font-semibold transition">Save Changes</button>
+              <button onClick={handleSaveEdit} className="flex-1 py-3 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] rounded-full text-sm font-semibold transition">Save Changes</button>
               <button onClick={() => setEditingClient(null)} className="flex-1 py-3 border border-[var(--border-color)] hover:bg-[var(--bg-secondary)] rounded-full text-sm transition">Cancel</button>
             </div>
           </div>
