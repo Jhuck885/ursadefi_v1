@@ -36,7 +36,8 @@ function loadProfile() {
 }
 
 function downloadCsv(filename: string, headers: string[], rows: string[]) {
-  const csv = [headers.map(csvCell).join(','), ...rows].join('\r\n');
+  // UTF-8 BOM helps Excel on Windows open Japanese headers correctly
+  const csv = '\uFEFF' + [headers.map(csvCell).join(','), ...rows].join('\r\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -47,79 +48,47 @@ function downloadCsv(filename: string, headers: string[], rows: string[]) {
 }
 
 const IRIS_1099NEC_HEADERS = [
-  'Form Type',
-  'Tax Year',
-  'Payer TIN Type',
-  'Payer Taxpayer ID Number',
-  'Payer Name Type',
-  'Payer Business or Entity Name Line 1',
-  'Payer Business or Entity Name Line 2',
-  'Payer First Name',
-  'Payer Middle Name',
-  'Payer Last Name (Surname)',
-  'Payer Suffix',
-  'Payer Country',
-  'Payer Address Line 1',
-  'Payer Address Line 2',
-  'Payer City/Town',
-  'Payer State/Province/Territory',
-  'Payer ZIP/Postal Code',
-  'Payer Phone Type',
-  'Payer Phone',
-  'Payer Email Address',
-  'Recipient TIN Type',
-  'Recipient Taxpayer ID Number',
-  'Recipient Name Type',
-  'Recipient Business or Entity Name Line 1',
-  'Recipient Business or Entity Name Line 2',
-  'Recipient First Name',
-  'Recipient Middle Name',
-  'Recipient Last Name (Surname)',
-  'Recipient Suffix',
-  'Recipient Country',
-  'Recipient Address Line 1',
-  'Recipient Address Line 2',
-  'Recipient City/Town',
-  'Recipient State/Province/Territory',
-  'Recipient ZIP/Postal Code',
-  'Office Code',
-  'Form Account Number',
-  '2nd TIN Notice',
-  'Box 1 - Nonemployee Compensation',
+  'Form Type', 'Tax Year', 'Payer TIN Type', 'Payer Taxpayer ID Number', 'Payer Name Type',
+  'Payer Business or Entity Name Line 1', 'Payer Business or Entity Name Line 2',
+  'Payer First Name', 'Payer Middle Name', 'Payer Last Name (Surname)', 'Payer Suffix',
+  'Payer Country', 'Payer Address Line 1', 'Payer Address Line 2', 'Payer City/Town',
+  'Payer State/Province/Territory', 'Payer ZIP/Postal Code', 'Payer Phone Type', 'Payer Phone',
+  'Payer Email Address', 'Recipient TIN Type', 'Recipient Taxpayer ID Number', 'Recipient Name Type',
+  'Recipient Business or Entity Name Line 1', 'Recipient Business or Entity Name Line 2',
+  'Recipient First Name', 'Recipient Middle Name', 'Recipient Last Name (Surname)', 'Recipient Suffix',
+  'Recipient Country', 'Recipient Address Line 1', 'Recipient Address Line 2', 'Recipient City/Town',
+  'Recipient State/Province/Territory', 'Recipient ZIP/Postal Code', 'Office Code', 'Form Account Number',
+  '2nd TIN Notice', 'Box 1 - Nonemployee Compensation',
   'Box 2 - Payer made direct sales totaling $5000 or more of consumer products to a recipient for resale',
-  'Box 4 - Federal income tax withheld',
-  'Combined Federal/State Filing',
-  'State 1',
-  'State 1 - State Tax Withheld',
-  'State 1 - State/Payer state number',
-  'State 1 - State income',
-  'State 1 - Local income tax withheld',
-  'State 1 - Special Data Entries',
-  'State 2',
-  'State 2 - State Tax Withheld',
-  'State 2 - State/Payer state number',
-  'State 2 - State income',
-  'State 2 - Local income tax withheld',
-  'State 2 - Special Data Entries',
+  'Box 4 - Federal income tax withheld', 'Combined Federal/State Filing',
+  'State 1', 'State 1 - State Tax Withheld', 'State 1 - State/Payer state number', 'State 1 - State income',
+  'State 1 - Local income tax withheld', 'State 1 - Special Data Entries',
+  'State 2', 'State 2 - State Tax Withheld', 'State 2 - State/Payer state number', 'State 2 - State income',
+  'State 2 - Local income tax withheld', 'State 2 - Special Data Entries',
 ];
 
 const EU_LEDGER_HEADERS = [
-  'Document Type',
+  'Document Type', 'Invoice Number', 'Invoice Date', 'Tax Year',
+  'Supplier Name', 'Supplier Tax ID / VAT', 'Supplier Country', 'Supplier Address',
+  'Customer Name', 'Customer Country', 'Description', 'Currency',
+  'Net Amount', 'VAT Rate %', 'VAT Amount', 'Gross Amount',
+  'Amount XRP', 'Payment Status', 'Due Date', 'Settlement Reference',
+];
+
+/** Japan qualified-invoice oriented ledger (インボイス制度-friendly) */
+const JP_LEDGER_HEADERS = [
   'Invoice Number',
-  'Invoice Date',
+  'Transaction Date',
   'Tax Year',
-  'Supplier Name',
-  'Supplier Tax ID / VAT',
-  'Supplier Country',
-  'Supplier Address',
-  'Customer Name',
-  'Customer Country',
+  'Issuer Name',
+  'Qualified Invoice Registration No.',
+  'Counterparty Name',
   'Description',
   'Currency',
-  'Net Amount',
-  'VAT Rate %',
-  'VAT Amount',
-  'Gross Amount',
+  'Amount excl. tax',
+  'Consumption Tax Rate %',
+  'Consumption Tax Amount',
+  'Amount incl. tax',
   'Amount XRP',
   'Payment Status',
   'Due Date',
@@ -136,12 +105,10 @@ export default function ReportsPage() {
   const loadInvoices = async () => {
     setLoading(true);
     let all: Invoice[] = [];
-
     try {
       const local = JSON.parse(localStorage.getItem('invoices') || '[]');
       all = [...local];
     } catch {}
-
     if (wallet?.address) {
       try {
         const { data, error } = await supabaseBrowser
@@ -149,7 +116,6 @@ export default function ReportsPage() {
           .select('*')
           .eq('wallet_address', wallet.address)
           .order('created_at', { ascending: false });
-
         if (!error && data) {
           const mapped: Invoice[] = data.map((row: any) => ({
             id: row.id,
@@ -165,7 +131,6 @@ export default function ReportsPage() {
             created_at: row.created_at,
             user_id: row.wallet_address,
           }));
-
           const supabaseIds = new Set(mapped.map(i => i.id));
           const localOnly = all.filter(i => !supabaseIds.has(i.id));
           all = [...mapped, ...localOnly];
@@ -174,7 +139,6 @@ export default function ReportsPage() {
         console.warn('Supabase fetch failed, using local only', err);
       }
     }
-
     setInvoices(all);
     setLoading(false);
   };
@@ -182,7 +146,6 @@ export default function ReportsPage() {
   useEffect(() => {
     if (isConnected) loadInvoices();
     else setLoading(false);
-
     const handler = () => loadInvoices();
     window.addEventListener('invoices-updated', handler);
     return () => window.removeEventListener('invoices-updated', handler);
@@ -206,14 +169,7 @@ export default function ReportsPage() {
     const paid = paidYearInvoices;
     const draft = yearInvoices.filter(i => i.status === 'draft' || !i.status);
     const paidIncome = paid.reduce((sum, i) => sum + (Number(i.total) || 0), 0);
-    return {
-      totalIncome,
-      totalXrp,
-      count: yearInvoices.length,
-      paidCount: paid.length,
-      draftCount: draft.length,
-      paidIncome,
-    };
+    return { totalIncome, totalXrp, count: yearInvoices.length, paidCount: paid.length, draftCount: draft.length, paidIncome };
   }, [yearInvoices, paidYearInvoices]);
 
   const monthlyData = useMemo(() => {
@@ -251,68 +207,30 @@ export default function ReportsPage() {
       alert('No paid invoices for this year. Mark invoices as Paid before exporting IRIS 1099-NEC.');
       return;
     }
-
     const profile = loadProfile();
     const payerTin = digitsOnly(profile.ein);
     const payerName = (profile.companyName || '').slice(0, 40);
     const payerPhone = (profile.phone || '').replace(/[^0-9+\-() ]/g, '').slice(0, 20);
     const payerEmail = (profile.email || '').slice(0, 75);
-
-    let payerCity = '';
-    let payerState = '';
-    let payerZip = '';
+    let payerCity = '', payerState = '', payerZip = '';
     const csz = (profile.cityStateZip || '').trim();
     if (csz) {
       const m = csz.match(/^(.+?),\s*([A-Za-z]{2})\s+(\d{5}(?:-\d{4})?)$/);
-      if (m) {
-        payerCity = m[1].trim();
-        payerState = m[2].toUpperCase();
-        payerZip = m[3];
-      } else {
-        payerCity = csz;
-      }
+      if (m) { payerCity = m[1].trim(); payerState = m[2].toUpperCase(); payerZip = m[3]; }
+      else payerCity = csz;
     }
-
     const rows = recipientTotals.map((rec, idx) => {
       const cells = [
-        '1099-NEC',
-        String(year),
-        payerTin.length === 9 ? 'EIN' : '',
-        payerTin,
-        'Business',
-        payerName,
-        '',
-        '', '', '', '',
-        'US',
-        (profile.address || '').slice(0, 40),
-        '',
-        payerCity.slice(0, 40),
-        payerState,
-        payerZip,
-        payerPhone ? 'Daytime' : '',
-        payerPhone,
-        payerEmail,
-        '',
-        '',
-        'Business',
-        rec.name.slice(0, 40),
-        '',
-        '', '', '', '',
-        'US',
-        '', '', '', '', '',
-        '',
-        (rec.account || `UD-${idx + 1}`).slice(0, 20),
-        'N',
-        money(rec.total),
-        'N',
-        '',
-        'N',
-        '', '', '', '', '', '',
-        '', '', '', '', '', '',
+        '1099-NEC', String(year), payerTin.length === 9 ? 'EIN' : '', payerTin, 'Business',
+        payerName, '', '', '', '', '', 'US', (profile.address || '').slice(0, 40), '',
+        payerCity.slice(0, 40), payerState, payerZip, payerPhone ? 'Daytime' : '', payerPhone, payerEmail,
+        '', '', 'Business', rec.name.slice(0, 40), '', '', '', '', '', 'US',
+        '', '', '', '', '', '', (rec.account || `UD-${idx + 1}`).slice(0, 20), 'N',
+        money(rec.total), 'N', '', 'N',
+        '', '', '', '', '', '', '', '', '', '', '', '',
       ];
       return cells.map(csvCell).join(',');
     });
-
     for (let i = 0; i < rows.length; i += 100) {
       const chunk = rows.slice(i, i + 100);
       const suffix = rows.length > 100 ? `_part${Math.floor(i / 100) + 1}` : '';
@@ -325,39 +243,54 @@ export default function ReportsPage() {
       alert('No invoices for this year to export.');
       return;
     }
-
     const profile = loadProfile();
     const supplierName = profile.companyName || '';
     const supplierTaxId = profile.ein || '';
     const supplierCountry = (profile.country || 'US').slice(0, 2).toUpperCase();
     const supplierAddress = [profile.address, profile.cityStateZip].filter(Boolean).join(', ');
-
     const rows = yearInvoices.map((inv) => {
       const gross = Number(inv.total) || 0;
-      // VAT not stored yet — export net=gross, VAT=0; user/CPA can adjust
-      const vatRate = 0;
-      const vatAmount = 0;
-      const net = gross;
-      const invDate = inv.created_at
-        ? new Date(inv.created_at).toISOString().slice(0, 10)
-        : '';
-
+      const invDate = inv.created_at ? new Date(inv.created_at).toISOString().slice(0, 10) : '';
       const cells = [
-        'INVOICE',
+        'INVOICE', inv.id || '', invDate, String(year), supplierName, supplierTaxId,
+        supplierCountry, supplierAddress, inv.to || '', '', inv.description || '', 'USD',
+        money(gross), money(0), money(0), money(gross),
+        money(Number(inv.xrpAmount) || 0), (inv.status || 'draft').toUpperCase(),
+        inv.dueDate || '', inv.receiver || '',
+      ];
+      return cells.map(csvCell).join(',');
+    });
+    downloadCsv(`EU-Invoice-Ledger-${year}.csv`, EU_LEDGER_HEADERS, rows);
+  };
+
+  const exportJapan = () => {
+    if (yearInvoices.length === 0) {
+      alert('No invoices for this year to export.');
+      return;
+    }
+    const profile = loadProfile();
+    const issuerName = profile.companyName || '';
+    // Registration number left blank unless user later stores a JP T-number on profile
+    const registrationNo = '';
+    const rows = yearInvoices.map((inv) => {
+      const gross = Number(inv.total) || 0;
+      // Consumption tax not stored — rate 0; accountant adjusts to 10% or 8%
+      const taxRate = 0;
+      const taxAmount = 0;
+      const exclTax = gross;
+      const invDate = inv.created_at ? new Date(inv.created_at).toISOString().slice(0, 10) : '';
+      const cells = [
         inv.id || '',
         invDate,
         String(year),
-        supplierName,
-        supplierTaxId,
-        supplierCountry,
-        supplierAddress,
+        issuerName,
+        registrationNo,
         inv.to || '',
-        '', // Customer Country — fill if known
         inv.description || '',
         'USD',
-        money(net),
-        money(vatRate),
-        money(vatAmount),
+        money(exclTax),
+        money(taxRate),
+        money(taxAmount),
         money(gross),
         money(Number(inv.xrpAmount) || 0),
         (inv.status || 'draft').toUpperCase(),
@@ -366,20 +299,13 @@ export default function ReportsPage() {
       ];
       return cells.map(csvCell).join(',');
     });
-
-    downloadCsv(`EU-Invoice-Ledger-${year}.csv`, EU_LEDGER_HEADERS, rows);
+    downloadCsv(`JP-Invoice-Ledger-${year}.csv`, JP_LEDGER_HEADERS, rows);
   };
 
   const handleExportCSV = () => {
-    if (exportFormat === 'japan') {
-      alert('Japan export format is next. Use United States or Europe for now.');
-      return;
-    }
-    if (exportFormat === 'europe') {
-      exportEurope();
-      return;
-    }
-    exportUsIris();
+    if (exportFormat === 'japan') return exportJapan();
+    if (exportFormat === 'europe') return exportEurope();
+    return exportUsIris();
   };
 
   const handlePrintReport = () => {
@@ -396,8 +322,7 @@ export default function ReportsPage() {
         <td style="text-align:right">$${Number(inv.total || 0).toFixed(2)}</td>
         <td style="text-align:right">${Number(inv.xrpAmount || 0).toFixed(4)}</td>
         <td>${inv.status || 'draft'}</td>
-      </tr>
-    `).join('');
+      </tr>`).join('');
     win.document.write(`<!DOCTYPE html><html><head><title>Tax Report ${year}</title>
 <style>body{font-family:system-ui;padding:40px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px;border-bottom:1px solid #eee;text-align:left}th{background:#f8f8f8}</style>
 </head><body>
@@ -443,7 +368,7 @@ export default function ReportsPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Reports</h1>
-              <p className="text-[var(--text-secondary)] mt-1">Tax-ready reports — US IRIS & EU ledger</p>
+              <p className="text-[var(--text-secondary)] mt-1">Tax-ready reports — US · Europe · Japan</p>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
@@ -464,7 +389,7 @@ export default function ReportsPage() {
               >
                 <option value="us-iris-1099nec">United States — IRIS 1099-NEC</option>
                 <option value="europe">Europe — Invoice Ledger</option>
-                <option value="japan">Japan — coming soon</option>
+                <option value="japan">Japan — Invoice Ledger</option>
               </select>
 
               <button
@@ -558,14 +483,15 @@ export default function ReportsPage() {
                   </div>
                   <div>
                     <p className="font-medium text-[var(--text-primary)] mb-1">Europe — Invoice Ledger</p>
-                    <p>
-                      Line-item invoice ledger for EU accountants: supplier/customer, net/VAT/gross, currency, status, XRPL settlement ref.
-                      VAT rate defaults to 0% (adjust in the file or bookkeeping tool). Country-specific packs (DE, FR, NL, UK…) can follow.
-                    </p>
+                    <p>Line-item ledger: supplier/customer, net/VAT/gross, currency, status, XRPL ref. VAT defaults to 0%.</p>
                   </div>
                   <div>
-                    <p className="font-medium text-[var(--text-primary)] mb-1">Japan</p>
-                    <p>Coming next.</p>
+                    <p className="font-medium text-[var(--text-primary)] mb-1">Japan — Invoice Ledger</p>
+                    <p>
+                      Qualified-invoice oriented ledger (インボイス制度): issuer, registration number field,
+                      counterparty, excl./tax/incl. amounts, XRP settlement. Consumption tax rate defaults to 0%
+                      (set 10% or 8% in the file as needed). UTF-8 BOM included for Excel.
+                    </p>
                   </div>
                 </div>
                 <p className="text-xs text-[var(--text-muted)] mt-4">
