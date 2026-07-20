@@ -27,7 +27,7 @@ export default function Landing() {
             href="/help"
             className="text-sm text-[var(--brand-primary)] hover:underline"
           >
-            About & Help
+            About
           </Link>
         </div>
       </div>
