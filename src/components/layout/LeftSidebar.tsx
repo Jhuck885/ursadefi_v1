@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Home, FileText, Users, BarChart3, Settings, User, LogOut } from 'lucide-react';
 import { useWallet } from '@/context/WalletContext';
 
@@ -15,8 +16,16 @@ const navItems = [
 
 export default function LeftSidebar() {
   const { wallet, disconnect, isConnected } = useWallet();
+  const pathname = usePathname();
 
   const shortAddress = wallet?.address ? `${wallet.address.slice(0, 6)}...${wallet.address.slice(-4)}` : null;
+
+  const isActive = (href: string) => {
+    if (href === '/dashboard') {
+      return pathname === '/dashboard' || pathname.startsWith('/dashboard/');
+    }
+    return pathname === href;
+  };
 
   return (
     <div className="flex flex-col h-full w-full text-[var(--text-primary)]">
@@ -44,16 +53,21 @@ export default function LeftSidebar() {
       </div>
 
       <nav className="flex-1 p-4 space-y-1">
-        {navItems.map((item) => (
-          <Link
-            key={item.name}
-            href={item.href}
-            className="flex items-center gap-4 px-4 py-3 rounded-full hover:bg-[var(--bg-secondary)] transition text-lg"
-          >
-            <item.icon className="w-6 h-6" />
-            <span>{item.name}</span>
-          </Link>
-        ))}
+        {navItems.map((item) => {
+          const active = isActive(item.href);
+          return (
+            <Link
+              key={item.name}
+              href={item.href}
+              className={`flex items-center gap-4 px-4 py-3 rounded-full transition text-lg ${active 
+                ? 'bg-[var(--bg-secondary)] font-semibold text-[var(--brand-primary)]' 
+                : 'hover:bg-[var(--bg-secondary)]'}`}
+            >
+              <item.icon className={`w-6 h-6 ${active ? 'text-[var(--brand-primary)]' : ''}`} />
+              <span>{item.name}</span>
+            </Link>
+          );
+        })}
       </nav>
 
       <div className="p-4 border-t border-[var(--border-color)] space-y-2">
