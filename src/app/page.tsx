@@ -16,9 +16,6 @@ export default function Landing() {
 
         <h1 className="text-6xl font-bold tracking-tighter mb-8">URSADEFI</h1>
         <XRPLConnect />
-        <div className="mt-8 text-xs text-[var(--text-secondary)]">
-          2 free CSVs/year • 100% non-custodial • 1099-ready
-        </div>
         <div className="mt-6">
           <Link
             href="/help"
