@@ -6,7 +6,7 @@ import Link from 'next/link';
 import LeftSidebar from '@/components/layout/LeftSidebar';
 import BrowserInvoicePDF from '@/components/invoice/BrowserInvoicePDF';
 import { Invoice } from '@/types';
-import { FileText, Search, Plus, Trash2, ExternalLink } from 'lucide-react';
+import { FileText, Search, Plus, Trash2, ExternalLink, Home, Users, User } from 'lucide-react';
 import { supabaseBrowser } from '@/lib/supabase';
 
 export default function InvoicesPage() {
@@ -114,15 +114,15 @@ export default function InvoicesPage() {
           <p className="text-[var(--text-secondary)] mb-4">Please connect your wallet to view invoices.</p>
           <Link href="/" className="inline-flex items-center gap-2 px-6 py-3 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white rounded-full text-sm font-medium transition">
             Connect Wallet
-          </Link>
+            </Link>
+          </div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
   return (
     <div className="flex min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)]">
-      <div className="w-72 border-r border-[var(--border-color)] hidden lg:block flex-shrink-0">
+      <div className="w-64 border-r border-[var(--border-color)] hidden md:block flex-shrink-0">
         <LeftSidebar />
       </div>
 
@@ -250,6 +250,28 @@ export default function InvoicesPage() {
               ))}
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Mobile bottom nav */}
+      <div className="fixed bottom-0 left-0 right-0 bg-[var(--bg-primary)] border-t border-[var(--border-color)] md:hidden z-10 safe-bottom">
+        <div className="flex justify-around py-2 text-[var(--text-primary)] text-xs">
+          <Link href="/dashboard" className="flex flex-col items-center gap-1 hover:text-[var(--brand-primary)] transition">
+            <Home className="w-5 h-5" />
+            <span>Dashboard</span>
+          </Link>
+          <Link href="/invoices" className="flex flex-col items-center gap-1 hover:text-[var(--brand-primary)] transition">
+            <FileText className="w-5 h-5" />
+            <span>Invoices</span>
+          </Link>
+          <Link href="/clients" className="flex flex-col items-center gap-1 hover:text-[var(--brand-primary)] transition">
+            <Users className="w-5 h-5" />
+            <span>Clients</span>
+          </Link>
+          <Link href="/profile" className="flex flex-col items-center gap-1 hover:text-[var(--brand-primary)] transition">
+            <User className="w-5 h-5" />
+            <span>Profile</span>
+          </Link>
         </div>
       </div>
     </div>
