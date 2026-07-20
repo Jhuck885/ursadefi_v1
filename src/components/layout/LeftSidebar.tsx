@@ -19,7 +19,7 @@ export default function LeftSidebar() {
   const shortAddress = wallet?.address ? `${wallet.address.slice(0, 6)}...${wallet.address.slice(-4)}` : null;
 
   return (
-    <aside className="hidden lg:flex w-72 flex-col border-r border-[var(--border-color)] bg-[var(--bg-primary)] fixed inset-y-0 left-0 text-[var(--text-primary)]">
+    <div className="flex flex-col h-full w-full text-[var(--text-primary)]">
       <div className="p-6 border-b border-[var(--border-color)]">
         <div className="flex items-center gap-3 logo-wrapper">
           <img
@@ -79,6 +79,6 @@ export default function LeftSidebar() {
           </div>
         )}
       </div>
-    </aside>
+    </div>
   );
 }
