@@ -6,7 +6,7 @@ import Link from 'next/link';
 import LeftSidebar from '@/components/layout/LeftSidebar';
 import BrowserInvoicePDF from '@/components/invoice/BrowserInvoicePDF';
 import { Invoice } from '@/types';
-import { FileText, Search, Plus, Trash2, ExternalLink, Home, Users, User } from 'lucide-react';
+import { FileText, Search, Plus, Trash2, Home, Users, User, CheckCircle2, RotateCcw } from 'lucide-react';
 import { supabaseBrowser } from '@/lib/supabase';
 
 export default function InvoicesPage() {
@@ -15,18 +15,17 @@ export default function InvoicesPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const loadInvoices = async () => {
     setLoading(true);
     let all: Invoice[] = [];
 
-    // 1. Load from localStorage
     try {
       const local = JSON.parse(localStorage.getItem('invoices') || '[]');
       all = [...local];
     } catch {}
 
-    // 2. Try Supabase
     if (wallet?.address) {
       try {
         const { data, error } = await supabaseBrowser
@@ -51,7 +50,6 @@ export default function InvoicesPage() {
             user_id: row.wallet_address,
           }));
 
-          // Merge: prefer Supabase, keep local-only ones
           const supabaseIds = new Set(mapped.map(i => i.id));
           const localOnly = all.filter(i => !supabaseIds.has(i.id));
           all = [...mapped, ...localOnly];
@@ -61,7 +59,6 @@ export default function InvoicesPage() {
       }
     }
 
-    // Sort newest first
     all.sort((a, b) => {
       const da = a.created_at ? new Date(a.created_at).getTime() : 0;
       const db = b.created_at ? new Date(b.created_at).getTime() : 0;
@@ -91,20 +88,57 @@ export default function InvoicesPage() {
     );
   });
 
+  const updateLocalStatus = (id: string, status: string) => {
+    try {
+      const existing: Invoice[] = JSON.parse(localStorage.getItem('invoices') || '[]');
+      const next = existing.map(i => (i.id === id ? { ...i, status } : i));
+      // If invoice only exists from Supabase, still keep a local copy with new status
+      if (!existing.find(i => i.id === id)) {
+        const fromState = invoices.find(i => i.id === id);
+        if (fromState) next.unshift({ ...fromState, status });
+      }
+      localStorage.setItem('invoices', JSON.stringify(next));
+    } catch {}
+  };
+
+  const handleSetStatus = async (invoice: Invoice, status: 'paid' | 'draft') => {
+    setUpdatingId(invoice.id);
+
+    // Local first
+    updateLocalStatus(invoice.id, status);
+    setInvoices(prev => prev.map(i => (i.id === invoice.id ? { ...i, status } : i)));
+    if (selectedInvoice?.id === invoice.id) {
+      setSelectedInvoice({ ...invoice, status });
+    }
+
+    // Cloud
+    try {
+      await supabaseBrowser
+        .from('invoices')
+        .update({ status })
+        .eq('id', invoice.id);
+    } catch (err) {
+      console.warn('Status cloud update failed (local updated)', err);
+    }
+
+    // Refresh Outstanding + other listeners
+    window.dispatchEvent(new Event('invoices-updated'));
+    setUpdatingId(null);
+  };
+
   const handleDelete = async (invoice: Invoice) => {
     if (!confirm(`Delete invoice ${invoice.id}?`)) return;
 
-    // Remove from local
     const existing = JSON.parse(localStorage.getItem('invoices') || '[]');
     localStorage.setItem('invoices', JSON.stringify(existing.filter((i: Invoice) => i.id !== invoice.id)));
 
-    // Try Supabase
     try {
       await supabaseBrowser.from('invoices').delete().eq('id', invoice.id);
     } catch {}
 
     setInvoices(prev => prev.filter(i => i.id !== invoice.id));
     if (selectedInvoice?.id === invoice.id) setSelectedInvoice(null);
+    window.dispatchEvent(new Event('invoices-updated'));
   };
 
   if (!isConnected) {
@@ -114,11 +148,11 @@ export default function InvoicesPage() {
           <p className="text-[var(--text-secondary)] mb-4">Please connect your wallet to view invoices.</p>
           <Link href="/" className="inline-flex items-center gap-2 px-6 py-3 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white rounded-full text-sm font-medium transition">
             Connect Wallet
-            </Link>
-          </div>
+          </Link>
         </div>
-      );
-    }
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)]">
@@ -126,9 +160,8 @@ export default function InvoicesPage() {
         <LeftSidebar />
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto pb-20 md:pb-0">
         <div className="max-w-5xl mx-auto px-6 py-8">
-          {/* Header */}
           <div className="flex items-center justify-between mb-8">
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Invoices</h1>
@@ -146,7 +179,6 @@ export default function InvoicesPage() {
             </Link>
           </div>
 
-          {/* Search */}
           <div className="mb-6 relative max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
             <input
@@ -174,86 +206,110 @@ export default function InvoicesPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {filtered.map((inv) => (
-                <div
-                  key={inv.id}
-                  className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-5 hover:border-[var(--brand-primary)]/40 transition cursor-pointer"
-                  onClick={() => setSelectedInvoice(selectedInvoice?.id === inv.id ? null : inv)}
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 mb-1">
-                        <span className="font-mono text-sm text-[var(--brand-primary)]">{inv.id}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${
-                          inv.status === 'paid'
-                            ? 'bg-emerald-500/15 text-emerald-500'
-                            : inv.status === 'overdue'
-                            ? 'bg-red-500/15 text-red-400'
-                            : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]'
-                        }`}>
-                          {inv.status || 'draft'}
-                        </span>
+              {filtered.map((inv) => {
+                const isPaid = inv.status === 'paid';
+                const isUpdating = updatingId === inv.id;
+
+                return (
+                  <div
+                    key={inv.id}
+                    className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-5 hover:border-[var(--brand-primary)]/40 transition cursor-pointer"
+                    onClick={() => setSelectedInvoice(selectedInvoice?.id === inv.id ? null : inv)}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 mb-1">
+                          <span className="font-mono text-sm text-[var(--brand-primary)]">{inv.id}</span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                            isPaid
+                              ? 'bg-emerald-500/15 text-emerald-500'
+                              : inv.status === 'overdue'
+                              ? 'bg-red-500/15 text-red-400'
+                              : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]'
+                          }`}>
+                            {inv.status || 'draft'}
+                          </span>
+                        </div>
+                        <h3 className="font-semibold text-lg truncate">{inv.to || 'Unknown Client'}</h3>
+                        <p className="text-sm text-[var(--text-secondary)] truncate mt-0.5">
+                          {inv.description || inv.from || '—'}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-4 mt-3 text-sm">
+                          <span className="font-semibold">${Number(inv.total).toFixed(2)}</span>
+                          <span className="text-[var(--text-secondary)]">≈ {Number(inv.xrpAmount).toFixed(4)} XRP</span>
+                          {inv.dueDate && (
+                            <span className="text-[var(--text-muted)]">Due {new Date(inv.dueDate).toLocaleDateString()}</span>
+                          )}
+                          {inv.created_at && (
+                            <span className="text-[var(--text-muted)]">Created {new Date(inv.created_at).toLocaleDateString()}</span>
+                          )}
+                        </div>
                       </div>
-                      <h3 className="font-semibold text-lg truncate">{inv.to || 'Unknown Client'}</h3>
-                      <p className="text-sm text-[var(--text-secondary)] truncate mt-0.5">
-                        {inv.description || inv.from || '—'}
-                      </p>
-                      <div className="flex items-center gap-4 mt-3 text-sm">
-                        <span className="font-semibold">${Number(inv.total).toFixed(2)}</span>
-                        <span className="text-[var(--text-secondary)]">≈ {Number(inv.xrpAmount).toFixed(4)} XRP</span>
-                        {inv.dueDate && (
-                          <span className="text-[var(--text-muted)]">Due {new Date(inv.dueDate).toLocaleDateString()}</span>
+
+                      <div className="flex flex-col sm:flex-row gap-2 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                        {!isPaid ? (
+                          <button
+                            onClick={() => handleSetStatus(inv, 'paid')}
+                            disabled={isUpdating}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-full transition disabled:opacity-50"
+                            title="Mark as Paid"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            {isUpdating ? '...' : 'Mark Paid'}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleSetStatus(inv, 'draft')}
+                            disabled={isUpdating}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-[var(--border-color)] hover:bg-[var(--bg-primary)] rounded-full transition disabled:opacity-50"
+                            title="Mark as Unpaid"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            {isUpdating ? '...' : 'Unpaid'}
+                          </button>
                         )}
-                        {inv.created_at && (
-                          <span className="text-[var(--text-muted)]">Created {new Date(inv.created_at).toLocaleDateString()}</span>
-                        )}
+                        <BrowserInvoicePDF invoice={inv} compact />
+                        <button
+                          onClick={() => handleDelete(inv)}
+                          className="p-2 text-red-400 hover:bg-red-950/40 rounded-xl transition"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
 
-                    <div className="flex gap-2 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                      <BrowserInvoicePDF invoice={inv} compact />
-                      <button
-                        onClick={() => handleDelete(inv)}
-                        className="p-2 text-red-400 hover:bg-red-950/40 rounded-xl transition"
-                        title="Delete"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
+                    {selectedInvoice?.id === inv.id && (
+                      <div className="mt-5 pt-5 border-t border-[var(--border-color)] grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <p className="text-[var(--text-muted)] text-xs mb-1">From</p>
+                          <p>{inv.from || '—'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[var(--text-muted)] text-xs mb-1">Receiver Wallet</p>
+                          <p className="font-mono text-xs break-all">{inv.receiver || '—'}</p>
+                        </div>
+                        <div className="md:col-span-2">
+                          <p className="text-[var(--text-muted)] text-xs mb-1">Line Items</p>
+                          <ul className="space-y-1">
+                            {(inv.items || []).map((item, idx) => (
+                              <li key={idx} className="flex justify-between">
+                                <span>{item.desc || 'Item'}</span>
+                                <span>${(item.qty * item.price).toFixed(2)}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    )}
                   </div>
-
-                  {/* Expanded detail */}
-                  {selectedInvoice?.id === inv.id && (
-                    <div className="mt-5 pt-5 border-t border-[var(--border-color)] grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <p className="text-[var(--text-muted)] text-xs mb-1">From</p>
-                        <p>{inv.from || '—'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[var(--text-muted)] text-xs mb-1">Receiver Wallet</p>
-                        <p className="font-mono text-xs break-all">{inv.receiver || '—'}</p>
-                      </div>
-                      <div className="md:col-span-2">
-                        <p className="text-[var(--text-muted)] text-xs mb-1">Line Items</p>
-                        <ul className="space-y-1">
-                          {(inv.items || []).map((item, idx) => (
-                            <li key={idx} className="flex justify-between">
-                              <span>{item.desc || 'Item'}</span>
-                              <span>${(item.qty * item.price).toFixed(2)}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
       </div>
 
-      {/* Mobile bottom nav */}
       <div className="fixed bottom-0 left-0 right-0 bg-[var(--bg-primary)] border-t border-[var(--border-color)] md:hidden z-10 safe-bottom">
         <div className="flex justify-around py-2 text-[var(--text-primary)] text-xs">
           <Link href="/dashboard" className="flex flex-col items-center gap-1 hover:text-[var(--brand-primary)] transition">
