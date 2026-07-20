@@ -108,16 +108,15 @@ export default function XRPLConnect({ onConnect }: XRPLConnectProps = {}) {
             disabled={loading}
             className={pillButton}
           >
-            {loading ? 'Connecting to Xaman...' : 'Connect with Xaman (Recommended)'}
+            {loading ? 'Connecting to Xaman...' : 'Connect with Xaman'}
           </button>
           <button
             onClick={handleDemoConnect}
             className={outlineButton}
           >
-            [MVP Demo] Use test wallet → Continue
+            Existing User
           </button>
           {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
-          <p className="text-[10px] text-zinc-500">Demo instantly connects a test XRPL address</p>
         </div>
       ) : (
         <div className="space-y-4 text-center">
@@ -138,7 +137,7 @@ export default function XRPLConnect({ onConnect }: XRPLConnectProps = {}) {
             onClick={handleDemoConnect}
             className={outlineButton}
           >
-            [MVP Demo] I already signed → Continue
+            Existing User
           </button>
           <button
             onClick={() => {
