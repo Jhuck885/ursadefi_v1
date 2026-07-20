@@ -5,6 +5,7 @@ import { Invoice } from '@/types';
 import BrowserInvoicePDF from './BrowserInvoicePDF';
 import { supabaseBrowser } from '@/lib/supabase';
 import { useToast } from '@/components/ui/Toast';
+import { MIN_MINT_USD } from '@/lib/constants';
 
 interface Props {
   invoice: Invoice;
@@ -45,6 +46,12 @@ export default function InvoiceCard({ invoice }: Props) {
   };
 
   const handleMint = async () => {
+    const total = Number(invoice.total) || 0;
+    if (total < MIN_MINT_USD) {
+      warning(`Minimum $${MIN_MINT_USD} to mint an NFT`);
+      return;
+    }
+
     setIsMinting(true);
     setStatusMsg('Creating Xaman payload...');
 
@@ -146,7 +153,6 @@ export default function InvoiceCard({ invoice }: Props) {
       info('Open Xaman and approve the burn');
       window.open(data.next, '_blank');
 
-      // After a short window, mark as burned (user confirmed in Xaman)
       setTimeout(async () => {
         try {
           const existing: any[] = JSON.parse(localStorage.getItem('invoices') || '[]');
@@ -199,6 +205,8 @@ export default function InvoiceCard({ invoice }: Props) {
     if (invoice.status === 'paid') return <div className="badge badge-paid">Paid</div>;
     return <div className="badge badge-draft">XRPL NFT Ready</div>;
   };
+
+  const canMint = Number(invoice.total) >= MIN_MINT_USD;
 
   return (
     <div
@@ -255,8 +263,9 @@ export default function InvoiceCard({ invoice }: Props) {
         {!invoice.nftoken_id && invoice.status !== 'burned' ? (
           <button
             onClick={handleMint}
-            disabled={isMinting}
+            disabled={isMinting || !canMint}
             className="btn-secondary text-xs px-3.5 py-1.5 disabled:opacity-50"
+            title={!canMint ? `Minimum $${MIN_MINT_USD} to mint` : undefined}
           >
             {isMinting ? 'Minting...' : 'Mint as XRPL NFT'}
           </button>
