@@ -112,10 +112,15 @@ export default function BrowserInvoicePDF({
       .filter(Boolean)
       .join('');
 
-    // Strict size caps so large uploads cannot blow the layout / second page
     const logoHtml = companyLogo
       ? `<img src="${companyLogo}" alt="${companyName}" class="company-logo" />`
       : '';
+
+    // Absolute URL so logo still loads in the print popup window
+    const ursaLogoSrc =
+      typeof window !== 'undefined'
+        ? `${window.location.origin}/ursa-logo.png`
+        : '/ursa-logo.png';
 
     const invDate = invoice.created_at
       ? new Date(invoice.created_at).toLocaleDateString('en-US', {
@@ -155,6 +160,15 @@ export default function BrowserInvoicePDF({
       max-width: 110px !important;
       object-fit: contain;
       margin: 0 0 6px 0;
+    }
+    .footer-logo {
+      display: block;
+      margin: 0 auto 4px auto;
+      height: 22px !important;
+      width: auto !important;
+      max-height: 22px !important;
+      max-width: 72px !important;
+      object-fit: contain;
     }
     .header {
       display: flex;
@@ -241,6 +255,11 @@ export default function BrowserInvoicePDF({
         height: 28px !important;
         max-height: 28px !important;
         max-width: 100px !important;
+      }
+      .footer-logo {
+        height: 20px !important;
+        max-height: 20px !important;
+        max-width: 64px !important;
       }
     }
   </style>
@@ -330,6 +349,7 @@ export default function BrowserInvoicePDF({
   </div>
 
   <div class="footer-brand">
+    <img src="${ursaLogoSrc}" alt="UrsaDeFi" class="footer-logo" />
     <div class="powered">Powered by ursadefi.com</div>
   </div>
 
