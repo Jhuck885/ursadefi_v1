@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { useWallet } from '@/context/WalletContext';
 import BrowserInvoicePDF from './BrowserInvoicePDF';
-import { mintInvoiceNFT } from '@/lib/xrpl';
 import { Invoice } from '@/types';
 import { supabaseBrowser } from '@/lib/supabase';
 
@@ -34,6 +33,7 @@ interface Props {
 export default function InvoiceForm({ onSuccess }: Props = {}) {
   const { wallet } = useWallet();
   const [loading, setLoading] = useState(false);
+  const [mintStatus, setMintStatus] = useState<string | null>(null);
   const [xrpRate] = useState(2.45);
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClientId, setSelectedClientId] = useState('');
@@ -89,7 +89,6 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
     }
     setLoading(true);
     try {
-      // Always save locally first
       const localClient = {
         id: 'local-' + Date.now(),
         name: newClientName.trim(),
@@ -98,7 +97,6 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
         city_state: newClientPhone.trim() || undefined,
       };
 
-      // Try Supabase
       try {
         const { data, error } = await supabaseBrowser
           .from('clients')
@@ -116,7 +114,6 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
           setSelectedClientId(data.id);
           setValue('to', data.name);
         } else {
-          // Fallback to local
           setClients(prev => [localClient as Client, ...prev]);
           setSelectedClientId(localClient.id);
           setValue('to', localClient.name);
@@ -145,18 +142,16 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
     setValue('xrpAmount', parseFloat(xrpAmount.toFixed(6)));
   }, [watchedAmount, xrpRate, setValue]);
 
-  const onSubmit: SubmitHandler<InvoiceFormData> = async (formData) => {
+  /** Save invoice to local + Supabase, return the saved Invoice object */
+  const saveInvoice = async (formData: InvoiceFormData): Promise<Invoice | null> => {
     if (!formData.to || !formData.invoiceName) {
       alert('Please enter Invoice Name and Client');
-      return;
+      return null;
     }
-
     if (!wallet?.address) {
       alert('Please connect your wallet first');
-      return;
+      return null;
     }
-
-    setLoading(true);
 
     const newInvoice: Invoice = {
       id: 'INV-' + Date.now(),
@@ -173,7 +168,7 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
       user_id: wallet.address,
     };
 
-    // Always save to localStorage first (MVP reliability)
+    // localStorage first
     try {
       const existing = JSON.parse(localStorage.getItem('invoices') || '[]');
       localStorage.setItem('invoices', JSON.stringify([newInvoice, ...existing]));
@@ -182,86 +177,192 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
       console.error('localStorage save failed', e);
     }
 
-    // Try Supabase (non-blocking)
-    let cloudSaved = false;
+    // Supabase best-effort
     try {
-      const { error } = await supabaseBrowser
-        .from('invoices')
-        .insert([{
-          id: newInvoice.id,
-          wallet_address: wallet.address,
-          from_name: newInvoice.from,
-          to_name: newInvoice.to,
-          items: newInvoice.items,
-          total: newInvoice.total,
-          xrp_amount: newInvoice.xrpAmount,
-          receiver: newInvoice.receiver,
-          due_date: newInvoice.dueDate,
-          description: newInvoice.description,
-          status: newInvoice.status,
-        }]);
-
-      if (!error) {
-        cloudSaved = true;
-      } else {
-        console.warn('Supabase invoice insert error (saved locally):', error);
-      }
+      await supabaseBrowser.from('invoices').insert([{
+        id: newInvoice.id,
+        wallet_address: wallet.address,
+        from_name: newInvoice.from,
+        to_name: newInvoice.to,
+        items: newInvoice.items,
+        total: newInvoice.total,
+        xrp_amount: newInvoice.xrpAmount,
+        receiver: newInvoice.receiver,
+        due_date: newInvoice.dueDate,
+        description: newInvoice.description,
+        status: newInvoice.status,
+      }]);
     } catch (e) {
-      console.warn('Supabase unreachable — invoice saved locally only', e);
+      console.warn('Supabase insert failed (saved locally)', e);
     }
 
     onSuccess?.(newInvoice);
-
-    if (cloudSaved) {
-      alert('✅ Invoice saved to cloud + local!');
-    } else {
-      alert('✅ Invoice saved locally!\n\n(Cloud sync unavailable — Supabase project may be paused or misconfigured)');
-    }
-
-    reset({
-      invoiceName: '',
-      to: '',
-      description: '',
-      amount: 0,
-      total: 0,
-      xrpAmount: 0,
-      receiver: formData.receiver,
-      dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    });
-
-    setSelectedClientId('');
-    setShowNewClientForm(false);
-    setLoading(false);
+    return newInvoice;
   };
 
+  const onSubmit: SubmitHandler<InvoiceFormData> = async (formData) => {
+    setLoading(true);
+    try {
+      const inv = await saveInvoice(formData);
+      if (inv) {
+        alert('✅ Invoice saved!');
+        reset({
+          invoiceName: '',
+          to: '',
+          description: '',
+          amount: 0,
+          total: 0,
+          xrpAmount: 0,
+          receiver: formData.receiver,
+          dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        });
+        setSelectedClientId('');
+        setShowNewClientForm(false);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /** Mint flow: save first, then mint with real invoice ID */
   const handleMint = async () => {
-    const currentTotal = watch('total');
-    if (!currentTotal || currentTotal < 5) {
-      alert('Min $5 to mint');
+    const formValues = watch();
+    const currentTotal = Number(formValues.total) || 0;
+
+    if (currentTotal < 5) {
+      alert('Minimum $5 to mint an NFT');
+      return;
+    }
+    if (!formValues.invoiceName || !formValues.to) {
+      alert('Please fill Invoice Name and Client before minting');
+      return;
+    }
+    if (!wallet?.address) {
+      alert('Please connect your wallet first');
       return;
     }
 
-    const formValues = watch();
-    const tempInvoice = {
-      id: 'INV-' + Date.now(),
-      from: formValues.invoiceName,
-      to: formValues.to || 'Client',
-      items: [{ desc: formValues.description, qty: 1, price: formValues.amount }],
-      total: formValues.total || 0,
-      xrpAmount: formValues.xrpAmount || 0,
-      receiver: formValues.receiver,
-      status: 'draft',
-    };
-
     setLoading(true);
+    setMintStatus('Saving invoice...');
+
     try {
-      await mintInvoiceNFT(tempInvoice);
-      alert('Xaman opened — check your app to sign the mint!');
+      // 1. Save the invoice first so we have a real ID
+      const invoice = await saveInvoice(formValues as InvoiceFormData);
+      if (!invoice) {
+        setLoading(false);
+        setMintStatus(null);
+        return;
+      }
+
+      // 2. Create Xaman mint payload (server-side)
+      setMintStatus('Creating Xaman payload...');
+      const res = await fetch('/api/xaman/mint', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invoice }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to create mint payload');
+      if (!data.next || !data.uuid) throw new Error('No Xaman deep link returned');
+
+      // 3. Open Xaman
+      setMintStatus('Open Xaman and approve the mint...');
+      window.open(data.next, '_blank');
+
+      // 4. Poll for result
+      const uuid = data.uuid;
+      let attempts = 0;
+      const maxAttempts = 60;
+
+      const poll = async (): Promise<void> => {
+        attempts += 1;
+        setMintStatus(`Waiting for signature... (${attempts})`);
+
+        try {
+          const resolveRes = await fetch('/api/xaman/resolve-mint', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ uuid, invoiceId: invoice.id }),
+          });
+          const resolveData = await resolveRes.json();
+
+          if (resolveData.signed && resolveData.nftokenId) {
+            // Success — save NFT ID
+            setMintStatus('Minted! Saving NFT ID...');
+
+            try {
+              const existing: any[] = JSON.parse(localStorage.getItem('invoices') || '[]');
+              const next = existing.map((i) =>
+                i.id === invoice.id
+                  ? { ...i, nftoken_id: resolveData.nftokenId, xrpl_tx_hash: resolveData.txid, status: 'minted' }
+                  : i
+              );
+              localStorage.setItem('invoices', JSON.stringify(next));
+            } catch {}
+
+            try {
+              await supabaseBrowser
+                .from('invoices')
+                .update({
+                  nftoken_id: resolveData.nftokenId,
+                  xrpl_tx_hash: resolveData.txid,
+                  status: 'minted',
+                })
+                .eq('id', invoice.id);
+            } catch {}
+
+            window.dispatchEvent(new Event('invoices-updated'));
+            setMintStatus(null);
+            setLoading(false);
+            alert(`Successfully minted!\n\nNFTokenID:\n${resolveData.nftokenId}`);
+
+            // Reset form
+            reset({
+              invoiceName: '',
+              to: '',
+              description: '',
+              amount: 0,
+              total: 0,
+              xrpAmount: 0,
+              receiver: formValues.receiver,
+              dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            });
+            setSelectedClientId('');
+            return;
+          }
+
+          if (resolveData.expired) {
+            setMintStatus(null);
+            setLoading(false);
+            alert('Xaman payload expired. Please try again.');
+            return;
+          }
+
+          if (attempts >= maxAttempts) {
+            setMintStatus(null);
+            setLoading(false);
+            alert('Timed out waiting for signature. If you already signed, check the Activities feed — the NFT may still appear.');
+            return;
+          }
+
+          setTimeout(poll, 2500);
+        } catch (err) {
+          console.error('Poll error', err);
+          if (attempts < maxAttempts) setTimeout(poll, 2500);
+          else {
+            setMintStatus(null);
+            setLoading(false);
+          }
+        }
+      };
+
+      setTimeout(poll, 4000);
     } catch (e: any) {
       console.error(e);
-      alert('Mint failed — check console or try again later');
-    } finally {
+      setMintStatus(null);
       setLoading(false);
+      alert(e.message || 'Mint failed');
     }
   };
 
@@ -309,39 +410,11 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
 
           {showNewClientForm && (
             <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-4 mb-3 space-y-3">
-              <input
-                type="text"
-                placeholder="Client / Company Name *"
-                value={newClientName}
-                onChange={(e) => setNewClientName(e.target.value)}
-                className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-4 py-2.5 text-sm"
-              />
-              <input
-                type="email"
-                placeholder="Email (optional)"
-                value={newClientEmail}
-                onChange={(e) => setNewClientEmail(e.target.value)}
-                className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-4 py-2.5 text-sm"
-              />
-              <input
-                type="text"
-                placeholder="Address (optional)"
-                value={newClientAddress}
-                onChange={(e) => setNewClientAddress(e.target.value)}
-                className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-4 py-2.5 text-sm"
-              />
-              <input
-                type="text"
-                placeholder="Phone (optional)"
-                value={newClientPhone}
-                onChange={(e) => setNewClientPhone(e.target.value)}
-                className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-4 py-2.5 text-sm"
-              />
-              <button
-                type="button"
-                onClick={handleAddNewClient}
-                disabled={loading || !newClientName.trim()}
-                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-full transition disabled:opacity-50">
+              <input type="text" placeholder="Client / Company Name *" value={newClientName} onChange={(e) => setNewClientName(e.target.value)} className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-4 py-2.5 text-sm" />
+              <input type="email" placeholder="Email (optional)" value={newClientEmail} onChange={(e) => setNewClientEmail(e.target.value)} className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-4 py-2.5 text-sm" />
+              <input type="text" placeholder="Address (optional)" value={newClientAddress} onChange={(e) => setNewClientAddress(e.target.value)} className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-4 py-2.5 text-sm" />
+              <input type="text" placeholder="Phone (optional)" value={newClientPhone} onChange={(e) => setNewClientPhone(e.target.value)} className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-4 py-2.5 text-sm" />
+              <button type="button" onClick={handleAddNewClient} disabled={loading || !newClientName.trim()} className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-full transition disabled:opacity-50">
                 Save New Client
               </button>
             </div>
@@ -389,16 +462,24 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
           </div>
         )}
 
+        {mintStatus && (
+          <div className="text-sm text-[var(--brand-primary)] animate-pulse text-center py-1">
+            {mintStatus}
+          </div>
+        )}
+
         <div className="flex flex-col sm:flex-row gap-3 pt-2">
           <button type="submit" disabled={loading} className={pillButton}>
             Save Invoice
           </button>
           <button type="button" onClick={handleMint} disabled={loading} className={pillButton}>
-            Mint as XRPL NFT
+            {loading && mintStatus ? 'Minting...' : 'Mint as XRPL NFT'}
           </button>
         </div>
 
-        <div className="text-[10px] text-[var(--text-muted)] text-center">Fee ~0.15% max • Non-custodial • PDF + email ready</div>
+        <div className="text-[10px] text-[var(--text-muted)] text-center">
+          Fee ~0.15% max • Non-custodial • Min $5 to mint • PDF + email ready
+        </div>
       </form>
 
       <div className="pt-1">
