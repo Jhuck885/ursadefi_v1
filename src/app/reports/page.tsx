@@ -14,12 +14,12 @@ import { supabaseBrowser } from '@/lib/supabase';
 type ExportFormat = 'us-iris-1099nec' | 'europe' | 'japan';
 
 function digitsOnly(value: string | undefined | null): string {
-  return (value || '').replace(/\\D/g, '').slice(0, 9);
+  return (value || '').replace(/\D/g, '').slice(0, 9);
 }
 
 function csvCell(value: string | number | undefined | null): string {
   const s = value === undefined || value === null ? '' : String(value);
-  if (/[",\\n\\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
   return s;
 }
 
@@ -33,6 +33,17 @@ function loadProfile() {
   } catch {
     return {};
   }
+}
+
+function downloadCsv(filename: string, headers: string[], rows: string[]) {
+  const csv = [headers.map(csvCell).join(','), ...rows].join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 const IRIS_1099NEC_HEADERS = [
@@ -90,6 +101,29 @@ const IRIS_1099NEC_HEADERS = [
   'State 2 - State income',
   'State 2 - Local income tax withheld',
   'State 2 - Special Data Entries',
+];
+
+const EU_LEDGER_HEADERS = [
+  'Document Type',
+  'Invoice Number',
+  'Invoice Date',
+  'Tax Year',
+  'Supplier Name',
+  'Supplier Tax ID / VAT',
+  'Supplier Country',
+  'Supplier Address',
+  'Customer Name',
+  'Customer Country',
+  'Description',
+  'Currency',
+  'Net Amount',
+  'VAT Rate %',
+  'VAT Amount',
+  'Gross Amount',
+  'Amount XRP',
+  'Payment Status',
+  'Due Date',
+  'Settlement Reference',
 ];
 
 export default function ReportsPage() {
@@ -212,12 +246,7 @@ export default function ReportsPage() {
     return Array.from(map.values()).filter(r => r.total > 0);
   }, [paidYearInvoices]);
 
-  const handleExportCSV = () => {
-    if (exportFormat === 'europe' || exportFormat === 'japan') {
-      alert('Europe and Japan export formats are next. Use United States (IRIS 1099-NEC) for now.');
-      return;
-    }
-
+  const exportUsIris = () => {
     if (recipientTotals.length === 0) {
       alert('No paid invoices for this year. Mark invoices as Paid before exporting IRIS 1099-NEC.');
       return;
@@ -226,7 +255,7 @@ export default function ReportsPage() {
     const profile = loadProfile();
     const payerTin = digitsOnly(profile.ein);
     const payerName = (profile.companyName || '').slice(0, 40);
-    const payerPhone = (profile.phone || '').replace(/[^0-9+\\-() ]/g, '').slice(0, 20);
+    const payerPhone = (profile.phone || '').replace(/[^0-9+\-() ]/g, '').slice(0, 20);
     const payerEmail = (profile.email || '').slice(0, 75);
 
     let payerCity = '';
@@ -234,7 +263,7 @@ export default function ReportsPage() {
     let payerZip = '';
     const csz = (profile.cityStateZip || '').trim();
     if (csz) {
-      const m = csz.match(/^(.+?),\\s*([A-Za-z]{2})\\s+(\\d{5}(?:-\\d{4})?)$/);
+      const m = csz.match(/^(.+?),\s*([A-Za-z]{2})\s+(\d{5}(?:-\d{4})?)$/);
       if (m) {
         payerCity = m[1].trim();
         payerState = m[2].toUpperCase();
@@ -284,22 +313,73 @@ export default function ReportsPage() {
       return cells.map(csvCell).join(',');
     });
 
-    const chunks: string[][] = [];
     for (let i = 0; i < rows.length; i += 100) {
-      chunks.push(rows.slice(i, i + 100));
+      const chunk = rows.slice(i, i + 100);
+      const suffix = rows.length > 100 ? `_part${Math.floor(i / 100) + 1}` : '';
+      downloadCsv(`IRIS-1099-NEC-${year}${suffix}.csv`, IRIS_1099NEC_HEADERS, chunk);
+    }
+  };
+
+  const exportEurope = () => {
+    if (yearInvoices.length === 0) {
+      alert('No invoices for this year to export.');
+      return;
     }
 
-    chunks.forEach((chunk, i) => {
-      const csv = [IRIS_1099NEC_HEADERS.map(csvCell).join(','), ...chunk].join('\\r\\n');
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      const suffix = chunks.length > 1 ? `_part${i + 1}` : '';
-      link.download = `IRIS-1099-NEC-${year}${suffix}.csv`;
-      link.click();
-      URL.revokeObjectURL(url);
+    const profile = loadProfile();
+    const supplierName = profile.companyName || '';
+    const supplierTaxId = profile.ein || '';
+    const supplierCountry = (profile.country || 'US').slice(0, 2).toUpperCase();
+    const supplierAddress = [profile.address, profile.cityStateZip].filter(Boolean).join(', ');
+
+    const rows = yearInvoices.map((inv) => {
+      const gross = Number(inv.total) || 0;
+      // VAT not stored yet — export net=gross, VAT=0; user/CPA can adjust
+      const vatRate = 0;
+      const vatAmount = 0;
+      const net = gross;
+      const invDate = inv.created_at
+        ? new Date(inv.created_at).toISOString().slice(0, 10)
+        : '';
+
+      const cells = [
+        'INVOICE',
+        inv.id || '',
+        invDate,
+        String(year),
+        supplierName,
+        supplierTaxId,
+        supplierCountry,
+        supplierAddress,
+        inv.to || '',
+        '', // Customer Country — fill if known
+        inv.description || '',
+        'USD',
+        money(net),
+        money(vatRate),
+        money(vatAmount),
+        money(gross),
+        money(Number(inv.xrpAmount) || 0),
+        (inv.status || 'draft').toUpperCase(),
+        inv.dueDate || '',
+        inv.receiver || '',
+      ];
+      return cells.map(csvCell).join(',');
     });
+
+    downloadCsv(`EU-Invoice-Ledger-${year}.csv`, EU_LEDGER_HEADERS, rows);
+  };
+
+  const handleExportCSV = () => {
+    if (exportFormat === 'japan') {
+      alert('Japan export format is next. Use United States or Europe for now.');
+      return;
+    }
+    if (exportFormat === 'europe') {
+      exportEurope();
+      return;
+    }
+    exportUsIris();
   };
 
   const handlePrintReport = () => {
@@ -324,7 +404,7 @@ export default function ReportsPage() {
 <h1>Income & Tax Report – ${year}</h1>
 <p><strong>${companyName}</strong><br>EIN: ${ein}</p>
 <table><thead><tr><th>Invoice ID</th><th>Date</th><th>Client</th><th>USD</th><th>XRP</th><th>Status</th></tr></thead>
-<tbody>${rowsHtml || '<tr><td colspan=\"6\">No invoices</td></tr>'}</tbody></table>
+<tbody>${rowsHtml || '<tr><td colspan="6">No invoices</td></tr>'}</tbody></table>
 <script>window.onload=()=>setTimeout(()=>window.print(),300)</script>
 </body></html>`);
     win.document.close();
@@ -363,7 +443,7 @@ export default function ReportsPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Reports</h1>
-              <p className="text-[var(--text-secondary)] mt-1">Tax-ready reports & IRIS 1099-NEC CSV export</p>
+              <p className="text-[var(--text-secondary)] mt-1">Tax-ready reports — US IRIS & EU ledger</p>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
@@ -383,7 +463,7 @@ export default function ReportsPage() {
                 className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-full px-4 py-2.5 text-sm focus:outline-none focus:border-[var(--brand-primary)]"
               >
                 <option value="us-iris-1099nec">United States — IRIS 1099-NEC</option>
-                <option value="europe">Europe — coming soon</option>
+                <option value="europe">Europe — Invoice Ledger</option>
                 <option value="japan">Japan — coming soon</option>
               </select>
 
@@ -400,7 +480,7 @@ export default function ReportsPage() {
                 className="flex items-center gap-2 px-5 py-2.5 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white rounded-full text-sm font-medium transition"
               >
                 <Download className="w-4 h-4" />
-                Export CSV (IRIS)
+                Export CSV
               </button>
             </div>
           </div>
@@ -470,22 +550,26 @@ export default function ReportsPage() {
               </div>
 
               <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6">
-                <h3 className="font-semibold mb-2">IRIS 1099-NEC export</h3>
-                <p className="text-sm text-[var(--text-secondary)] mb-4">
-                  Builds an IRS IRIS Taxpayer Portal–style <strong>1099-NEC</strong> CSV: one row per recipient,
-                  Box 1 = total <strong>paid</strong> invoices for {year}. Files split at 100 rows (IRIS limit).
-                  Payer fields pull from your Company Profile.
-                </p>
-                <ul className="text-sm text-[var(--text-secondary)] space-y-1 list-disc list-inside mb-4">
-                  <li>Set Company Profile EIN + address before export</li>
-                  <li>Recipient TIN columns left blank — fill from each W-9 before IRIS upload</li>
-                  <li>Amounts: two decimals, no $ or commas</li>
-                  <li>Only <strong>paid</strong> invoices included in Box 1</li>
-                  <li>Europe / Japan formats selectable next</li>
-                </ul>
-                <p className="text-xs text-[var(--text-muted)]">
-                  Not tax advice. Confirm final CSV against the official IRIS template for your tax year before filing.
-                  An IRIS TCC is required to upload to the IRS portal.
+                <h3 className="font-semibold mb-2">Export formats</h3>
+                <div className="space-y-4 text-sm text-[var(--text-secondary)]">
+                  <div>
+                    <p className="font-medium text-[var(--text-primary)] mb-1">United States — IRIS 1099-NEC</p>
+                    <p>One row per recipient. Box 1 = total <strong>paid</strong> invoices. Fill recipient TINs from W-9s before IRS upload.</p>
+                  </div>
+                  <div>
+                    <p className="font-medium text-[var(--text-primary)] mb-1">Europe — Invoice Ledger</p>
+                    <p>
+                      Line-item invoice ledger for EU accountants: supplier/customer, net/VAT/gross, currency, status, XRPL settlement ref.
+                      VAT rate defaults to 0% (adjust in the file or bookkeeping tool). Country-specific packs (DE, FR, NL, UK…) can follow.
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-medium text-[var(--text-primary)] mb-1">Japan</p>
+                    <p>Coming next.</p>
+                  </div>
+                </div>
+                <p className="text-xs text-[var(--text-muted)] mt-4">
+                  Not tax advice. Confirm exports with your accountant before filing.
                 </p>
               </div>
             </>
