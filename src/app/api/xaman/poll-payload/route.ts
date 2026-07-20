@@ -18,9 +18,9 @@ export async function GET(request: NextRequest) {
     const payload = await xumm.payload.get(uuid);
 
     if (payload?.meta?.signed) {
-      // Get the wallet address from the response (correct path for signed payloads)
       const address = payload.response?.account;
       const publicKey = payload.response?.signer_pubkey;
+      const txid = payload.response?.txid || null;
 
       if (!address) {
         return NextResponse.json({ error: 'Signed but no account found' }, { status: 400 });
@@ -30,12 +30,17 @@ export async function GET(request: NextRequest) {
         signed: true,
         address,
         publicKey,
+        txid,
+        // Extra fields useful for debugging / future use
+        dispatched_result: payload.response?.dispatched_result || null,
+        resolved: true,
       });
     }
 
     return NextResponse.json({
       signed: false,
-      expired: payload?.meta?.expired || false
+      expired: payload?.meta?.expired || false,
+      resolved: false,
     });
   } catch (error: any) {
     console.error('Xaman poll error:', error);
