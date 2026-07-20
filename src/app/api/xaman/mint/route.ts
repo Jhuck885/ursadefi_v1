@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { XummSdk } from 'xumm-sdk';
+import { MIN_MINT_USD } from '@/lib/constants';
 
 const xumm = new XummSdk(
   process.env.XUMM_API_KEY!,
@@ -15,7 +16,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing invoice data' }, { status: 400 });
     }
 
-    // Build NFTokenMint transaction
+    const total = Number(invoice.total) || 0;
+    if (total < MIN_MINT_USD) {
+      return NextResponse.json(
+        { error: `Minimum $${MIN_MINT_USD} to mint an NFT` },
+        { status: 400 }
+      );
+    }
+
     const uri = Buffer.from(`https://ursadefi.com/invoice/${invoice.id}`).toString('hex');
 
     const memoData = Buffer.from(
@@ -31,7 +39,7 @@ export async function POST(request: NextRequest) {
     const payload = await xumm.payload.create({
       txjson: {
         TransactionType: 'NFTokenMint',
-        Account: '', // Xaman fills this
+        Account: '',
         URI: uri,
         NFTokenTaxon: 0,
         Flags: 0,
