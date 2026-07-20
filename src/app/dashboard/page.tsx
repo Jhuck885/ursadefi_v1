@@ -1,6 +1,7 @@
 'use client';
 
 import InvoiceFeed from '@/components/invoice/InvoiceFeed';
+import CreateInvoiceButton from '@/components/layout/CreateInvoiceButton';
 import { useWallet } from '@/context/WalletContext';
 
 export default function DashboardPage() {
@@ -15,25 +16,22 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 pt-8 pb-20">
+    <div className="max-w-2xl mx-auto px-4 pt-2 pb-20">
       {!wallet && (
         <div className="mb-6 p-4 bg-yellow-950/60 border border-yellow-600/60 rounded-2xl text-sm text-yellow-200">
           Connect your Xaman wallet from the homepage for full features (demo mode still works below).
         </div>
       )}
 
-      <div className="mb-8">
+      <div className="mb-6 flex items-center justify-between gap-4">
         <h1 className="text-3xl font-bold tracking-tighter">Activity</h1>
+        {/* Visible on tablet / when right sidebar is hidden */}
+        <div className="lg:hidden">
+          <CreateInvoiceButton variant="inline" />
+        </div>
       </div>
 
       <InvoiceFeed />
-
-      {/* Optional inline form for power users — or rely on the modal in RightSidebar */}
-      <div className="mt-12 pt-8 border-t border-zinc-800">
-        <h3 className="font-semibold mb-4 text-lg tracking-tight">Quick Create</h3>
-        <p className="text-xs text-zinc-500 mb-4">Inline form (modal version in right sidebar is recommended for focus)</p>
-        {/* InvoiceForm can be added here if you prefer inline always visible. For X-feed style, the modal keeps the main column clean like Twitter posts. */}
-      </div>
     </div>
   );
 }
