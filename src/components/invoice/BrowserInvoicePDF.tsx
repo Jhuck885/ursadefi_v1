@@ -18,7 +18,6 @@ interface CompanyProfile {
 interface Props {
   invoice: Invoice;
   compact?: boolean;
-  /** open = PDF only; reminder = PDF + mailto; full = create flow (default) */
   mode?: 'open' | 'reminder' | 'full';
 }
 
@@ -30,17 +29,13 @@ function loadCompanyProfile(): CompanyProfile {
   return {};
 }
 
-/** Always the same string for the same invoice — never re-price */
 export function buildPaymentUri(invoice: Invoice): string {
-  // Prefer frozen URI saved at create time
   const frozen = (invoice as any).paymentUri as string | undefined;
   if (frozen && frozen.startsWith('xrp:')) return frozen;
 
   const receiver = (invoice.receiver || '').trim();
-  // Lock amount to 6 decimal places so QR payload never drifts
   const amount = Number(invoice.xrpAmount || 0).toFixed(6);
   const id = String(invoice.id || '').replace(/^PREVIEW-/, '');
-  // Include invoice id (dt) so URI is unique and stable per invoice
   return `xrp:${receiver}?amount=${amount}&dt=${encodeURIComponent(id)}`;
 }
 
@@ -76,10 +71,9 @@ export default function BrowserInvoicePDF({
     const xrpFixed = Number(invoice.xrpAmount || 0).toFixed(6);
     const paymentUri = buildPaymentUri(invoice);
 
-    // Stable QR: same paymentUri always produces the same code content
     let qrDataUrl = '';
     try {
-      const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=170x170&ecc=M&margin=8&data=${encodeURIComponent(paymentUri)}`;
+      const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&ecc=M&margin=4&data=${encodeURIComponent(paymentUri)}`;
       const response = await fetch(qrApiUrl);
       const blob = await response.blob();
       qrDataUrl = await new Promise((resolve) => {
@@ -89,10 +83,9 @@ export default function BrowserInvoicePDF({
       });
     } catch (err) {
       console.error('QR generation failed', err);
-      qrDataUrl = `https://api.qrserver.com/v1/create-qr-code/?size=170x170&data=${encodeURIComponent(paymentUri)}`;
+      qrDataUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(paymentUri)}`;
     }
 
-    // Persist frozen URI on local copy so future opens never diverge
     try {
       const existing: any[] = JSON.parse(localStorage.getItem('invoices') || '[]');
       const next = existing.map((i) =>
@@ -119,8 +112,9 @@ export default function BrowserInvoicePDF({
       .filter(Boolean)
       .join('');
 
+    // Strict size caps so large uploads cannot blow the layout / second page
     const logoHtml = companyLogo
-      ? `<img src="${companyLogo}" alt="${companyName}" style="height: 48px; max-width: 160px; object-fit: contain; margin-bottom: 8px;" />`
+      ? `<img src="${companyLogo}" alt="${companyName}" class="company-logo" />`
       : '';
 
     const invDate = invoice.created_at
@@ -141,35 +135,114 @@ export default function BrowserInvoicePDF({
   <title>Invoice #${cleanId}</title>
   <meta charset="utf-8">
   <style>
-    @page { size: letter; margin: 0.5in; }
+    @page { size: letter; margin: 0.4in; }
+    * { box-sizing: border-box; }
+    html, body { height: auto; }
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      margin: 0; padding: 0.55in 0.65in; color: #111; line-height: 1.35; font-size: 13px;
+      margin: 0;
+      padding: 0.35in 0.5in;
+      color: #111;
+      line-height: 1.3;
+      font-size: 12px;
     }
-    .header { display: flex; justify-content: space-between; align-items: flex-start;
-      border-bottom: 2.5px solid #111; padding-bottom: 12px; margin-bottom: 20px; }
-    .company-info h1 { margin: 0 0 3px 0; font-size: 20px; font-weight: 700; letter-spacing: -0.4px; }
-    .company-info p { margin: 1px 0; font-size: 11px; color: #444; }
+    img { max-width: 100%; height: auto; }
+    .company-logo {
+      display: block;
+      height: 32px !important;
+      width: auto !important;
+      max-height: 32px !important;
+      max-width: 110px !important;
+      object-fit: contain;
+      margin: 0 0 6px 0;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 2px solid #111;
+      padding-bottom: 8px;
+      margin-bottom: 14px;
+    }
+    .company-info h1 {
+      margin: 0 0 2px 0;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+    .company-info p { margin: 0; font-size: 10px; color: #444; }
     .invoice-title { text-align: right; }
-    .invoice-title h1 { margin: 0; font-size: 30px; font-weight: 800; letter-spacing: 2.5px; }
-    .invoice-meta { text-align: right; margin-top: 5px; font-size: 12px; }
-    .sections { display: flex; justify-content: space-between; margin-bottom: 20px; gap: 35px; }
+    .invoice-title h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: 2px;
+    }
+    .invoice-meta { text-align: right; margin-top: 4px; font-size: 11px; }
+    .sections {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      gap: 24px;
+    }
     .section { width: 48%; }
-    .section strong { display: block; font-size: 10.5px; color: #555; margin-bottom: 3px; letter-spacing: 0.5px; }
-    table { width: 100%; border-collapse: collapse; margin: 14px 0 6px; font-size: 12.5px; }
-    th { text-align: left; padding: 7px 0 6px; border-bottom: 1.5px solid #111; font-weight: 600; font-size: 11px; color: #333; }
+    .section strong {
+      display: block;
+      font-size: 10px;
+      color: #555;
+      margin-bottom: 2px;
+      letter-spacing: 0.4px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 8px 0 4px;
+      font-size: 11.5px;
+    }
+    th {
+      text-align: left;
+      padding: 5px 0 4px;
+      border-bottom: 1.5px solid #111;
+      font-weight: 600;
+      font-size: 10px;
+      color: #333;
+    }
     th.right { text-align: right; }
-    td { padding: 7px 0; border-bottom: 1px solid #ddd; vertical-align: top; }
+    td { padding: 5px 0; border-bottom: 1px solid #ddd; vertical-align: top; }
     td.right { text-align: right; }
     .total-row { border-top: 2px solid #111; font-weight: 700; }
-    .total-row td { padding-top: 8px; border-bottom: none; }
-    .payment-line { margin-top: 14px; font-size: 12px; }
-    .qr-section { margin-top: 18px; text-align: center; }
-    .qr-section img { border: 1px solid #ddd; padding: 5px; background: white; }
-    .footer-text { margin-top: 28px; font-size: 11px; color: #444; line-height: 1.45; }
-    .footer-brand { text-align: center; margin-top: 22px; font-size: 12px; }
-    .footer-brand .powered { font-size: 10px; color: #666; }
-    @media print { body { padding: 0.4in; } }
+    .total-row td { padding-top: 6px; border-bottom: none; }
+    .payment-line { margin-top: 10px; font-size: 11px; }
+    .qr-section { margin-top: 12px; text-align: center; page-break-inside: avoid; }
+    .qr-section img {
+      width: 120px !important;
+      height: 120px !important;
+      border: 1px solid #ddd;
+      padding: 3px;
+      background: white;
+    }
+    .footer-text {
+      margin-top: 14px;
+      font-size: 10px;
+      color: #444;
+      line-height: 1.4;
+      page-break-inside: avoid;
+    }
+    .footer-brand {
+      text-align: center;
+      margin-top: 12px;
+      font-size: 10px;
+      page-break-inside: avoid;
+    }
+    .footer-brand .powered { font-size: 9px; color: #666; margin-top: 2px; }
+    @media print {
+      body { padding: 0.25in 0.35in; }
+      .company-logo {
+        height: 28px !important;
+        max-height: 28px !important;
+        max-width: 100px !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -191,7 +264,7 @@ export default function BrowserInvoicePDF({
   <div class="sections">
     <div class="section">
       <strong>TO:</strong>
-      <div style="margin-top:3px; line-height:1.3;">
+      <div style="margin-top:2px; line-height:1.3;">
         ${invoice.to || 'Client Name'}<br>
         ${invoice.clientAddress || ''}<br>
         ${invoice.clientCityState || ''}<br>
@@ -200,7 +273,7 @@ export default function BrowserInvoicePDF({
     </div>
     <div class="section" style="text-align:right;">
       <strong>FOR:</strong>
-      <div style="margin-top:3px; line-height:1.3;">
+      <div style="margin-top:2px; line-height:1.3;">
         ${invoice.description || 'Professional Services'}<br>
         XRPL Invoicing & Payments<br>
         UrsaDeFi Platform
@@ -212,9 +285,9 @@ export default function BrowserInvoicePDF({
     <thead>
       <tr>
         <th>DESCRIPTION</th>
-        <th class="right" style="width: 85px;">HOURS</th>
-        <th class="right" style="width: 85px;">RATE</th>
-        <th class="right" style="width: 105px;">AMOUNT</th>
+        <th class="right" style="width: 70px;">HOURS</th>
+        <th class="right" style="width: 70px;">RATE</th>
+        <th class="right" style="width: 90px;">AMOUNT</th>
       </tr>
     </thead>
     <tbody>
@@ -232,36 +305,31 @@ export default function BrowserInvoicePDF({
     </tbody>
     <tfoot>
       <tr class="total-row">
-        <td colspan="3" style="text-align:right; padding-right:10px;"><strong>TOTAL</strong></td>
-        <td class="right" style="font-size:15px;"><strong>$${Number(invoice.total).toFixed(2)}</strong></td>
+        <td colspan="3" style="text-align:right; padding-right:8px;"><strong>TOTAL</strong></td>
+        <td class="right" style="font-size:13px;"><strong>$${Number(invoice.total).toFixed(2)}</strong></td>
       </tr>
     </tfoot>
   </table>
 
   <div class="payment-line">
     <strong>Pay ${xrpFixed} XRP</strong> to wallet:
-    <span style="font-family:monospace; font-size:11px;">${invoice.receiver || ''}</span>
+    <span style="font-family:monospace; font-size:10px;">${invoice.receiver || ''}</span>
   </div>
 
   <div class="qr-section">
-    <img src="${qrDataUrl}" alt="XRP Payment QR Code" width="170" height="170" />
-    <p style="margin: 6px 0 0; font-size:10.5px; color:#555;">
-      Scan with Xaman to pay • Invoice #${cleanId} • Amount locked
+    <img src="${qrDataUrl}" alt="XRP Payment QR Code" width="120" height="120" />
+    <p style="margin: 4px 0 0; font-size:9.5px; color:#555;">
+      Scan with Xaman • Invoice #${cleanId} • Amount locked
     </p>
   </div>
 
   <div class="footer-text">
-    Make all checks payable to ${companyName}.<br>
-    Total due in 15 days. Overdue accounts subject to a service charge of 1% per month.<br><br>
+    Make all checks payable to ${companyName}.
+    Total due in 15 days. Overdue accounts subject to a service charge of 1% per month.<br>
     <strong>THANK YOU FOR YOUR BUSINESS!</strong>
   </div>
 
   <div class="footer-brand">
-    ${
-      companyLogo
-        ? `<img src="${companyLogo}" alt="${companyName}" style="height: 28px; max-width: 120px; object-fit: contain;" />`
-        : '<img src="/ursa-logo.png" alt="UrsaDeFi" />'
-    }
     <div class="powered">Powered by ursadefi.com</div>
   </div>
 
