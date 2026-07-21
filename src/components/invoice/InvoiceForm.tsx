@@ -228,6 +228,33 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
     return newInvoice;
   };
 
+  const triggerPlatformFeePayment = async (invoice: Invoice) => {
+    try {
+      setMintStatus('Creating platform fee payment...');
+      const res = await fetch('/api/xaman/pay-fee', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invoice }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        console.warn('Fee payment payload failed:', data.error);
+        warning('Mint succeeded. Platform fee payment could not be created automatically.');
+        return;
+      }
+
+      if (data.next) {
+        setMintStatus('Approve platform fee in Xaman...');
+        info(`Approve platform fee of $${data.feeUsd?.toFixed(2) || '0.25'} in Xaman`);
+        window.open(data.next, '_blank');
+      }
+    } catch (err) {
+      console.warn('Auto fee payment error:', err);
+      warning('Mint succeeded. Please pay the platform fee manually if prompted.');
+    }
+  };
+
   const onSubmit: SubmitHandler<InvoiceFormData> = async (formData) => {
     setLoading(true);
     try {
@@ -336,9 +363,17 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
             } catch {}
 
             window.dispatchEvent(new Event('invoices-updated'));
+            success(`Minted successfully · ${resolveData.nftokenId.slice(0, 12)}…`);
+
+            // === AUTOMATIC PLATFORM FEE PAYMENT (Option A) ===
+            await triggerPlatformFeePayment({
+              ...invoice,
+              nftoken_id: resolveData.nftokenId,
+              status: 'minted',
+            });
+
             setMintStatus(null);
             setLoading(false);
-            success(`Minted successfully · ${resolveData.nftokenId.slice(0, 12)}…`);
 
             reset({
               invoiceName: '',
