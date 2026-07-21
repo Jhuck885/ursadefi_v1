@@ -5,7 +5,7 @@ import { Invoice } from '@/types';
 import BrowserInvoicePDF from './BrowserInvoicePDF';
 import { supabaseBrowser } from '@/lib/supabase';
 import { useToast } from '@/components/ui/Toast';
-import { MIN_MINT_USD } from '@/lib/constants';
+import { MIN_MINT_USD, calcPlatformFee } from '@/lib/constants';
 
 interface Props {
   invoice: Invoice;
@@ -15,7 +15,11 @@ export default function InvoiceCard({ invoice }: Props) {
   const { success, error, warning, info } = useToast();
   const [isMinting, setIsMinting] = useState(false);
   const [isBurning, setIsBurning] = useState(false);
+  const [isActivating, setIsActivating] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
+
+  const isActivated = Boolean(invoice.status === 'activated' || invoice.status === 'paid' || invoice.status === 'minted' || invoice.nftoken_id);
+  const feeUsd = calcPlatformFee(Number(invoice.subtotal) || Number(invoice.total) || 0);
 
   const saveNftToInvoice = async (nftokenId: string, txHash: string) => {
     try {
@@ -45,10 +49,71 @@ export default function InvoiceCard({ invoice }: Props) {
     window.dispatchEvent(new Event('invoices-updated'));
   };
 
+  const markActivated = async () => {
+    try {
+      const existing: any[] = JSON.parse(localStorage.getItem('invoices') || '[]');
+      const next = existing.map((i) =>
+        i.id === invoice.id ? { ...i, status: 'activated', fee_paid: true } : i
+      );
+      localStorage.setItem('invoices', JSON.stringify(next));
+    } catch {}
+
+    try {
+      await supabaseBrowser
+        .from('invoices')
+        .update({ status: 'activated' })
+        .eq('id', invoice.id);
+    } catch {}
+
+    window.dispatchEvent(new Event('invoices-updated'));
+  };
+
+  const handleActivate = async () => {
+    if (isActivated) return;
+
+    setIsActivating(true);
+    setStatusMsg('Creating platform fee payment...');
+
+    try {
+      const res = await fetch('/api/xaman/pay-fee', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invoice }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to create fee payment');
+
+      if (!data.next) throw new Error('No Xaman link returned');
+
+      setStatusMsg(`Approve $${data.feeUsd?.toFixed(2) || feeUsd.toFixed(2)} platform fee in Xaman...`);
+      info(`Approve platform fee of $${data.feeUsd?.toFixed(2) || feeUsd.toFixed(2)} in Xaman`);
+      window.open(data.next, '_blank');
+
+      // Optimistic activation after opening the payload.
+      // In a later iteration we can poll for the fee payment the same way we poll mint.
+      await markActivated();
+      success(`Invoice activated. Platform fee $${data.feeUsd?.toFixed(2) || feeUsd.toFixed(2)} requested.`);
+      setStatusMsg(null);
+      setIsActivating(false);
+    } catch (e: any) {
+      console.error(e);
+      setStatusMsg(null);
+      setIsActivating(false);
+      error(e.message || 'Activation failed');
+    }
+  };
+
   const handleMint = async () => {
     const total = Number(invoice.total) || 0;
     if (total < MIN_MINT_USD) {
       warning(`Minimum $${MIN_MINT_USD} to mint an NFT`);
+      return;
+    }
+
+    // Require activation (fee paid) before minting
+    if (!isActivated) {
+      warning('Activate the invoice first (pay the platform fee) before minting.');
       return;
     }
 
@@ -184,7 +249,7 @@ export default function InvoiceCard({ invoice }: Props) {
 
   const handleShareToX = () => {
     const amount = invoice.total;
-    const client = invoice.to || invoice.clientName || 'client';
+    const client = invoice.to || (invoice as any).clientName || 'client';
     const nftPart = invoice.nftoken_id
       ? `\n\nMinted as XRPL NFT: ${invoice.nftoken_id}`
       : '';
@@ -203,7 +268,8 @@ export default function InvoiceCard({ invoice }: Props) {
     if (invoice.nftoken_id) return <div className="badge badge-minted">Minted</div>;
     if (invoice.status === 'burned') return <div className="badge badge-draft">Burned</div>;
     if (invoice.status === 'paid') return <div className="badge badge-paid">Paid</div>;
-    return <div className="badge badge-draft">XRPL NFT Ready</div>;
+    if (isActivated) return <div className="badge badge-paid">Activated</div>;
+    return <div className="badge badge-draft">Draft</div>;
   };
 
   const canMint = Number(invoice.total) >= MIN_MINT_USD;
@@ -224,7 +290,7 @@ export default function InvoiceCard({ invoice }: Props) {
           <div className="text-sm text-[var(--text-secondary)] mt-0.5">
             To:{' '}
             <span className="font-medium text-[var(--text-primary)]">
-              {invoice.to || invoice.clientName}
+              {invoice.to || (invoice as any).clientName}
             </span>
           </div>
         </div>
@@ -260,7 +326,17 @@ export default function InvoiceCard({ invoice }: Props) {
           <BrowserInvoicePDF invoice={invoice} compact />
         </div>
 
-        {!invoice.nftoken_id && invoice.status !== 'burned' ? (
+        {!isActivated && (
+          <button
+            onClick={handleActivate}
+            disabled={isActivating}
+            className="btn-secondary text-xs px-3.5 py-1.5 bg-[var(--brand-primary)]/10 hover:bg-[var(--brand-primary)]/20 text-[var(--brand-primary)] border-[var(--brand-primary)]/30 disabled:opacity-50"
+          >
+            {isActivating ? 'Activating...' : `Activate ($${feeUsd.toFixed(2)})`}
+          </button>
+        )}
+
+        {isActivated && !invoice.nftoken_id && invoice.status !== 'burned' ? (
           <button
             onClick={handleMint}
             disabled={isMinting || !canMint}
