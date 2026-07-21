@@ -3,20 +3,20 @@
 import Link from 'next/link';
 import {
   BookOpen, FileText, Shield, Wallet, HelpCircle,
-  ExternalLink, ArrowLeft, Layers, Download, Play, Key
+  ExternalLink, ArrowLeft, Layers, Download, PlayCircle
 } from 'lucide-react';
 
 const docs = [
   {
     title: 'Getting Started',
-    description: 'Connect Xaman, set up your company profile, and send your first invoice.',
-    status: 'Available',
+    description: 'Connect Xaman or use Demo, set up your profile, and send your first invoice.',
+    status: 'Live',
     href: '#getting-started',
   },
   {
     title: 'Product Overview',
-    description: 'What UrsaDeFi is, who it\'s for, and how XRPL invoicing works.',
-    status: 'Available',
+    description: 'What UrsaDeFi is, who it’s for, and how XRPL invoicing works.',
+    status: 'Live',
     href: '#about',
   },
   {
@@ -35,10 +35,6 @@ const docs = [
 
 const faqs = [
   {
-    q: 'What is the difference between "Try Demo" and "Connect with Xaman"?',
-    a: '"Try Demo" loads a fixed test account so you can explore the interface without connecting a real wallet. "Connect with Xaman" uses your actual XRPL wallet. Nothing you do in Demo mode affects a real wallet.',
-  },
-  {
     q: 'Do I need to create a password?',
     a: 'No. You sign in with your XRPL wallet via Xaman. No passwords, no seed phrases stored by us.',
   },
@@ -47,8 +43,8 @@ const faqs = [
     a: 'No. 100% non-custodial. Your keys stay in Xaman. We never hold your funds.',
   },
   {
-    q: 'What network is this on?',
-    a: 'Currently XRPL Testnet for MVP testing. Mainnet settlement is the next production step.',
+    q: 'What is the “Try Demo” button?',
+    a: 'Try Demo lets you explore the full app using a fixed test XRPL address. No real wallet is connected. Perfect for learning the interface safely. When you’re ready for real work, disconnect and connect with Xaman instead.',
   },
   {
     q: 'How do invoices get paid?',
@@ -56,11 +52,11 @@ const faqs = [
   },
   {
     q: 'Can I export data for my accountant?',
-    a: 'Yes. Use the Reports page to export a CSV designed for tax/IRIS workflows and print a summary with your company EIN. IRIS upload compatible.',
+    a: 'Yes. Use the Reports page to export a CSV designed for tax/IRIS workflows and print a summary with your company EIN.',
   },
   {
     q: 'What does it cost?',
-    a: 'Target fee is ~0.15% max on settlement (with a small minimum). Core invoicing and CSV tools are built for freelancers and small operators first.',
+    a: 'Platform fee is 0.15% of the service amount (minimum $0.25 per invoice). Core invoicing and CSV tools are built for freelancers and small operators first.',
   },
 ];
 
@@ -79,11 +75,11 @@ export default function HelpPage() {
         <div className="mb-12">
           <h1 className="text-4xl font-bold tracking-tight mb-3">About</h1>
           <p className="text-[var(--text-secondary)] text-lg">
-            How UrsaDeFi works, a short tutorial, and answers — no login required.
+            How UrsaDeFi works, a full product tutorial, and answers — no login required.
           </p>
         </div>
 
-        {/* About */}
+        {/* ========== ABOUT ========= */}
         <section id="about" className="mb-14">
           <div className="flex items-center gap-2 mb-4">
             <Layers className="w-5 h-5 text-[var(--brand-primary)]" />
@@ -106,7 +102,7 @@ export default function HelpPage() {
               </li>
               <li className="flex items-start gap-2">
                 <Wallet className="w-4 h-4 mt-1 text-[var(--brand-primary)] flex-shrink-0" />
-                <span>Pay ~0.15% max — keep the rest</span>
+                <span>Platform fee 0.15% (min $0.25) — keep the rest</span>
               </li>
               <li className="flex items-start gap-2">
                 <FileText className="w-4 h-4 mt-1 text-[var(--brand-primary)] flex-shrink-0" />
@@ -116,102 +112,132 @@ export default function HelpPage() {
           </div>
         </section>
 
-        {/* Tutorial / Getting Started */}
+        {/* ========== TUTORIAL ========= */}
         <section id="getting-started" className="mb-14">
           <div className="flex items-center gap-2 mb-4">
-            <BookOpen className="w-5 h-5 text-[var(--brand-primary)]" />
+            <PlayCircle className="w-5 h-5 text-[var(--brand-primary)]" />
             <h2 className="text-2xl font-semibold">Tutorial — Getting Started</h2>
           </div>
 
-          <p className="text-[var(--text-secondary)] mb-6 leading-relaxed">
-            Two ways to enter the app. Choose the one that fits what you want to do right now.
-          </p>
-
-          {/* Two entry paths */}
-          <div className="grid gap-4 mb-8">
-            {/* Try Demo card */}
-            <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-5">
-              <div className="flex items-center gap-2 mb-2">
-                <Play className="w-4 h-4 text-[var(--brand-primary)]" />
-                <h3 className="font-semibold">Option 1 — Try Demo</h3>
+          <div className="space-y-6">
+            {/* Step 1 */}
+            <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <span className="w-8 h-8 rounded-full bg-[var(--brand-primary)] text-white flex items-center justify-center text-sm font-bold">1</span>
+                <h3 className="text-lg font-semibold">Choose how to enter</h3>
               </div>
-              <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
-                Click <strong className="text-[var(--text-primary)]">Try Demo</strong> on the home page.
-                This loads a fixed test account so you can click around the interface, create sample invoices,
-                and explore every page without connecting a real wallet.
-              </p>
-              <p className="text-xs text-[var(--text-muted)]">
-                Nothing you do in Demo mode touches a real XRPL account.
-              </p>
-            </div>
-
-            {/* Real connect card */}
-            <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-5">
-              <div className="flex items-center gap-2 mb-2">
-                <Key className="w-4 h-4 text-[var(--brand-primary)]" />
-                <h3 className="font-semibold">Option 2 — Connect with Xaman (recommended)</h3>
-              </div>
-              <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
-                Click <strong className="text-[var(--text-primary)]">Connect with Xaman</strong>, scan the QR code
-                with the Xaman app on your phone, and approve the SignIn request. Your real wallet address
-                becomes your login. All invoices and clients will be tied to that address.
-              </p>
-              <p className="text-xs text-[var(--text-muted)]">
-                We never see or store your seed phrase or private keys.
-              </p>
-            </div>
-          </div>
-
-          {/* After you are inside */}
-          <h3 className="font-semibold text-lg mb-3">Once you\'re inside</h3>
-          <ol className="space-y-3">
-            {[
-              {
-                title: 'Set up your Profile',
-                desc: 'Go to Profile. Add your company name, address, EIN (optional but useful for exports), and logo. This information appears on your invoices.',
-              },
-              {
-                title: 'Add clients',
-                desc: 'Open the Clients page and create the people or companies you bill. You can also add a new client while creating an invoice.',
-              },
-              {
-                title: 'Create an invoice',
-                desc: 'From the Dashboard or Invoices page, fill in the invoice name, client, description, and service amount. The platform fee and XRP amount are calculated automatically.',
-              },
-              {
-                title: 'Save or Mint as NFT',
-                desc: 'Save the invoice as a draft, or Mint it as an XRPL NFT (requires the higher minimum amount). Minting creates a permanent on-chain record.',
-              },
-              {
-                title: 'Send & track',
-                desc: 'Download the PDF, share the payment QR, or send a reminder. Mark the invoice paid when funds arrive.',
-              },
-              {
-                title: 'Export for taxes',
-                desc: 'Use the Reports page to generate a CSV ready for your accountant or IRIS-style workflows.',
-              },
-            ].map((step, i) => (
-              <li
-                key={i}
-                className="flex gap-4 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl px-4 py-3.5"
-              >
-                <span className="flex-shrink-0 w-7 h-7 rounded-full bg-[var(--brand-primary)]/15 text-[var(--brand-primary)] flex items-center justify-center text-sm font-semibold">
-                  {i + 1}
-                </span>
-                <div>
-                  <p className="font-medium text-sm">{step.title}</p>
-                  <p className="text-sm text-[var(--text-secondary)] mt-0.5 leading-relaxed">{step.desc}</p>
+              <div className="space-y-4 text-sm text-[var(--text-secondary)] leading-relaxed">
+                <p>On the home page you have two clear options:</p>
+                <div className="grid gap-3">
+                  <div className="border border-[var(--border-color)] rounded-xl p-4">
+                    <p className="font-medium text-[var(--text-primary)] mb-1">Try Demo</p>
+                    <p>
+                      Instantly explores the full app using a fixed test XRPL address.
+                      No real wallet is connected. Perfect for learning the interface, creating sample invoices,
+                      and testing the flow without any risk.
+                    </p>
+                  </div>
+                  <div className="border border-[var(--border-color)] rounded-xl p-4">
+                    <p className="font-medium text-[var(--text-primary)] mb-1">Connect with Xaman</p>
+                    <p>
+                      Links your real XRPL wallet. This is the path for actual invoicing and payments.
+                      Scan the QR code with the Xaman app on your phone and approve the sign-in.
+                    </p>
+                  </div>
                 </div>
-              </li>
-            ))}
-          </ol>
+                <p className="text-xs text-[var(--text-muted)]">
+                  You can switch from Demo to a real wallet at any time by returning to the home page and connecting with Xaman.
+                </p>
+              </div>
+            </div>
 
-          <div className="mt-6 p-4 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] text-sm text-[var(--text-secondary)]">
-            <strong className="text-[var(--text-primary)]">Tip:</strong> You can switch from Demo mode to your real wallet at any time by returning to the home page and connecting with Xaman.
+            {/* Step 2 */}
+            <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <span className="w-8 h-8 rounded-full bg-[var(--brand-primary)] text-white flex items-center justify-center text-sm font-bold">2</span>
+                <h3 className="text-lg font-semibold">Set up your Profile</h3>
+              </div>
+              <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+                Go to <strong className="text-[var(--text-primary)]">Profile</strong> in the left sidebar (or bottom nav on mobile).
+                Fill in your company name, address, EIN (if applicable), and upload a logo.
+                This information appears on the invoices and PDFs your clients receive.
+              </p>
+            </div>
+
+            {/* Step 3 */}
+            <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <span className="w-8 h-8 rounded-full bg-[var(--brand-primary)] text-white flex items-center justify-center text-sm font-bold">3</span>
+                <h3 className="text-lg font-semibold">Add clients</h3>
+              </div>
+              <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+                Open the <strong className="text-[var(--text-primary)]">Clients</strong> page and add the people or companies you bill.
+                You can also create a new client directly while building an invoice.
+              </p>
+            </div>
+
+            {/* Step 4 */}
+            <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <span className="w-8 h-8 rounded-full bg-[var(--brand-primary)] text-white flex items-center justify-center text-sm font-bold">4</span>
+                <h3 className="text-lg font-semibold">Create your first invoice</h3>
+              </div>
+              <div className="text-sm text-[var(--text-secondary)] leading-relaxed space-y-3">
+                <p>
+                  From the Dashboard, use the <strong className="text-[var(--text-primary)]">Create Invoice</strong> button
+                  (right sidebar on desktop, floating button on mobile).
+                </p>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>Enter an invoice name and select or create a client</li>
+                  <li>Add a description of the work</li>
+                  <li>Set the service amount (minimum $25)</li>
+                  <li>Choose a due date</li>
+                </ul>
+                <p>
+                  The platform fee (0.15%, minimum $0.25) is calculated automatically and shown transparently
+                  so your client can see the full breakdown.
+                </p>
+              </div>
+            </div>
+
+            {/* Step 5 */}
+            <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <span className="w-8 h-8 rounded-full bg-[var(--brand-primary)] text-white flex items-center justify-center text-sm font-bold">5</span>
+                <h3 className="text-lg font-semibold">Save or Mint as NFT</h3>
+              </div>
+              <div className="text-sm text-[var(--text-secondary)] leading-relaxed space-y-2">
+                <p>
+                  <strong className="text-[var(--text-primary)]">Save Invoice</strong> stores it in your account as a draft.
+                </p>
+                <p>
+                  <strong className="text-[var(--text-primary)]">Mint as XRPL NFT</strong> creates a permanent,
+                  on-chain record of the invoice (minimum service amount $50). You’ll be prompted to approve the transaction in Xaman.
+                </p>
+              </div>
+            </div>
+
+            {/* Step 6 */}
+            <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <span className="w-8 h-8 rounded-full bg-[var(--brand-primary)] text-white flex items-center justify-center text-sm font-bold">6</span>
+                <h3 className="text-lg font-semibold">Send, track & export</h3>
+              </div>
+              <div className="text-sm text-[var(--text-secondary)] leading-relaxed space-y-2">
+                <p>
+                  Download the PDF, share the payment QR, or send a reminder.
+                  Mark invoices as paid when funds arrive.
+                </p>
+                <p>
+                  When tax time comes, go to <strong className="text-[var(--text-primary)]">Reports</strong>
+                  and export a clean CSV for your accountant (IRIS / 1099 friendly).
+                </p>
+              </div>
+            </div>
           </div>
         </section>
 
-        {/* Docs */}
+        {/* ========== DOCS ========= */}
         <section id="docs" className="mb-14">
           <div className="flex items-center gap-2 mb-4">
             <Download className="w-5 h-5 text-[var(--brand-primary)]" />
@@ -238,7 +264,7 @@ export default function HelpPage() {
           </div>
         </section>
 
-        {/* FAQ */}
+        {/* ========== FAQ ========= */}
         <section id="faq" className="mb-14">
           <div className="flex items-center gap-2 mb-4">
             <HelpCircle className="w-5 h-5 text-[var(--brand-primary)]" />
