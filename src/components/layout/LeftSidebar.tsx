@@ -10,7 +10,7 @@ const navItems = [
   { name: 'Invoices', href: '/invoices', icon: FileText },
   { name: 'Clients', href: '/clients', icon: Users },
   { name: 'Reports', href: '/reports', icon: BarChart3 },
-  { name: 'Settings', href: '/dashboard', icon: Settings },
+  { name: 'Settings', href: '/settings', icon: Settings },
   { name: 'Profile', href: '/profile', icon: User },
 ];
 
@@ -21,8 +21,9 @@ export default function LeftSidebar() {
   const shortAddress = wallet?.address ? `${wallet.address.slice(0, 6)}...${wallet.address.slice(-4)}` : null;
 
   const isActive = (href: string) => {
+    // Exact match for all items except Dashboard (which can have sub-routes)
     if (href === '/dashboard') {
-      return pathname === '/dashboard' || pathname.startsWith('/dashboard/');
+      return pathname === '/dashboard';
     }
     return pathname === href;
   };
