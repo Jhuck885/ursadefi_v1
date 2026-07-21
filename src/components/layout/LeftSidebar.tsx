@@ -10,7 +10,7 @@ const navItems = [
   { name: 'Invoices', href: '/invoices', icon: FileText },
   { name: 'Clients', href: '/clients', icon: Users },
   { name: 'Reports', href: '/reports', icon: BarChart3 },
-  { name: 'Settings', href: '/settings', icon: Settings },
+  { name: 'Settings', href: '/dashboard', icon: Settings },
   { name: 'Profile', href: '/profile', icon: User },
 ];
 
@@ -20,13 +20,18 @@ export default function LeftSidebar() {
 
   const shortAddress = wallet?.address ? `${wallet.address.slice(0, 6)}...${wallet.address.slice(-4)}` : null;
 
-  const isActive = (href: string) => {
-    // Exact match for all items except Dashboard (which can have sub-routes)
-    if (href === '/dashboard') {
-      return pathname === '/dashboard';
-    }
-    return pathname === href;
+  // Only highlight the *first* matching item so Settings (which also points to /dashboard)
+  // does not steal the active state from Dashboard
+  const getActiveName = () => {
+    if (pathname === '/dashboard' || pathname.startsWith('/dashboard/')) return 'Dashboard';
+    if (pathname === '/invoices') return 'Invoices';
+    if (pathname === '/clients') return 'Clients';
+    if (pathname === '/reports') return 'Reports';
+    if (pathname === '/profile') return 'Profile';
+    return null;
   };
+
+  const activeName = getActiveName();
 
   return (
     <div className="flex flex-col h-full w-full text-[var(--text-primary)]">
@@ -55,14 +60,16 @@ export default function LeftSidebar() {
 
       <nav className="flex-1 p-4 space-y-1">
         {navItems.map((item) => {
-          const active = isActive(item.href);
+          const active = activeName === item.name;
           return (
             <Link
               key={item.name}
               href={item.href}
-              className={`flex items-center gap-4 px-4 py-3 rounded-full transition text-lg ${active 
-                ? 'bg-[var(--bg-secondary)] font-semibold text-[var(--brand-primary)]' 
-                : 'hover:bg-[var(--bg-secondary)]'}`}
+              className={`flex items-center gap-4 px-4 py-3 rounded-full transition text-lg ${
+                active
+                  ? 'bg-[var(--bg-secondary)] font-semibold text-[var(--brand-primary)]'
+                  : 'hover:bg-[var(--bg-secondary)]'
+              }`}
             >
               <item.icon className={`w-6 h-6 ${active ? 'text-[var(--brand-primary)]' : ''}`} />
               <span>{item.name}</span>
