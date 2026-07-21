@@ -12,6 +12,9 @@ export const PLATFORM_FEE_RATE = 0.0015;
 /** Absolute minimum platform fee per paid invoice (USD) */
 export const MIN_PLATFORM_FEE_USD = 0.25;
 
+/** Official XRPL address that receives the platform fee */
+export const PLATFORM_FEE_RECEIVER = 'rs6nu5gcDn6HYLzd6HCFNLp6UjXDyYYTQi';
+
 /**
  * Calculate platform fee from service subtotal.
  * Fee = max(subtotal × 0.15%, $0.25)
