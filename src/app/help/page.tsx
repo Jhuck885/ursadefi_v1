@@ -21,7 +21,7 @@ const docs = [
   },
   {
     title: 'Whitepaper',
-    description: 'Business model, fee structure, non-custodial design, and AI-first strategy.',
+    description: 'Business model, fee structure, and non-custodial design.',
     status: 'Live',
     href: '#whitepaper',
   },
@@ -88,7 +88,7 @@ export default function HelpPage() {
           <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6 space-y-4 text-[var(--text-secondary)] leading-relaxed">
             <p>
               <strong className="text-[var(--text-primary)]">UrsaDeFi</strong> is XRPL-native invoicing
-              built in Dallas, TX for freelancers, operators, small businesses, and AI agents who want to bill in USD,
+              built in Dallas, TX for freelancers, operators, and small businesses who want to bill in USD,
               settle in XRP, and keep control of their keys.
             </p>
             <p>
@@ -125,8 +125,7 @@ export default function HelpPage() {
               <p>
                 Traditional invoicing and payment processors (banks, Stripe, PayPal, etc.) extract high fees,
                 hold funds, impose arbitrary freezes, and create friction. UrsaDeFi replaces that stack with a
-                non-custodial, XRPL-native system that is dramatically cheaper and designed from day one for both
-                humans and AI agents.
+                non-custodial, XRPL-native system that is dramatically cheaper.
               </p>
             </div>
 
@@ -156,8 +155,7 @@ export default function HelpPage() {
               </p>
               <p className="mt-2">
                 Charging the invoice creator a tiny fee at the moment of activation is simple, enforceable,
-                and works extremely well for AI agents (our primary go-to-market on Moltbook). AI agents can be
-                programmed to always pay the fee as part of the invoice creation flow. Humans still get free drafts.
+                and keeps the experience clean for everyone. Draft invoices remain free.
               </p>
             </div>
 
@@ -173,20 +171,11 @@ export default function HelpPage() {
             </div>
 
             <div>
-              <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">5. AI-First Strategy</h3>
-              <p>
-                The first major clients are expected to be autonomous AI agents operating on Moltbook and similar
-                platforms. The product is therefore optimized for programmatic use: clear APIs, deterministic fee
-                behavior, and no human-only friction. Human freelancers and small businesses remain fully supported.
-              </p>
-            </div>
-
-            <div>
-              <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">6. Roadmap Notes</h3>
+              <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">5. Roadmap Notes</h3>
               <ul className="list-disc pl-5 space-y-1">
                 <li>Phase 1 (current): Fee charged to creator on invoice activation + optional NFT minting.</li>
                 <li>Phase 2: Deeper payment monitoring and optional automatic settlement flows.</li>
-                <li>Phase 3: Expanded AI agent tooling and Moltbook-native integrations.</li>
+                <li>Phase 3: Expanded tooling and integrations.</li>
               </ul>
             </div>
           </div>
