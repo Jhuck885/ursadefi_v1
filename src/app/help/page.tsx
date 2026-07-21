@@ -173,7 +173,7 @@ export default function HelpPage() {
             <div>
               <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">5. Roadmap Notes</h3>
               <ul className="list-disc pl-5 space-y-1">
-                <li>Phase 1 (current): Fee charged to creator on invoice activation + optional NFT minting.</li>
+                <li>Phase 1: Fee charged to creator on invoice activation + optional NFT minting.</li>
                 <li>Phase 2: Deeper payment monitoring and optional automatic settlement flows.</li>
                 <li>Phase 3: Expanded tooling and integrations.</li>
               </ul>
