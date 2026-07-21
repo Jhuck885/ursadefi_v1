@@ -10,7 +10,7 @@ const navItems = [
   { name: 'Invoices', href: '/invoices', icon: FileText },
   { name: 'Clients', href: '/clients', icon: Users },
   { name: 'Reports', href: '/reports', icon: BarChart3 },
-  { name: 'Settings', href: '/dashboard', icon: Settings },
+  { name: 'Settings', href: '/settings', icon: Settings },
   { name: 'Profile', href: '/profile', icon: User },
 ];
 
@@ -18,20 +18,11 @@ export default function LeftSidebar() {
   const { wallet, disconnect, isConnected } = useWallet();
   const pathname = usePathname();
 
-  const shortAddress = wallet?.address ? `${wallet.address.slice(0, 6)}...${wallet.address.slice(-4)}` : null;
+  const shortAddress = wallet?.address
+    ? `${wallet.address.slice(0, 6)}...${wallet.address.slice(-4)}`
+    : null;
 
-  // Only highlight the *first* matching item so Settings (which also points to /dashboard)
-  // does not steal the active state from Dashboard
-  const getActiveName = () => {
-    if (pathname === '/dashboard' || pathname.startsWith('/dashboard/')) return 'Dashboard';
-    if (pathname === '/invoices') return 'Invoices';
-    if (pathname === '/clients') return 'Clients';
-    if (pathname === '/reports') return 'Reports';
-    if (pathname === '/profile') return 'Profile';
-    return null;
-  };
-
-  const activeName = getActiveName();
+  const isActive = (href: string) => pathname === href;
 
   return (
     <div className="flex flex-col h-full w-full text-[var(--text-primary)]">
@@ -60,7 +51,7 @@ export default function LeftSidebar() {
 
       <nav className="flex-1 p-4 space-y-1">
         {navItems.map((item) => {
-          const active = activeName === item.name;
+          const active = isActive(item.href);
           return (
             <Link
               key={item.name}
