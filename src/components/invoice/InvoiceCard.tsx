@@ -18,7 +18,8 @@ export default function InvoiceCard({ invoice }: Props) {
   const [isActivating, setIsActivating] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [lastMintUuid, setLastMintUuid] = useState<string | null>(null);
-  const [mintSigned, setMintSigned] = useState(false); // flips the moment Xaman says signed
+  const [mintSigned, setMintSigned] = useState(false);
+  const [showBurnConfirm, setShowBurnConfirm] = useState(false);
 
   const [localNftId, setLocalNftId] = useState<string | null>(invoice.nftoken_id || null);
   const [localStatus, setLocalStatus] = useState(invoice.status);
@@ -110,7 +111,6 @@ export default function InvoiceCard({ invoice }: Props) {
 
       const resolveData = await resolveRes.json();
 
-      // As soon as Xaman says it is signed, kill the Mint button
       if (resolveData.signed) {
         setMintSigned(true);
         setLocalStatus('minted');
@@ -128,7 +128,6 @@ export default function InvoiceCard({ invoice }: Props) {
 
       if (resolveData.signed && !resolveData.nftokenId) {
         setStatusMsg('Signed on ledger. Fetching NFT ID...');
-        // Keep trying a few more times for the ID, but UI already flipped
         return false;
       }
 
@@ -259,9 +258,14 @@ export default function InvoiceCard({ invoice }: Props) {
     await checkMintStatus(lastMintUuid);
   };
 
+  const confirmBurn = () => {
+    setShowBurnConfirm(true);
+  };
+
   const handleBurn = async () => {
     if (!localNftId) return;
 
+    setShowBurnConfirm(false);
     setIsBurning(true);
     setStatusMsg('Creating burn payload...');
 
@@ -301,7 +305,7 @@ export default function InvoiceCard({ invoice }: Props) {
         } catch {}
 
         window.dispatchEvent(new Event('invoices-updated'));
-        success('Invoice marked as burned');
+        success('Invoice NFT burned');
         setStatusMsg(null);
         setIsBurning(false);
       }, 10000);
@@ -343,9 +347,35 @@ export default function InvoiceCard({ invoice }: Props) {
 
   return (
     <div
-      className="border border-[var(--card-border)] rounded-3xl p-5 bg-[var(--card-bg)] hover:border-[var(--brand-primary)]/40 transition-all group"
+      className="border border-[var(--card-border)] rounded-3xl p-5 bg-[var(--card-bg)] hover:border-[var(--brand-primary)]/40 transition-all group relative"
       data-card
     >
+      {/* Burn Confirmation Modal */}
+      {showBurnConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+          <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6 max-w-sm w-full shadow-xl">
+            <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Burn this NFT?</h3>
+            <p className="text-sm text-[var(--text-secondary)] mb-6 leading-relaxed">
+              This will permanently destroy the on-chain NFT for this invoice. This action <strong className="text-[var(--text-primary)]">cannot be undone</strong>. Only continue if this was a mistake or the record needs to be removed.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowBurnConfirm(false)}
+                className="flex-1 py-2.5 rounded-full border border-[var(--border-color)] text-sm hover:bg-[var(--bg-primary)] transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBurn}
+                className="flex-1 py-2.5 rounded-full bg-red-600 hover:bg-red-500 text-white text-sm font-medium transition"
+              >
+                Yes, Burn NFT
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-between items-start mb-3">
         <div>
           <div className="font-mono text-[10px] text-[var(--text-muted)] tracking-[1px]">
@@ -424,7 +454,7 @@ export default function InvoiceCard({ invoice }: Props) {
           </>
         ) : localNftId || mintSigned ? (
           <button
-            onClick={handleBurn}
+            onClick={confirmBurn}
             disabled={isBurning || !localNftId}
             className="btn-secondary text-xs px-3.5 py-1.5 bg-red-600/10 hover:bg-red-600/20 text-red-400 border-red-500/30 disabled:opacity-50"
           >
