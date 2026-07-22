@@ -18,6 +18,7 @@ export default function InvoiceCard({ invoice }: Props) {
   const [isActivating, setIsActivating] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [lastMintUuid, setLastMintUuid] = useState<string | null>(null);
+  const [mintSigned, setMintSigned] = useState(false); // flips the moment Xaman says signed
 
   const [localNftId, setLocalNftId] = useState<string | null>(invoice.nftoken_id || null);
   const [localStatus, setLocalStatus] = useState(invoice.status);
@@ -26,6 +27,7 @@ export default function InvoiceCard({ invoice }: Props) {
   useEffect(() => {
     setLocalNftId(invoice.nftoken_id || null);
     setLocalStatus(invoice.status);
+    if (invoice.nftoken_id) setMintSigned(true);
   }, [invoice.nftoken_id, invoice.status]);
 
   useEffect(() => {
@@ -38,7 +40,8 @@ export default function InvoiceCard({ invoice }: Props) {
     localStatus === 'activated' ||
     localStatus === 'paid' ||
     localStatus === 'minted' ||
-    localNftId
+    localNftId ||
+    mintSigned
   );
 
   const feeUsd = calcPlatformFee(Number(invoice.subtotal) || Number(invoice.total) || 0);
@@ -46,6 +49,7 @@ export default function InvoiceCard({ invoice }: Props) {
   const saveNftToInvoice = async (nftokenId: string, txHash: string) => {
     setLocalNftId(nftokenId);
     setLocalStatus('minted');
+    setMintSigned(true);
 
     try {
       const existing: any[] = JSON.parse(localStorage.getItem('invoices') || '[]');
@@ -97,7 +101,7 @@ export default function InvoiceCard({ invoice }: Props) {
 
   const checkMintStatus = async (uuid: string) => {
     try {
-      setStatusMsg('Checking transaction status...');
+      setStatusMsg('Checking transaction on ledger...');
       const resolveRes = await fetch('/api/xaman/resolve-mint', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -106,8 +110,14 @@ export default function InvoiceCard({ invoice }: Props) {
 
       const resolveData = await resolveRes.json();
 
+      // As soon as Xaman says it is signed, kill the Mint button
+      if (resolveData.signed) {
+        setMintSigned(true);
+        setLocalStatus('minted');
+      }
+
       if (resolveData.signed && resolveData.nftokenId) {
-        setStatusMsg('Confirmed on ledger. Saving...');
+        setStatusMsg('Confirmed. Saving NFT...');
         await saveNftToInvoice(resolveData.nftokenId, resolveData.txid || '');
         setStatusMsg(null);
         setIsMinting(false);
@@ -117,7 +127,8 @@ export default function InvoiceCard({ invoice }: Props) {
       }
 
       if (resolveData.signed && !resolveData.nftokenId) {
-        setStatusMsg('Signed. Waiting for NFTokenID on ledger...');
+        setStatusMsg('Signed on ledger. Fetching NFT ID...');
+        // Keep trying a few more times for the ID, but UI already flipped
         return false;
       }
 
@@ -126,10 +137,10 @@ export default function InvoiceCard({ invoice }: Props) {
         setIsMinting(false);
         setLastMintUuid(null);
         error('Xaman payload expired. Please try minting again.');
-        return true; // stop polling
+        return true;
       }
 
-      setStatusMsg('Waiting for you to sign in Xaman...');
+      setStatusMsg('Waiting for signature in Xaman...');
       return false;
     } catch (err) {
       console.error('checkMintStatus error', err);
@@ -141,7 +152,7 @@ export default function InvoiceCard({ invoice }: Props) {
   const startPolling = (uuid: string) => {
     setLastMintUuid(uuid);
     let attempts = 0;
-    const maxAttempts = 90; // ~3 minutes
+    const maxAttempts = 90;
 
     const poll = async () => {
       attempts += 1;
@@ -152,15 +163,18 @@ export default function InvoiceCard({ invoice }: Props) {
       if (attempts >= maxAttempts) {
         setStatusMsg(null);
         setIsMinting(false);
-        warning('Still waiting for confirmation. Use "Check Status" below if you already signed.');
+        if (mintSigned) {
+          warning('Mint signed. NFT ID still loading — refresh in a moment.');
+        } else {
+          warning('Timed out. If you already signed, click Check Status.');
+        }
         return;
       }
 
       pollRef.current = setTimeout(poll, 2000);
     };
 
-    // First check after 3 seconds
-    pollRef.current = setTimeout(poll, 3000);
+    pollRef.current = setTimeout(poll, 2500);
   };
 
   const handleActivate = async () => {
@@ -178,7 +192,6 @@ export default function InvoiceCard({ invoice }: Props) {
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to create fee payment');
-
       if (!data.next) throw new Error('No Xaman link returned');
 
       setStatusMsg(`Approve $${data.feeUsd?.toFixed(2) || feeUsd.toFixed(2)} platform fee in Xaman...`);
@@ -210,6 +223,7 @@ export default function InvoiceCard({ invoice }: Props) {
     }
 
     setIsMinting(true);
+    setMintSigned(false);
     setStatusMsg('Creating Xaman payload...');
 
     try {
@@ -269,6 +283,7 @@ export default function InvoiceCard({ invoice }: Props) {
       setTimeout(async () => {
         setLocalNftId(null);
         setLocalStatus('burned');
+        setMintSigned(false);
 
         try {
           const existing: any[] = JSON.parse(localStorage.getItem('invoices') || '[]');
@@ -312,12 +327,11 @@ export default function InvoiceCard({ invoice }: Props) {
 
   const handleViewExplorer = () => {
     if (!localNftId) return;
-    // Mainnet explorer
     window.open(`https://livenet.xrpl.org/nft/${localNftId}`, '_blank');
   };
 
   const getStatusBadge = () => {
-    if (localNftId) return <div className="badge badge-minted">Minted</div>;
+    if (localNftId || mintSigned) return <div className="badge badge-minted">Minted</div>;
     if (localStatus === 'burned') return <div className="badge badge-draft">Burned</div>;
     if (localStatus === 'paid') return <div className="badge badge-paid">Paid</div>;
     if (isActivated) return <div className="badge badge-paid">Activated</div>;
@@ -325,6 +339,7 @@ export default function InvoiceCard({ invoice }: Props) {
   };
 
   const canMint = Number(invoice.total) >= MIN_MINT_USD;
+  const showMintButton = isActivated && !localNftId && !mintSigned && localStatus !== 'burned';
 
   return (
     <div
@@ -388,7 +403,7 @@ export default function InvoiceCard({ invoice }: Props) {
           </button>
         )}
 
-        {isActivated && !localNftId && localStatus !== 'burned' ? (
+        {showMintButton ? (
           <>
             <button
               onClick={handleMint}
@@ -401,20 +416,19 @@ export default function InvoiceCard({ invoice }: Props) {
             {lastMintUuid && (
               <button
                 onClick={handleManualCheck}
-                disabled={isMinting}
                 className="btn-secondary text-xs px-3.5 py-1.5 border-[var(--brand-primary)]/40 text-[var(--brand-primary)]"
               >
                 Check Status
               </button>
             )}
           </>
-        ) : localNftId ? (
+        ) : localNftId || mintSigned ? (
           <button
             onClick={handleBurn}
-            disabled={isBurning}
+            disabled={isBurning || !localNftId}
             className="btn-secondary text-xs px-3.5 py-1.5 bg-red-600/10 hover:bg-red-600/20 text-red-400 border-red-500/30 disabled:opacity-50"
           >
-            {isBurning ? 'Burning...' : 'Burn NFT'}
+            {isBurning ? 'Burning...' : localNftId ? 'Burn NFT' : 'Minted'}
           </button>
         ) : null}
 
