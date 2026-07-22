@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Invoice } from '@/types';
 import BrowserInvoicePDF from './BrowserInvoicePDF';
 import { supabaseBrowser } from '@/lib/supabase';
@@ -18,10 +18,29 @@ export default function InvoiceCard({ invoice }: Props) {
   const [isActivating, setIsActivating] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
 
-  const isActivated = Boolean(invoice.status === 'activated' || invoice.status === 'paid' || invoice.status === 'minted' || invoice.nftoken_id);
+  // Local override so the UI flips instantly after mint even if parent is slow to re-render
+  const [localNftId, setLocalNftId] = useState<string | null>(invoice.nftoken_id || null);
+  const [localStatus, setLocalStatus] = useState(invoice.status);
+
+  useEffect(() => {
+    setLocalNftId(invoice.nftoken_id || null);
+    setLocalStatus(invoice.status);
+  }, [invoice.nftoken_id, invoice.status]);
+
+  const isActivated = Boolean(
+    localStatus === 'activated' ||
+    localStatus === 'paid' ||
+    localStatus === 'minted' ||
+    localNftId
+  );
+
   const feeUsd = calcPlatformFee(Number(invoice.subtotal) || Number(invoice.total) || 0);
 
   const saveNftToInvoice = async (nftokenId: string, txHash: string) => {
+    // Instant UI update
+    setLocalNftId(nftokenId);
+    setLocalStatus('minted');
+
     try {
       const existing: any[] = JSON.parse(localStorage.getItem('invoices') || '[]');
       const next = existing.map((i) =>
@@ -50,6 +69,8 @@ export default function InvoiceCard({ invoice }: Props) {
   };
 
   const markActivated = async () => {
+    setLocalStatus('activated');
+
     try {
       const existing: any[] = JSON.parse(localStorage.getItem('invoices') || '[]');
       const next = existing.map((i) =>
@@ -90,8 +111,6 @@ export default function InvoiceCard({ invoice }: Props) {
       info(`Approve platform fee of $${data.feeUsd?.toFixed(2) || feeUsd.toFixed(2)} in Xaman`);
       window.open(data.next, '_blank');
 
-      // Optimistic activation after opening the payload.
-      // In a later iteration we can poll for the fee payment the same way we poll mint.
       await markActivated();
       success(`Invoice activated. Platform fee $${data.feeUsd?.toFixed(2) || feeUsd.toFixed(2)} requested.`);
       setStatusMsg(null);
@@ -111,7 +130,6 @@ export default function InvoiceCard({ invoice }: Props) {
       return;
     }
 
-    // Require activation (fee paid) before minting
     if (!isActivated) {
       warning('Activate the invoice first (pay the platform fee) before minting.');
       return;
@@ -198,7 +216,7 @@ export default function InvoiceCard({ invoice }: Props) {
   };
 
   const handleBurn = async () => {
-    if (!invoice.nftoken_id) return;
+    if (!localNftId) return;
 
     setIsBurning(true);
     setStatusMsg('Creating burn payload...');
@@ -207,7 +225,7 @@ export default function InvoiceCard({ invoice }: Props) {
       const res = await fetch('/api/xaman/burn', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nftokenId: invoice.nftoken_id }),
+        body: JSON.stringify({ nftokenId: localNftId }),
       });
 
       const data = await res.json();
@@ -219,6 +237,9 @@ export default function InvoiceCard({ invoice }: Props) {
       window.open(data.next, '_blank');
 
       setTimeout(async () => {
+        setLocalNftId(null);
+        setLocalStatus('burned');
+
         try {
           const existing: any[] = JSON.parse(localStorage.getItem('invoices') || '[]');
           const next = existing.map((i) =>
@@ -250,8 +271,8 @@ export default function InvoiceCard({ invoice }: Props) {
   const handleShareToX = () => {
     const amount = invoice.total;
     const client = invoice.to || (invoice as any).clientName || 'client';
-    const nftPart = invoice.nftoken_id
-      ? `\n\nMinted as XRPL NFT: ${invoice.nftoken_id}`
+    const nftPart = localNftId
+      ? `\n\nMinted as XRPL NFT: ${localNftId}`
       : '';
 
     const text = `Just sent a $${amount} invoice to ${client} powered by @ursadefi + @xAI \u26A1\n\nInstant XRPL invoicing, payments & accounting — all free.\n\nTry it: ursadefi.com${nftPart}`;
@@ -260,14 +281,14 @@ export default function InvoiceCard({ invoice }: Props) {
   };
 
   const handleViewExplorer = () => {
-    if (!invoice.nftoken_id) return;
-    window.open(`https://testnet.xrpl.org/nft/${invoice.nftoken_id}`, '_blank');
+    if (!localNftId) return;
+    window.open(`https://testnet.xrpl.org/nft/${localNftId}`, '_blank');
   };
 
   const getStatusBadge = () => {
-    if (invoice.nftoken_id) return <div className="badge badge-minted">Minted</div>;
-    if (invoice.status === 'burned') return <div className="badge badge-draft">Burned</div>;
-    if (invoice.status === 'paid') return <div className="badge badge-paid">Paid</div>;
+    if (localNftId) return <div className="badge badge-minted">Minted</div>;
+    if (localStatus === 'burned') return <div className="badge badge-draft">Burned</div>;
+    if (localStatus === 'paid') return <div className="badge badge-paid">Paid</div>;
     if (isActivated) return <div className="badge badge-paid">Activated</div>;
     return <div className="badge badge-draft">Draft</div>;
   };
@@ -303,9 +324,9 @@ export default function InvoiceCard({ invoice }: Props) {
         </div>
       )}
 
-      {invoice.nftoken_id && (
+      {localNftId && (
         <div className="mb-3 p-2 bg-[var(--bg-tertiary)] rounded-xl text-xs font-mono break-all">
-          NFT: {invoice.nftoken_id.slice(0, 22)}...
+          NFT: {localNftId.slice(0, 22)}...
           <button
             onClick={handleViewExplorer}
             className="ml-2 text-[var(--brand-primary)] underline hover:no-underline"
@@ -336,7 +357,7 @@ export default function InvoiceCard({ invoice }: Props) {
           </button>
         )}
 
-        {isActivated && !invoice.nftoken_id && invoice.status !== 'burned' ? (
+        {isActivated && !localNftId && localStatus !== 'burned' ? (
           <button
             onClick={handleMint}
             disabled={isMinting || !canMint}
@@ -345,7 +366,7 @@ export default function InvoiceCard({ invoice }: Props) {
           >
             {isMinting ? 'Minting...' : 'Mint as XRPL NFT'}
           </button>
-        ) : invoice.nftoken_id ? (
+        ) : localNftId ? (
           <button
             onClick={handleBurn}
             disabled={isBurning}
