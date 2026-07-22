@@ -7,43 +7,37 @@ const xumm = new XummSdk(
   process.env.XUMM_API_SECRET!
 );
 
-const client = new Client('wss://s.altnet.rippletest.net:51233');
+// Mainnet — matches the live fee wallet and real user transactions
+const client = new Client('wss://xrplcluster.com');
 
 function extractNFTokenID(meta: any): string | null {
   if (!meta) return null;
 
-  // Some XRPL versions / explorers surface it directly
   if (typeof meta.nftoken_id === 'string' && meta.nftoken_id.length > 20) {
     return meta.nftoken_id;
   }
 
-  // Parse AffectedNodes for CreatedNode of type NFTokenPage
   const nodes = meta.AffectedNodes || [];
   for (const node of nodes) {
     const created = node.CreatedNode;
     if (created?.LedgerEntryType === 'NFTokenPage') {
-      // New page usually contains the just-minted token as the only (or last) entry
       const nfts = created.NewFields?.NFTokens || created.FinalFields?.NFTokens || [];
       if (Array.isArray(nfts) && nfts.length > 0) {
-        // Take the last one (most recently added)
         const last = nfts[nfts.length - 1];
         if (last?.NFToken?.NFTokenID) return last.NFToken.NFTokenID;
       }
     }
 
-    // Also check ModifiedNode for existing NFTokenPage that received a new token
     const modified = node.ModifiedNode;
     if (modified?.LedgerEntryType === 'NFTokenPage') {
       const finalNfts = modified.FinalFields?.NFTokens || [];
       const prevNfts = modified.PreviousFields?.NFTokens || [];
       if (finalNfts.length > prevNfts.length) {
-        // Find the one that didn't exist before
         const prevIds = new Set(prevNfts.map((n: any) => n?.NFToken?.NFTokenID));
         for (const n of finalNfts) {
           const id = n?.NFToken?.NFTokenID;
           if (id && !prevIds.has(id)) return id;
         }
-        // Fallback to last
         const last = finalNfts[finalNfts.length - 1];
         if (last?.NFToken?.NFTokenID) return last.NFToken.NFTokenID;
       }
@@ -62,7 +56,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing uuid' }, { status: 400 });
     }
 
-    // 1. Get the signed payload from Xumm
     const payload = await xumm.payload.get(uuid);
 
     if (!payload?.meta?.signed) {
@@ -82,7 +75,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. Fetch the full transaction from XRPL to extract NFTokenID
     await client.connect();
     let nftokenId: string | null = null;
 
@@ -115,7 +107,6 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // Absolute last resort: newest NFT on the account
         if (!nftokenId && nfts.length > 0) {
           nftokenId = nfts[nfts.length - 1].NFTokenID;
         }
