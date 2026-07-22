@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Invoice } from '@/types';
 import { supabaseBrowser } from '@/lib/supabase';
 import CreateInvoiceButton from '@/components/layout/CreateInvoiceButton';
+import { useWallet } from '@/context/WalletContext';
 
 const PriceCard = ({ coinId, label }: { coinId: string; label: string }) => {
   const [price, setPrice] = useState<number | null>(null);
@@ -72,48 +73,75 @@ const BTCPriceCard = () => <PriceCard coinId="bitcoin" label="BTC Price" />;
 const OutstandingCard = () => {
   const [outstanding, setOutstanding] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
+  const { wallet, isConnected } = useWallet();
 
   const loadOutstanding = async () => {
     setLoading(true);
-    let all: Invoice[] = [];
 
+    // Prefer localStorage as source of truth for what the user currently sees
+    let local: Invoice[] = [];
     try {
-      const local = JSON.parse(localStorage.getItem('invoices') || '[]');
-      all = [...local];
-    } catch {}
-
-    try {
-      const { data, error } = await supabaseBrowser
-        .from('invoices')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (!error && data) {
-        const mapped: Invoice[] = data.map((row: any) => ({
-          id: row.id,
-          from: row.from_name || row.from || '',
-          to: row.to_name || row.to || '',
-          items: row.items || [{ desc: row.description || '', qty: 1, price: row.total || 0 }],
-          total: Number(row.total) || 0,
-          xrpAmount: Number(row.xrp_amount || row.xrpAmount) || 0,
-          receiver: row.receiver || '',
-          dueDate: row.due_date || row.dueDate || '',
-          description: row.description || '',
-          status: row.status || 'draft',
-          created_at: row.created_at,
-          user_id: row.wallet_address,
-        }));
-
-        const supabaseIds = new Set(mapped.map((i) => i.id));
-        const localOnly = all.filter((i) => !supabaseIds.has(i.id));
-        all = [...mapped, ...localOnly];
-      }
-    } catch (err) {
-      console.warn('Supabase outstanding fetch failed', err);
+      local = JSON.parse(localStorage.getItem('invoices') || '[]');
+    } catch {
+      local = [];
     }
 
-    const unpaid = all
-      .filter((inv) => (inv.status || 'draft') !== 'paid')
+    // If local is empty, treat as "user cleared everything" and show nothing
+    if (local.length === 0) {
+      setOutstanding([]);
+      setLoading(false);
+      return;
+    }
+
+    // Optionally enrich with Supabase, but never re-introduce deleted invoices
+    const localIds = new Set(local.map((i) => i.id));
+    let merged = [...local];
+
+    if (isConnected && wallet?.address) {
+      try {
+        const { data, error } = await supabaseBrowser
+          .from('invoices')
+          .select('*')
+          .eq('wallet_address', wallet.address)
+          .order('created_at', { ascending: false });
+
+        if (!error && data) {
+          const remote: Invoice[] = data
+            .filter((row: any) => localIds.has(row.id)) // only keep ones that still exist locally
+            .map((row: any) => ({
+              id: row.id,
+              from: row.from_name || row.from || '',
+              to: row.to_name || row.to || '',
+              items: row.items || [{ desc: row.description || '', qty: 1, price: row.total || 0 }],
+              total: Number(row.total) || 0,
+              xrpAmount: Number(row.xrp_amount || row.xrpAmount) || 0,
+              receiver: row.receiver || '',
+              dueDate: row.due_date || row.dueDate || '',
+              description: row.description || '',
+              status: row.status || 'draft',
+              created_at: row.created_at,
+              user_id: row.wallet_address,
+            }));
+
+          // Merge: local wins for status, remote can fill missing fields
+          const map = new Map<string, Invoice>();
+          remote.forEach((inv) => map.set(inv.id, inv));
+          local.forEach((inv) => {
+            const existing = map.get(inv.id);
+            map.set(inv.id, existing ? { ...existing, ...inv } : inv);
+          });
+          merged = Array.from(map.values());
+        }
+      } catch (err) {
+        console.warn('Supabase outstanding fetch failed', err);
+      }
+    }
+
+    const unpaid = merged
+      .filter((inv) => {
+        const s = (inv.status || 'draft').toLowerCase();
+        return s !== 'paid' && s !== 'burned';
+      })
       .sort((a, b) => {
         const da = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
         const db = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
@@ -130,7 +158,7 @@ const OutstandingCard = () => {
     const handler = () => loadOutstanding();
     window.addEventListener('invoices-updated', handler);
     return () => window.removeEventListener('invoices-updated', handler);
-  }, []);
+  }, [wallet?.address, isConnected]);
 
   const totalOutstanding = outstanding.reduce((sum, i) => sum + (Number(i.total) || 0), 0);
 
