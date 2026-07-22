@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Invoice } from '@/types';
 import BrowserInvoicePDF from './BrowserInvoicePDF';
 import { supabaseBrowser } from '@/lib/supabase';
@@ -17,15 +17,22 @@ export default function InvoiceCard({ invoice }: Props) {
   const [isBurning, setIsBurning] = useState(false);
   const [isActivating, setIsActivating] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  const [lastMintUuid, setLastMintUuid] = useState<string | null>(null);
 
-  // Local override so the UI flips instantly after mint even if parent is slow to re-render
   const [localNftId, setLocalNftId] = useState<string | null>(invoice.nftoken_id || null);
   const [localStatus, setLocalStatus] = useState(invoice.status);
+  const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setLocalNftId(invoice.nftoken_id || null);
     setLocalStatus(invoice.status);
   }, [invoice.nftoken_id, invoice.status]);
+
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearTimeout(pollRef.current);
+    };
+  }, []);
 
   const isActivated = Boolean(
     localStatus === 'activated' ||
@@ -37,7 +44,6 @@ export default function InvoiceCard({ invoice }: Props) {
   const feeUsd = calcPlatformFee(Number(invoice.subtotal) || Number(invoice.total) || 0);
 
   const saveNftToInvoice = async (nftokenId: string, txHash: string) => {
-    // Instant UI update
     setLocalNftId(nftokenId);
     setLocalStatus('minted');
 
@@ -87,6 +93,74 @@ export default function InvoiceCard({ invoice }: Props) {
     } catch {}
 
     window.dispatchEvent(new Event('invoices-updated'));
+  };
+
+  const checkMintStatus = async (uuid: string) => {
+    try {
+      setStatusMsg('Checking transaction status...');
+      const resolveRes = await fetch('/api/xaman/resolve-mint', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uuid, invoiceId: invoice.id }),
+      });
+
+      const resolveData = await resolveRes.json();
+
+      if (resolveData.signed && resolveData.nftokenId) {
+        setStatusMsg('Confirmed on ledger. Saving...');
+        await saveNftToInvoice(resolveData.nftokenId, resolveData.txid || '');
+        setStatusMsg(null);
+        setIsMinting(false);
+        setLastMintUuid(null);
+        success(`Mint confirmed · ${resolveData.nftokenId.slice(0, 12)}…`);
+        return true;
+      }
+
+      if (resolveData.signed && !resolveData.nftokenId) {
+        setStatusMsg('Signed. Waiting for NFTokenID on ledger...');
+        return false;
+      }
+
+      if (resolveData.expired) {
+        setStatusMsg(null);
+        setIsMinting(false);
+        setLastMintUuid(null);
+        error('Xaman payload expired. Please try minting again.');
+        return true; // stop polling
+      }
+
+      setStatusMsg('Waiting for you to sign in Xaman...');
+      return false;
+    } catch (err) {
+      console.error('checkMintStatus error', err);
+      setStatusMsg('Could not reach server. Retrying...');
+      return false;
+    }
+  };
+
+  const startPolling = (uuid: string) => {
+    setLastMintUuid(uuid);
+    let attempts = 0;
+    const maxAttempts = 90; // ~3 minutes
+
+    const poll = async () => {
+      attempts += 1;
+      const done = await checkMintStatus(uuid);
+
+      if (done) return;
+
+      if (attempts >= maxAttempts) {
+        setStatusMsg(null);
+        setIsMinting(false);
+        warning('Still waiting for confirmation. Use "Check Status" below if you already signed.');
+        return;
+      }
+
+      pollRef.current = setTimeout(poll, 2000);
+    };
+
+    // First check after 3 seconds
+    pollRef.current = setTimeout(poll, 3000);
   };
 
   const handleActivate = async () => {
@@ -153,66 +227,22 @@ export default function InvoiceCard({ invoice }: Props) {
       info('Open Xaman and approve the mint');
       window.open(data.next, '_blank');
 
-      const uuid = data.uuid;
-      let attempts = 0;
-      const maxAttempts = 60;
-
-      const poll = async (): Promise<void> => {
-        attempts += 1;
-        setStatusMsg(`Waiting for signature... (${attempts})`);
-
-        const resolveRes = await fetch('/api/xaman/resolve-mint', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ uuid, invoiceId: invoice.id }),
-        });
-
-        const resolveData = await resolveRes.json();
-
-        if (resolveData.signed && resolveData.nftokenId) {
-          setStatusMsg('Minted! Saving...');
-          await saveNftToInvoice(resolveData.nftokenId, resolveData.txid || '');
-          setStatusMsg(null);
-          setIsMinting(false);
-          success(`Minted · ${resolveData.nftokenId.slice(0, 12)}…`);
-          return;
-        }
-
-        if (resolveData.signed && !resolveData.nftokenId) {
-          if (attempts < maxAttempts) {
-            setTimeout(poll, 2500);
-            return;
-          }
-          setStatusMsg(null);
-          setIsMinting(false);
-          warning('Signed, but NFTokenID not found yet. Refresh in a moment.');
-          return;
-        }
-
-        if (resolveData.expired) {
-          setStatusMsg(null);
-          setIsMinting(false);
-          error('Xaman payload expired. Try again.');
-          return;
-        }
-
-        if (attempts >= maxAttempts) {
-          setStatusMsg(null);
-          setIsMinting(false);
-          warning('Timed out waiting for signature. Refresh if you already signed.');
-          return;
-        }
-
-        setTimeout(poll, 2500);
-      };
-
-      setTimeout(poll, 4000);
+      startPolling(data.uuid);
     } catch (e: any) {
       console.error(e);
       setStatusMsg(null);
       setIsMinting(false);
       error(e.message || 'Mint failed');
     }
+  };
+
+  const handleManualCheck = async () => {
+    if (!lastMintUuid) {
+      warning('No recent mint to check. Start a new mint first.');
+      return;
+    }
+    setIsMinting(true);
+    await checkMintStatus(lastMintUuid);
   };
 
   const handleBurn = async () => {
@@ -282,7 +312,8 @@ export default function InvoiceCard({ invoice }: Props) {
 
   const handleViewExplorer = () => {
     if (!localNftId) return;
-    window.open(`https://testnet.xrpl.org/nft/${localNftId}`, '_blank');
+    // Mainnet explorer
+    window.open(`https://livenet.xrpl.org/nft/${localNftId}`, '_blank');
   };
 
   const getStatusBadge = () => {
@@ -358,14 +389,25 @@ export default function InvoiceCard({ invoice }: Props) {
         )}
 
         {isActivated && !localNftId && localStatus !== 'burned' ? (
-          <button
-            onClick={handleMint}
-            disabled={isMinting || !canMint}
-            className="btn-secondary text-xs px-3.5 py-1.5 disabled:opacity-50"
-            title={!canMint ? `Minimum $${MIN_MINT_USD} to mint` : undefined}
-          >
-            {isMinting ? 'Minting...' : 'Mint as XRPL NFT'}
-          </button>
+          <>
+            <button
+              onClick={handleMint}
+              disabled={isMinting || !canMint}
+              className="btn-secondary text-xs px-3.5 py-1.5 disabled:opacity-50"
+              title={!canMint ? `Minimum $${MIN_MINT_USD} to mint` : undefined}
+            >
+              {isMinting ? 'Minting...' : 'Mint as XRPL NFT'}
+            </button>
+            {lastMintUuid && (
+              <button
+                onClick={handleManualCheck}
+                disabled={isMinting}
+                className="btn-secondary text-xs px-3.5 py-1.5 border-[var(--brand-primary)]/40 text-[var(--brand-primary)]"
+              >
+                Check Status
+              </button>
+            )}
+          </>
         ) : localNftId ? (
           <button
             onClick={handleBurn}
