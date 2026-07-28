@@ -7,6 +7,7 @@ import { Moon, Sun } from 'lucide-react';
 import { WalletProvider } from '@/context/WalletContext';
 import { ToastProvider } from '@/components/ui/Toast';
 import { Poppins } from 'next/font/google';
+import JsonLd from '@/components/seo/JsonLd';
 
 const poppins = Poppins({
   subsets: ['latin'],
@@ -30,6 +31,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     } else {
       document.documentElement.classList.remove('dark');
     }
+
+    // Basic document title + description for crawlers and AI systems
+    document.title = 'UrsaDeFi | Non-custodial XRPL Invoicing';
+    const existing = document.querySelector('meta[name="description"]');
+    const content =
+      'UrsaDeFi is non-custodial XRPL-native invoicing built in Dallas, TX. Bill in USD, settle in XRP, keep your keys in Xaman. Platform fee 0.15% (min $0.25).';
+    if (existing) {
+      existing.setAttribute('content', content);
+    } else {
+      const meta = document.createElement('meta');
+      meta.name = 'description';
+      meta.content = content;
+      document.head.appendChild(meta);
+    }
   }, []);
 
   const toggleTheme = () => {
@@ -47,6 +62,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="en" className={`${poppins.variable} ${isDark ? 'dark' : ''}`}>
+      <head>
+        <JsonLd />
+      </head>
       <body className="min-h-screen transition-colors duration-200 bg-[var(--bg-primary)] text-[var(--text-primary)] font-sans">
         <WalletProvider>
           <ToastProvider>
@@ -55,7 +73,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <Link href="/" className="flex items-center gap-3">
                   <img
                     src="/ursa-logo.png"
-                    alt="UrsaDeFi"
+                    alt="UrsaDeFi — non-custodial XRPL invoicing"
                     className="h-8 w-auto object-contain logo-clean"
                     style={{
                       filter: 'none',
@@ -67,7 +85,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     }}
                   />
                   <div className="text-xs text-[var(--text-secondary)] hidden sm:block">
-                    Invoicing made easy and damn near free
+                    Non-custodial XRPL invoicing
                   </div>
                 </Link>
               </div>
