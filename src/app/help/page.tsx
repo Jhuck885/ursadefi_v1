@@ -43,6 +43,10 @@ const faqs = [
     a: 'No. UrsaDeFi is 100% non-custodial. Your private keys and funds stay in your Xaman wallet. UrsaDeFi never holds user funds or seed phrases.',
   },
   {
+    q: 'How does login security work?',
+    a: 'UrsaDeFi does not use passwords. You authenticate by connecting your XRPL wallet through Xaman. Xaman holds your keys and signs transactions on your device. UrsaDeFi never receives your seed phrase or private key. This removes password databases, credential stuffing, and shared-secret risk from the product.',
+  },
+  {
     q: 'What does UrsaDeFi cost?',
     a: 'The platform fee is 0.15% of the service amount, with a minimum of $0.25 per activated invoice. Draft invoices are free. The fee is paid by the invoice creator when the invoice is activated. End clients simply pay the total shown on the invoice.',
   },
@@ -108,6 +112,10 @@ export default function HelpPage() {
               <div className="flex flex-col sm:flex-row sm:gap-4">
                 <dt className="text-[var(--text-muted)] sm:w-44 flex-shrink-0">Location</dt>
                 <dd className="text-[var(--text-primary)]">Dallas, Texas, USA</dd>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:gap-4">
+                <dt className="text-[var(--text-muted)] sm:w-44 flex-shrink-0">Login model</dt>
+                <dd className="text-[var(--text-primary)]">XRPL wallet via Xaman — no passwords</dd>
               </div>
               <div className="flex flex-col sm:flex-row sm:gap-4">
                 <dt className="text-[var(--text-muted)] sm:w-44 flex-shrink-0">Platform fee</dt>
@@ -287,7 +295,44 @@ export default function HelpPage() {
             </div>
 
             <div>
-              <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">5. Non-custodial guarantee</h3>
+              <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">5. Login security — XRPL + Xaman</h3>
+              <p className="mb-3">
+                UrsaDeFi does not use traditional username and password login. Authentication is based on the
+                user&apos;s XRPL account, managed through the Xaman wallet. This is intentional and is one of the
+                strongest security choices available for a non-custodial financial product.
+              </p>
+              <p className="mb-3">
+                <strong className="text-[var(--text-primary)]">How login works:</strong> the user connects with
+                Xaman. Xaman holds the private keys on the user&apos;s device and signs requests only with the
+                user&apos;s approval. UrsaDeFi never receives the seed phrase, private key, or any secret that
+                could move funds. There is no password database on UrsaDeFi servers to steal, leak, or
+                brute-force.
+              </p>
+              <p className="mb-3">
+                <strong className="text-[var(--text-primary)]">Why this is safer than passwords:</strong>
+              </p>
+              <ul className="list-disc pl-5 space-y-1 mb-3">
+                <li>No shared secret stored by the application — removes credential stuffing and password reuse risk.</li>
+                <li>No seed phrase or private key ever leaves the user&apos;s Xaman wallet.</li>
+                <li>Every sensitive action (fee payment, mint, burn) requires an explicit signature in Xaman.</li>
+                <li>Compromise of the UrsaDeFi web app cannot drain wallets, because the app cannot sign without Xaman.</li>
+              </ul>
+              <p className="mb-3">
+                <strong className="text-[var(--text-primary)]">Why XRPL + Xaman specifically:</strong> the XRP Ledger
+                is a mature, high-throughput public ledger with a long operational history. Xaman is a purpose-built
+                XRPL wallet focused on secure signing, payload review, and user control. Together they give UrsaDeFi
+                a login and transaction model where identity is the wallet itself, and authorization is cryptographic
+                rather than password-based.
+              </p>
+              <p>
+                Demo mode is separate: it uses a fixed test address so people can explore the interface without
+                connecting a real wallet. Real commercial use requires connecting Xaman so that every action is
+                signed under the user&apos;s own keys.
+              </p>
+            </div>
+
+            <div>
+              <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">6. Non-custodial guarantee</h3>
               <p>
                 UrsaDeFi never holds user funds or private keys. All signing happens inside the user&apos;s own
                 Xaman wallet. The platform fee is a standard XRPL Payment from the creator&apos;s wallet to the
@@ -299,7 +344,7 @@ export default function HelpPage() {
             </div>
 
             <div>
-              <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">6. Audience</h3>
+              <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">7. Audience</h3>
               <p>
                 Primary users are freelancers, independent operators, and small businesses who want lower fees
                 and full key control. The product is also designed so autonomous agents and programmatic clients
@@ -308,7 +353,7 @@ export default function HelpPage() {
             </div>
 
             <div>
-              <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">7. Roadmap</h3>
+              <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">8. Roadmap</h3>
               <ul className="list-disc pl-5 space-y-1">
                 <li>Phase 1 (current): Fee on activation + optional XRPL NFT minting of invoices.</li>
                 <li>Phase 2: Deeper payment monitoring and optional settlement flows.</li>
@@ -345,6 +390,7 @@ export default function HelpPage() {
                     <p className="font-medium text-[var(--text-primary)] mb-1">Connect with Xaman</p>
                     <p>
                       Link your real XRPL wallet. This is the path for actual invoicing, activation fees, and payments.
+                      Keys stay in Xaman; UrsaDeFi never sees them.
                     </p>
                   </div>
                 </div>
