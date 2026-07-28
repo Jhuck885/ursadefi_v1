@@ -13,7 +13,7 @@ export const PLATFORM_FEE_RATE = 0.0015;
 export const MIN_PLATFORM_FEE_USD = 0.25;
 
 /** Official XRPL address that receives the platform fee */
-export const PLATFORM_FEE_RECEIVER = 'rs6nu5gcDn6HYLzd6HCFNLp6UjXDyYYTQi';
+export const PLATFORM_FEE_RECEIVER = 'rwBJnEt8bcS558KTQTSKKRKLBZ7N1YJFJD';
 
 /**
  * Calculate platform fee from service subtotal.
