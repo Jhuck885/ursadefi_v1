@@ -36,7 +36,7 @@ const docs = [
 const faqs = [
   {
     q: 'What is UrsaDeFi?',
-    a: 'UrsaDeFi is a non-custodial, XRPL-native invoicing platform built in Dallas, Texas. Freelancers, operators, and small businesses create invoices in USD, settle in XRP, optionally mint invoices as XRPL NFTs, and export tax-ready data — while keeping full control of their private keys in Xaman.',
+    a: 'UrsaDeFi is a non-custodial, XRPL-native invoicing platform. Freelancers, operators, and small businesses create invoices in USD, settle in XRP, optionally mint invoices as XRPL NFTs, and export tax-ready data — while keeping full control of their private keys in Xaman.',
   },
   {
     q: 'Is UrsaDeFi custodial?',
@@ -102,10 +102,6 @@ export default function HelpPage() {
                 <dd className="text-[var(--text-primary)]">UrsaDeFi — non-custodial XRPL-native invoicing</dd>
               </div>
               <div className="flex flex-col sm:flex-row sm:gap-4">
-                <dt className="text-[var(--text-muted)] sm:w-40 flex-shrink-0">Location</dt>
-                <dd className="text-[var(--text-primary)]">Dallas, Texas, USA</dd>
-              </div>
-              <div className="flex flex-col sm:flex-row sm:gap-4">
                 <dt className="text-[var(--text-muted)] sm:w-40 flex-shrink-0">Platform fee</dt>
                 <dd className="text-[var(--text-primary)]">0.15% of service amount (minimum $0.25) per activated invoice</dd>
               </div>
@@ -138,8 +134,8 @@ export default function HelpPage() {
           <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6 space-y-4 text-[var(--text-secondary)] leading-relaxed">
             <p>
               <strong className="text-[var(--text-primary)]">UrsaDeFi</strong> is an XRPL-native invoicing
-              platform built in Dallas, TX. It is designed for freelancers, operators, and small businesses
-              who want to bill in USD, settle in XRP, and keep control of their keys.
+              platform for freelancers, operators, and small businesses who want to bill in USD,
+              settle in XRP, and keep control of their keys.
             </p>
             <p>
               Users create invoices, manage clients, track outstanding balances, optionally mint invoices
@@ -373,7 +369,7 @@ export default function HelpPage() {
         </div>
 
         <p className="text-center text-xs text-[var(--text-muted)] mt-10">
-          UrsaDeFi · Dallas, TX · Non-custodial XRPL invoicing · Platform fee 0.15% (min $0.25)
+          UrsaDeFi · Non-custodial XRPL invoicing · Platform fee 0.15% (min $0.25)
         </p>
       </div>
     </div>

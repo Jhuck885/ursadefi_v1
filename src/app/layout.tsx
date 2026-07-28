@@ -32,11 +32,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       document.documentElement.classList.remove('dark');
     }
 
-    // Basic document title + description for crawlers and AI systems
     document.title = 'UrsaDeFi | Non-custodial XRPL Invoicing';
     const existing = document.querySelector('meta[name="description"]');
     const content =
-      'UrsaDeFi is non-custodial XRPL-native invoicing built in Dallas, TX. Bill in USD, settle in XRP, keep your keys in Xaman. Platform fee 0.15% (min $0.25).';
+      'UrsaDeFi is non-custodial XRPL-native invoicing. Bill in USD, settle in XRP, keep your keys in Xaman. Platform fee 0.15% (min $0.25).';
     if (existing) {
       existing.setAttribute('content', content);
     } else {

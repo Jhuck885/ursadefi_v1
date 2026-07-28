@@ -51,7 +51,7 @@ export default function Landing() {
         </div>
 
         <p className="mt-10 text-xs text-[var(--text-muted)]">
-          Dallas, TX · Non-custodial · XRPL-native
+          Non-custodial · XRPL-native
         </p>
       </div>
     </div>
