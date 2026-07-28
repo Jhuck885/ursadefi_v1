@@ -7,6 +7,11 @@ const xumm = new XummSdk(
   process.env.XUMM_API_SECRET!
 );
 
+/** Hex-encode a UTF-8 string for XRPL URI / Memo fields */
+function toHex(str: string): string {
+  return Buffer.from(str, 'utf8').toString('hex').toUpperCase();
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -24,29 +29,47 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const uri = Buffer.from(`https://ursadefi.com/invoice/${invoice.id}`).toString('hex');
+    const to = String(invoice.to || invoice.clientName || 'Client');
+    const description = String(invoice.description || '').slice(0, 120);
+    const xrpAmount =
+      invoice.xrpAmount != null ? String(invoice.xrpAmount) : '';
 
-    const memoData = Buffer.from(
+    // Metadata URL wallets fetch to render name, image, attributes
+    const metaUrl = new URL(`https://ursadefi.com/api/nft-metadata/${encodeURIComponent(invoice.id)}`);
+    metaUrl.searchParams.set('total', String(total));
+    metaUrl.searchParams.set('to', to);
+    if (description) metaUrl.searchParams.set('description', description);
+    if (xrpAmount) metaUrl.searchParams.set('xrp', xrpAmount);
+
+    const uri = toHex(metaUrl.toString());
+
+    const memoData = toHex(
       JSON.stringify({
+        platform: 'UrsaDeFi',
+        type: 'invoice',
         id: invoice.id,
-        to: invoice.to || '',
+        to,
         total: invoice.total,
-        xrpAmount: invoice.xrpAmount,
+        xrpAmount: invoice.xrpAmount ?? null,
         description: invoice.description || '',
       })
-    ).toString('hex');
+    );
+
+    // Flags: 8 = tfTransferable (standard for usable NFTs)
+    // Taxon: fixed project taxon for UrsaDeFi invoices
+    const URSA_INVOICE_TAXON = 2026;
 
     const payload = await xumm.payload.create({
       txjson: {
         TransactionType: 'NFTokenMint',
         Account: '',
         URI: uri,
-        NFTokenTaxon: 0,
-        Flags: 0,
+        NFTokenTaxon: URSA_INVOICE_TAXON,
+        Flags: 8,
         Memos: [
           {
             Memo: {
-              MemoType: Buffer.from('invoice').toString('hex'),
+              MemoType: toHex('ursa-invoice'),
               MemoData: memoData,
             },
           },
@@ -66,6 +89,7 @@ export async function POST(request: NextRequest) {
       next: payload.next?.always,
       qr: payload.refs?.qr_png,
       message: 'Xaman payload created — open to sign the mint',
+      metadataUrl: metaUrl.toString(),
     });
   } catch (error: any) {
     console.error('Xaman mint error:', error);
