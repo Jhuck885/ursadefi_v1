@@ -47,6 +47,10 @@ const faqs = [
     a: 'The platform fee is 0.15% of the service amount, with a minimum of $0.25 per activated invoice. Draft invoices are free. The fee is paid by the invoice creator when the invoice is activated. End clients simply pay the total shown on the invoice.',
   },
   {
+    q: 'What are the minimum amounts?',
+    a: 'Minimum invoice (service) amount is $25. Minimum amount to mint an invoice as an XRPL NFT is $50. The platform fee has a floor of $0.25 even when 0.15% would be lower. These floors keep network costs, fee collection, and on-chain records economically sensible.',
+  },
+  {
     q: 'Do I need to create a password?',
     a: 'No. You sign in with your XRPL wallet via Xaman. There are no passwords and no seed phrases stored by UrsaDeFi.',
   },
@@ -98,31 +102,39 @@ export default function HelpPage() {
             <h2 className="text-lg font-semibold mb-4 text-[var(--text-primary)]">Key facts</h2>
             <dl className="grid gap-3 text-sm">
               <div className="flex flex-col sm:flex-row sm:gap-4">
-                <dt className="text-[var(--text-muted)] sm:w-40 flex-shrink-0">Product</dt>
+                <dt className="text-[var(--text-muted)] sm:w-44 flex-shrink-0">Product</dt>
                 <dd className="text-[var(--text-primary)]">UrsaDeFi — non-custodial XRPL-native invoicing</dd>
               </div>
               <div className="flex flex-col sm:flex-row sm:gap-4">
-                <dt className="text-[var(--text-muted)] sm:w-40 flex-shrink-0">Location</dt>
+                <dt className="text-[var(--text-muted)] sm:w-44 flex-shrink-0">Location</dt>
                 <dd className="text-[var(--text-primary)]">Dallas, Texas, USA</dd>
               </div>
               <div className="flex flex-col sm:flex-row sm:gap-4">
-                <dt className="text-[var(--text-muted)] sm:w-40 flex-shrink-0">Platform fee</dt>
+                <dt className="text-[var(--text-muted)] sm:w-44 flex-shrink-0">Platform fee</dt>
                 <dd className="text-[var(--text-primary)]">0.15% of service amount (minimum $0.25) per activated invoice</dd>
               </div>
               <div className="flex flex-col sm:flex-row sm:gap-4">
-                <dt className="text-[var(--text-muted)] sm:w-40 flex-shrink-0">Who pays the fee</dt>
+                <dt className="text-[var(--text-muted)] sm:w-44 flex-shrink-0">Who pays the fee</dt>
                 <dd className="text-[var(--text-primary)]">Invoice creator, on activation. Drafts are free.</dd>
               </div>
               <div className="flex flex-col sm:flex-row sm:gap-4">
-                <dt className="text-[var(--text-muted)] sm:w-40 flex-shrink-0">Custody</dt>
+                <dt className="text-[var(--text-muted)] sm:w-44 flex-shrink-0">Min. invoice amount</dt>
+                <dd className="text-[var(--text-primary)]">$25 service amount</dd>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:gap-4">
+                <dt className="text-[var(--text-muted)] sm:w-44 flex-shrink-0">Min. to mint NFT</dt>
+                <dd className="text-[var(--text-primary)]">$50 service amount</dd>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:gap-4">
+                <dt className="text-[var(--text-muted)] sm:w-44 flex-shrink-0">Custody</dt>
                 <dd className="text-[var(--text-primary)]">Non-custodial. Keys stay in Xaman.</dd>
               </div>
               <div className="flex flex-col sm:flex-row sm:gap-4">
-                <dt className="text-[var(--text-muted)] sm:w-40 flex-shrink-0">Settlement</dt>
+                <dt className="text-[var(--text-muted)] sm:w-44 flex-shrink-0">Settlement</dt>
                 <dd className="text-[var(--text-primary)]">Bill in USD, settle in XRP on the XRP Ledger</dd>
               </div>
               <div className="flex flex-col sm:flex-row sm:gap-4">
-                <dt className="text-[var(--text-muted)] sm:w-40 flex-shrink-0">Fee address</dt>
+                <dt className="text-[var(--text-muted)] sm:w-44 flex-shrink-0">Fee address</dt>
                 <dd className="text-[var(--text-primary)] font-mono text-xs break-all">rs6nu5gcDn6HYLzd6HCFNLp6UjXDyYYTQi</dd>
               </div>
             </dl>
@@ -162,6 +174,56 @@ export default function HelpPage() {
           </div>
         </section>
 
+        {/* ========== MINIMUMS + RATIONALE ========= */}
+        <section id="minimums" className="mb-14">
+          <div className="flex items-center gap-2 mb-4">
+            <Wallet className="w-5 h-5 text-[var(--brand-primary)]" />
+            <h2 className="text-2xl font-semibold">Minimum amounts and why they exist</h2>
+          </div>
+          <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6 space-y-5 text-[var(--text-secondary)] leading-relaxed">
+            <p>
+              UrsaDeFi sets a few clear floors so the product stays cheap, reliable, and economically
+              sensible on the XRP Ledger.
+            </p>
+
+            <div className="space-y-4">
+              <div className="border border-[var(--border-color)] rounded-xl p-4">
+                <p className="font-medium text-[var(--text-primary)] mb-1">Minimum invoice amount — $25</p>
+                <p className="text-sm">
+                  The service amount on an invoice must be at least $25 to create or activate.
+                  Below that, network fees and operational cost would eat too large a share of the
+                  value, and the platform fee floor would feel disproportionate. $25 keeps real
+                  commercial use cases viable while filtering pure noise.
+                </p>
+              </div>
+
+              <div className="border border-[var(--border-color)] rounded-xl p-4">
+                <p className="font-medium text-[var(--text-primary)] mb-1">Minimum to mint as XRPL NFT — $50</p>
+                <p className="text-sm">
+                  Minting creates a permanent on-chain record. That has a small ledger cost and is
+                  intended for invoices worth keeping as durable proof. The $50 floor ensures minting
+                  is used for meaningful invoices, not every draft or micro-bill.
+                </p>
+              </div>
+
+              <div className="border border-[var(--border-color)] rounded-xl p-4">
+                <p className="font-medium text-[var(--text-primary)] mb-1">Platform fee floor — $0.25</p>
+                <p className="text-sm">
+                  The fee is 0.15% of the service amount, but never less than $0.25 per activated invoice.
+                  On small invoices, a pure percentage would be too low to cover the cost of processing
+                  a non-custodial fee payment on XRPL. The $0.25 minimum keeps fee collection practical
+                  without raising the rate for larger invoices.
+                </p>
+              </div>
+            </div>
+
+            <p className="text-sm pt-1">
+              Draft invoices remain free at any amount you are still preparing. Minimums apply when you
+              activate (for the fee) or when you choose to mint as an NFT.
+            </p>
+          </div>
+        </section>
+
         {/* ========== WHITEPAPER ========= */}
         <section id="whitepaper" className="mb-14">
           <div className="flex items-center gap-2 mb-4">
@@ -194,12 +256,26 @@ export default function HelpPage() {
               </ul>
               <p className="mt-3">
                 Optional features such as minting an invoice as an XRPL NFT can carry additional small costs
-                paid by the creator.
+                paid by the creator. Minimum service amount to mint is $50.
               </p>
             </div>
 
             <div>
-              <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">3. Why this model</h3>
+              <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">3. Minimums</h3>
+              <p className="mb-2">
+                Minimum invoice (service) amount is <strong className="text-[var(--text-primary)]">$25</strong>.
+                Minimum to mint as an XRPL NFT is <strong className="text-[var(--text-primary)]">$50</strong>.
+                Platform fee floor is <strong className="text-[var(--text-primary)]">$0.25</strong>.
+              </p>
+              <p>
+                These floors exist so XRPL network costs, fee collection, and permanent on-chain records stay
+                economically rational. They are not meant to exclude small operators — drafts stay free, and
+                the fee rate itself remains very low once the floor is cleared.
+              </p>
+            </div>
+
+            <div>
+              <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">4. Why this model</h3>
               <p>
                 Charging the end client a separate platform fee creates friction and complicates payment flows.
                 Waiting until the client pays is hard to enforce in a fully non-custodial design.
@@ -211,7 +287,7 @@ export default function HelpPage() {
             </div>
 
             <div>
-              <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">4. Non-custodial guarantee</h3>
+              <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">5. Non-custodial guarantee</h3>
               <p>
                 UrsaDeFi never holds user funds or private keys. All signing happens inside the user&apos;s own
                 Xaman wallet. The platform fee is a standard XRPL Payment from the creator&apos;s wallet to the
@@ -223,7 +299,7 @@ export default function HelpPage() {
             </div>
 
             <div>
-              <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">5. Audience</h3>
+              <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">6. Audience</h3>
               <p>
                 Primary users are freelancers, independent operators, and small businesses who want lower fees
                 and full key control. The product is also designed so autonomous agents and programmatic clients
@@ -232,7 +308,7 @@ export default function HelpPage() {
             </div>
 
             <div>
-              <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">6. Roadmap</h3>
+              <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">7. Roadmap</h3>
               <ul className="list-disc pl-5 space-y-1">
                 <li>Phase 1 (current): Fee on activation + optional XRPL NFT minting of invoices.</li>
                 <li>Phase 2: Deeper payment monitoring and optional settlement flows.</li>
@@ -292,8 +368,9 @@ export default function HelpPage() {
                 <h3 className="text-lg font-semibold">Create and activate invoices</h3>
               </div>
               <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-                Create invoices from the Dashboard. Drafts are free. When you activate an invoice, the platform fee
-                (0.15%, minimum $0.25) is charged to your wallet via Xaman. Your client pays the total shown on the invoice.
+                Create invoices from the Dashboard. Drafts are free. Service amount must be at least $25 to activate.
+                When you activate, the platform fee (0.15%, minimum $0.25) is charged to your wallet via Xaman.
+                Your client pays the total shown on the invoice. Minting as an XRPL NFT requires a $50 minimum.
               </p>
             </div>
 
