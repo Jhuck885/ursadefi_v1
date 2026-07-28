@@ -76,7 +76,7 @@ const faqs = [
   },
   {
     q: 'Where is the platform fee sent?',
-    a: 'The platform fee is paid on the XRP Ledger to the official UrsaDeFi fee address: rs6nu5gcDn6HYLzd6HCFNLp6UjXDyYYTQi. It is a normal non-custodial Payment transaction signed in Xaman.',
+    a: 'The platform fee is paid on the XRP Ledger to the official UrsaDeFi fee address: rwBJnEt8bcS558KTQTSKKRKLBZ7N1YJFJD. It is a normal non-custodial Payment transaction signed in Xaman.',
   },
 ];
 
@@ -100,7 +100,6 @@ export default function HelpPage() {
           </p>
         </div>
 
-        {/* ========== KEY FACTS (GEO-friendly) ========= */}
         <section className="mb-14">
           <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6">
             <h2 className="text-lg font-semibold mb-4 text-[var(--text-primary)]">Key facts</h2>
@@ -143,13 +142,12 @@ export default function HelpPage() {
               </div>
               <div className="flex flex-col sm:flex-row sm:gap-4">
                 <dt className="text-[var(--text-muted)] sm:w-44 flex-shrink-0">Fee address</dt>
-                <dd className="text-[var(--text-primary)] font-mono text-xs break-all">rs6nu5gcDn6HYLzd6HCFNLp6UjXDyYYTQi</dd>
+                <dd className="text-[var(--text-primary)] font-mono text-xs break-all">rwBJnEt8bcS558KTQTSKKRKLBZ7N1YJFJD</dd>
               </div>
             </dl>
           </div>
         </section>
 
-        {/* ========== ABOUT ========= */}
         <section id="about" className="mb-14">
           <div className="flex items-center gap-2 mb-4">
             <Layers className="w-5 h-5 text-[var(--brand-primary)]" />
@@ -182,7 +180,6 @@ export default function HelpPage() {
           </div>
         </section>
 
-        {/* ========== MINIMUMS + RATIONALE ========= */}
         <section id="minimums" className="mb-14">
           <div className="flex items-center gap-2 mb-4">
             <Wallet className="w-5 h-5 text-[var(--brand-primary)]" />
@@ -232,7 +229,6 @@ export default function HelpPage() {
           </div>
         </section>
 
-        {/* ========== WHITEPAPER ========= */}
         <section id="whitepaper" className="mb-14">
           <div className="flex items-center gap-2 mb-4">
             <FileText className="w-5 h-5 text-[var(--brand-primary)]" />
@@ -339,7 +335,7 @@ export default function HelpPage() {
                 official fee address:
               </p>
               <p className="mt-2 font-mono text-sm text-[var(--text-primary)] break-all">
-                rs6nu5gcDn6HYLzd6HCFNLp6UjXDyYYTQi
+                rwBJnEt8bcS558KTQTSKKRKLBZ7N1YJFJD
               </p>
             </div>
 
@@ -363,7 +359,6 @@ export default function HelpPage() {
           </div>
         </section>
 
-        {/* ========== TUTORIAL ========= */}
         <section id="getting-started" className="mb-14">
           <div className="flex items-center gap-2 mb-4">
             <PlayCircle className="w-5 h-5 text-[var(--brand-primary)]" />
@@ -433,7 +428,6 @@ export default function HelpPage() {
           </div>
         </section>
 
-        {/* ========== DOCS ========= */}
         <section id="docs" className="mb-14">
           <div className="flex items-center gap-2 mb-4">
             <Download className="w-5 h-5 text-[var(--brand-primary)]" />
@@ -458,7 +452,6 @@ export default function HelpPage() {
           </div>
         </section>
 
-        {/* ========== FAQ ========= */}
         <section id="faq" className="mb-14">
           <div className="flex items-center gap-2 mb-4">
             <HelpCircle className="w-5 h-5 text-[var(--brand-primary)]" />
