@@ -20,6 +20,7 @@ export default function InvoiceCard({ invoice }: Props) {
   const [lastMintUuid, setLastMintUuid] = useState<string | null>(null);
   const [mintSigned, setMintSigned] = useState(false);
   const [showBurnConfirm, setShowBurnConfirm] = useState(false);
+  const [showActivateGuide, setShowActivateGuide] = useState(false);
 
   const [localNftId, setLocalNftId] = useState<string | null>(invoice.nftoken_id || null);
   const [localStatus, setLocalStatus] = useState(invoice.status);
@@ -39,6 +40,13 @@ export default function InvoiceCard({ invoice }: Props) {
 
   const isActivated = Boolean(
     localStatus === 'activated' ||
+    localStatus === 'paid' ||
+    localStatus === 'minted' ||
+    localNftId ||
+    mintSigned
+  );
+
+  const isPaid = Boolean(
     localStatus === 'paid' ||
     localStatus === 'minted' ||
     localNftId ||
@@ -176,9 +184,15 @@ export default function InvoiceCard({ invoice }: Props) {
     pollRef.current = setTimeout(poll, 2500);
   };
 
+  const handleActivateClick = () => {
+    if (isActivated) return;
+    setShowActivateGuide(true);
+  };
+
   const handleActivate = async () => {
     if (isActivated) return;
 
+    setShowActivateGuide(false);
     setIsActivating(true);
     setStatusMsg('Creating platform fee payment...');
 
@@ -198,7 +212,7 @@ export default function InvoiceCard({ invoice }: Props) {
       window.open(data.next, '_blank');
 
       await markActivated();
-      success(`Invoice activated. Platform fee $${data.feeUsd?.toFixed(2) || feeUsd.toFixed(2)} requested.`);
+      success(`Invoice activated. Next: mark Paid when your client pays, then you can mint the NFT.`);
       setStatusMsg(null);
       setIsActivating(false);
     } catch (e: any) {
@@ -217,7 +231,12 @@ export default function InvoiceCard({ invoice }: Props) {
     }
 
     if (!isActivated) {
-      warning('Activate the invoice first (pay the platform fee) before minting.');
+      warning('Activate the invoice first (pay the platform fee).');
+      return;
+    }
+
+    if (!isPaid) {
+      info('Mark this invoice as Paid first — then you can mint it as an XRPL NFT.');
       return;
     }
 
@@ -324,7 +343,7 @@ export default function InvoiceCard({ invoice }: Props) {
       ? `\n\nMinted as XRPL NFT: ${localNftId}`
       : '';
 
-    const text = `Just sent a $${amount} invoice to ${client} powered by @ursadefi + @xAI \u26A1\n\nInstant XRPL invoicing, payments & accounting — all free.\n\nTry it: ursadefi.com${nftPart}`;
+    const text = `Just sent a $${amount} invoice to ${client} with @ursadefi ⚡\n\nNon-custodial XRPL invoicing via @XamanWallet · settle in $XRP\n\n#XRPL #XRP #invoicing\n\nTry it: ursadefi.com${nftPart}`;
 
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank');
   };
@@ -343,13 +362,49 @@ export default function InvoiceCard({ invoice }: Props) {
   };
 
   const canMint = Number(invoice.total) >= MIN_MINT_USD;
-  const showMintButton = isActivated && !localNftId && !mintSigned && localStatus !== 'burned';
+  // Mint only after activated AND paid (or already minted)
+  const showMintButton =
+    isActivated && isPaid && !localNftId && !mintSigned && localStatus !== 'burned';
+  const showMintLocked =
+    isActivated && !isPaid && !localNftId && !mintSigned && localStatus !== 'burned';
 
   return (
     <div
       className="border border-[var(--card-border)] rounded-3xl p-5 bg-[var(--card-bg)] hover:border-[var(--brand-primary)]/40 transition-all group relative"
       data-card
     >
+      {/* Activate guide popup */}
+      {showActivateGuide && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+          <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6 max-w-sm w-full shadow-xl">
+            <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Activate this invoice?</h3>
+            <p className="text-sm text-[var(--text-secondary)] mb-4 leading-relaxed">
+              Activating charges the small platform fee (<strong className="text-[var(--text-primary)]">${feeUsd.toFixed(2)}</strong>) and unlocks the invoice for real use.
+            </p>
+            <ol className="text-sm text-[var(--text-secondary)] mb-6 space-y-2 list-decimal pl-5">
+              <li><strong className="text-[var(--text-primary)]">Activate</strong> — pay the platform fee in Xaman</li>
+              <li><strong className="text-[var(--text-primary)]">Mark Paid</strong> — when your client pays you</li>
+              <li><strong className="text-[var(--text-primary)]">Mint NFT</strong> — optional permanent on-chain record</li>
+            </ol>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowActivateGuide(false)}
+                className="flex-1 py-2.5 rounded-full border border-[var(--border-color)] text-sm hover:bg-[var(--bg-primary)] transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleActivate}
+                disabled={isActivating}
+                className="flex-1 py-2.5 rounded-full bg-[var(--brand-primary)] hover:opacity-90 text-white text-sm font-medium transition disabled:opacity-50"
+              >
+                {isActivating ? 'Activating...' : `Activate · $${feeUsd.toFixed(2)}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Burn Confirmation Modal */}
       {showBurnConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
@@ -425,7 +480,7 @@ export default function InvoiceCard({ invoice }: Props) {
 
         {!isActivated && (
           <button
-            onClick={handleActivate}
+            onClick={handleActivateClick}
             disabled={isActivating}
             className="btn-secondary text-xs px-3.5 py-1.5 bg-[var(--brand-primary)]/10 hover:bg-[var(--brand-primary)]/20 text-[var(--brand-primary)] border-[var(--brand-primary)]/30 disabled:opacity-50"
           >
@@ -452,6 +507,13 @@ export default function InvoiceCard({ invoice }: Props) {
               </button>
             )}
           </>
+        ) : showMintLocked ? (
+          <button
+            onClick={() => info('Mark this invoice as Paid first — then you can mint it as an XRPL NFT.')}
+            className="btn-secondary text-xs px-3.5 py-1.5 opacity-70"
+          >
+            Mint (mark Paid first)
+          </button>
         ) : localNftId || mintSigned ? (
           <button
             onClick={confirmBurn}
