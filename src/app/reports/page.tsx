@@ -36,7 +36,6 @@ function loadProfile() {
 }
 
 function downloadCsv(filename: string, headers: string[], rows: string[]) {
-  // UTF-8 BOM helps Excel on Windows open Japanese headers correctly
   const csv = '\uFEFF' + [headers.map(csvCell).join(','), ...rows].join('\r\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
@@ -75,7 +74,6 @@ const EU_LEDGER_HEADERS = [
   'Amount XRP', 'Payment Status', 'Due Date', 'Settlement Reference',
 ];
 
-/** Japan qualified-invoice oriented ledger (インボイス制度-friendly) */
 const JP_LEDGER_HEADERS = [
   'Invoice Number',
   'Transaction Date',
@@ -210,12 +208,12 @@ export default function ReportsPage() {
     const profile = loadProfile();
     const payerTin = digitsOnly(profile.ein);
     const payerName = (profile.companyName || '').slice(0, 40);
-    const payerPhone = (profile.phone || '').replace(/[^0-9+\\-() ]/g, '').slice(0, 20);
+    const payerPhone = (profile.phone || '').replace(/[^0-9+\-() ]/g, '').slice(0, 20);
     const payerEmail = (profile.email || '').slice(0, 75);
     let payerCity = '', payerState = '', payerZip = '';
     const csz = (profile.cityStateZip || '').trim();
     if (csz) {
-      const m = csz.match(/^(.+?),\\s*([A-Za-z]{2})\\s+(\\d{5}(?:-\\d{4})?)$/);
+      const m = csz.match(/^(.+?),\s*([A-Za-z]{2})\s+(\d{5}(?:-\d{4})?)$/);
       if (m) { payerCity = m[1].trim(); payerState = m[2].toUpperCase(); payerZip = m[3]; }
       else payerCity = csz;
     }
@@ -270,11 +268,9 @@ export default function ReportsPage() {
     }
     const profile = loadProfile();
     const issuerName = profile.companyName || '';
-    // Registration number left blank unless user later stores a JP T-number on profile
     const registrationNo = '';
     const rows = yearInvoices.map((inv) => {
       const gross = Number(inv.total) || 0;
-      // Consumption tax not stored — rate 0; accountant adjusts to 10% or 8%
       const taxRate = 0;
       const taxAmount = 0;
       const exclTax = gross;
@@ -313,9 +309,39 @@ export default function ReportsPage() {
     if (!win) return;
     const profile = loadProfile();
     const companyName = profile.companyName || 'Your Company';
-    const ein = profile.ein || '—';
-    const rowsHtml = yearInvoices.map(inv => `\n      <tr>\n        <td>${inv.id || ''}</td>\n        <td>${inv.created_at ? new Date(inv.created_at).toLocaleDateString() : ''}</td>\n        <td>${inv.to || ''}</td>\n        <td style=\"text-align:right\">$${Number(inv.total || 0).toFixed(2)}</td>\n        <td style=\"text-align:right\">${Number(inv.xrpAmount || 0).toFixed(4)}</td>\n        <td>${inv.status || 'draft'}</td>\n      </tr>`).join('');
-    win.document.write(`<!DOCTYPE html><html><head><title>Tax Report ${year}</title>\n<style>body{font-family:system-ui;padding:40px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px;border-bottom:1px solid #eee;text-align:left}th{background:#f8f8f8}</style>\n</head><body>\n<h1>Income & Tax Report – ${year}</h1>\n<p><strong>${companyName}</strong><br>EIN: ${ein}</p>\n<table><thead><tr><th>Invoice ID</th><th>Date</th><th>Client</th><th>USD</th><th>XRP</th><th>Status</th></tr></thead>\n<tbody>${rowsHtml || '<tr><td colspan=\"6\">No invoices</td></tr>'}</tbody></table>\n<script>window.onload=()=>setTimeout(()=>window.print(),300)</script>\n</body></html>`);
+    const ein = profile.ein || '-';
+    const rowsHtml = yearInvoices
+      .map((inv) => {
+        const id = inv.id || '';
+        const date = inv.created_at ? new Date(inv.created_at).toLocaleDateString() : '';
+        const to = inv.to || '';
+        const usd = Number(inv.total || 0).toFixed(2);
+        const xrp = Number(inv.xrpAmount || 0).toFixed(4);
+        const status = inv.status || 'draft';
+        return (
+          '<tr>' +
+          '<td>' + id + '</td>' +
+          '<td>' + date + '</td>' +
+          '<td>' + to + '</td>' +
+          '<td style="text-align:right">$' + usd + '</td>' +
+          '<td style="text-align:right">' + xrp + '</td>' +
+          '<td>' + status + '</td>' +
+          '</tr>'
+        );
+      })
+      .join('');
+    const bodyRows = rowsHtml || '<tr><td colspan="6">No invoices</td></tr>';
+    const html =
+      '<!DOCTYPE html><html><head><title>Tax Report ' + year + '</title>' +
+      '<style>body{font-family:system-ui;padding:40px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px;border-bottom:1px solid #eee;text-align:left}th{background:#f8f8f8}</style>' +
+      '</head><body>' +
+      '<h1>Income & Tax Report - ' + year + '</h1>' +
+      '<p><strong>' + companyName + '</strong><br>EIN: ' + ein + '</p>' +
+      '<table><thead><tr><th>Invoice ID</th><th>Date</th><th>Client</th><th>USD</th><th>XRP</th><th>Status</th></tr></thead>' +
+      '<tbody>' + bodyRows + '</tbody></table>' +
+      '<script>window.onload=function(){setTimeout(function(){window.print()},300)}</script>' +
+      '</body></html>';
+    win.document.write(html);
     win.document.close();
   };
 
@@ -488,7 +514,7 @@ export default function ReportsPage() {
                     <p className="font-medium text-[var(--text-primary)] mb-1">Europe — Invoice / VAT ledger</p>
                     <ul className="list-disc pl-5 space-y-1">
                       <li>
-                        There is no single “EU tax return” CSV. Member states apply the EU VAT Directive with local rules;
+                        There is no single EU tax-return CSV. Member states apply the EU VAT Directive with local rules;
                         B2B e-invoicing mandates are expanding country by country.
                       </li>
                       <li>
@@ -516,7 +542,7 @@ export default function ReportsPage() {
                       <li>
                         Standard consumption tax rate is <strong className="text-[var(--text-primary)]">10%</strong>; reduced rate
                         <strong className="text-[var(--text-primary)]">8%</strong> applies to certain items (e.g. food). Qualified invoices must break amounts
-                        and tax by rate and show the issuer’s registration number, transaction date, description, and counterparty as required.
+                        and tax by rate and show the issuer registration number, transaction date, description, and counterparty as required.
                       </li>
                       <li>
                         This CSV is oriented to that structure (issuer, registration-number field, excl./tax/incl., XRP settlement).
