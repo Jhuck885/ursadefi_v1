@@ -26,9 +26,9 @@ const docs = [
     href: '#whitepaper',
   },
   {
-    title: 'Tax & IRIS CSV Export',
-    description: 'How to export accountant-ready reports and use the Reports page.',
-    status: 'Available soon',
+    title: 'Tax & regional CSV export',
+    description: 'US 1099-NEC / IRIS, Europe VAT ledger, Japan qualified-invoice oriented export.',
+    status: 'Live',
     href: '#tax',
   },
 ];
@@ -36,7 +36,7 @@ const docs = [
 const faqs = [
   {
     q: 'What is UrsaDeFi?',
-    a: 'UrsaDeFi is a non-custodial, XRPL-native invoicing platform built in Dallas, Texas. Freelancers, operators, and small businesses create invoices in USD, settle in XRP, optionally mint invoices as XRPL NFTs, and export tax-ready data — while keeping full control of their private keys in Xaman.',
+    a: 'UrsaDeFi is a non-custodial, XRPL-native invoicing platform built in Dallas, Texas. Freelancers, operators, and small businesses create invoices in USD, settle in XRP, optionally mint invoices as XRPL NFTs, and export tax-oriented CSVs — while keeping full control of their private keys in Xaman.',
   },
   {
     q: 'Is UrsaDeFi custodial?',
@@ -64,15 +64,15 @@ const faqs = [
   },
   {
     q: 'How do invoices get paid?',
-    a: 'Each invoice can include an XRP amount and payment details. Clients can pay with Xaman. You can also mark invoices as paid manually once funds arrive.',
+    a: 'Each invoice can include an XRP amount and payment details. Clients can pay with Xaman. You mark invoices as Paid when funds arrive (with confirmation). Minting as an XRPL NFT is available after the invoice is activated and marked Paid.',
   },
   {
     q: 'Can I mint an invoice as an XRPL NFT?',
-    a: 'Yes. After an invoice is activated, you can optionally mint it as an XRPL NFT to create a permanent on-chain record. The minimum service amount to mint is $50. Burning an NFT is possible but requires explicit confirmation because it is irreversible.',
+    a: 'Yes. After an invoice is activated and marked Paid, you can optionally mint it as an XRPL NFT for a permanent on-chain record. Minimum service amount to mint is $50. Burning requires explicit confirmation and is irreversible.',
   },
   {
     q: 'Can I export data for my accountant?',
-    a: 'Yes. The Reports page supports CSV export designed for tax and IRIS-style workflows, including company EIN information when provided in your profile.',
+    a: 'Yes. The Reports page exports CSVs for the United States (IRIS-oriented 1099-NEC helper), Europe (invoice/VAT ledger), and Japan (qualified-invoice oriented ledger). These are bookkeeping helpers — not finished filings. Confirm with your accountant before submitting anything to a tax authority.',
   },
   {
     q: 'Where is the platform fee sent?',
@@ -130,7 +130,7 @@ export default function HelpPage() {
               </div>
               <div className="flex flex-col sm:flex-row sm:gap-4">
                 <dt className="text-[var(--text-muted)] sm:w-44 flex-shrink-0">Min. to mint NFT</dt>
-                <dd className="text-[var(--text-primary)]">$50 service amount</dd>
+                <dd className="text-[var(--text-primary)]">$50 service amount (after activated + Paid)</dd>
               </div>
               <div className="flex flex-col sm:flex-row sm:gap-4">
                 <dt className="text-[var(--text-muted)] sm:w-44 flex-shrink-0">Custody</dt>
@@ -139,6 +139,10 @@ export default function HelpPage() {
               <div className="flex flex-col sm:flex-row sm:gap-4">
                 <dt className="text-[var(--text-muted)] sm:w-44 flex-shrink-0">Settlement</dt>
                 <dd className="text-[var(--text-primary)]">Bill in USD, settle in XRP on the XRP Ledger</dd>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:gap-4">
+                <dt className="text-[var(--text-muted)] sm:w-44 flex-shrink-0">Tax exports</dt>
+                <dd className="text-[var(--text-primary)]">US · Europe · Japan CSVs on the Reports page</dd>
               </div>
               <div className="flex flex-col sm:flex-row sm:gap-4">
                 <dt className="text-[var(--text-muted)] sm:w-44 flex-shrink-0">Fee address</dt>
@@ -161,12 +165,12 @@ export default function HelpPage() {
             </p>
             <p>
               Users create invoices, manage clients, track outstanding balances, optionally mint invoices
-              as XRPL NFTs, and export tax-ready CSVs — without giving up custody of funds.
+              as XRPL NFTs, and export regional tax-oriented CSVs — without giving up custody of funds.
             </p>
             <ul className="space-y-2 pt-2">
               <li className="flex items-start gap-2">
                 <Shield className="w-4 h-4 mt-1 text-[var(--brand-primary)] flex-shrink-0" />
-                <span>Non-custodial — private keys stay in the user&apos;s Xaman wallet</span>
+                <span>Non-custodial — private keys stay in the user's Xaman wallet</span>
               </li>
               <li className="flex items-start gap-2">
                 <Wallet className="w-4 h-4 mt-1 text-[var(--brand-primary)] flex-shrink-0" />
@@ -174,7 +178,7 @@ export default function HelpPage() {
               </li>
               <li className="flex items-start gap-2">
                 <FileText className="w-4 h-4 mt-1 text-[var(--brand-primary)] flex-shrink-0" />
-                <span>1099 / IRIS-oriented CSV exports for accountants</span>
+                <span>Regional CSV exports: US 1099-NEC / IRIS helper, Europe VAT ledger, Japan qualified-invoice ledger</span>
               </li>
             </ul>
           </div>
@@ -207,7 +211,8 @@ export default function HelpPage() {
                 <p className="text-sm">
                   Minting creates a permanent on-chain record. That has a small ledger cost and is
                   intended for invoices worth keeping as durable proof. The $50 floor ensures minting
-                  is used for meaningful invoices, not every draft or micro-bill.
+                  is used for meaningful invoices, not every draft or micro-bill. Mint is available after
+                  activation and after the invoice is marked Paid.
                 </p>
               </div>
 
@@ -225,6 +230,55 @@ export default function HelpPage() {
             <p className="text-sm pt-1">
               Draft invoices remain free at any amount you are still preparing. Minimums apply when you
               activate (for the fee) or when you choose to mint as an NFT.
+            </p>
+          </div>
+        </section>
+
+        <section id="tax" className="mb-14">
+          <div className="flex items-center gap-2 mb-4">
+            <FileText className="w-5 h-5 text-[var(--brand-primary)]" />
+            <h2 className="text-2xl font-semibold">Tax & regional CSV export</h2>
+          </div>
+          <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6 space-y-5 text-[var(--text-secondary)] leading-relaxed">
+            <p>
+              The <Link href="/reports" className="text-[var(--brand-primary)] hover:underline">Reports</Link> page
+              exports accountant-oriented CSVs for three regions. These are <strong className="text-[var(--text-primary)]">helpers for bookkeeping</strong>,
+              not finished government filings. Confirm thresholds and local rules with your accountant before submitting anything.
+            </p>
+
+            <div className="space-y-4">
+              <div className="border border-[var(--border-color)] rounded-xl p-4">
+                <p className="font-medium text-[var(--text-primary)] mb-2">United States — Form 1099-NEC (IRIS)</p>
+                <ul className="text-sm list-disc pl-5 space-y-1">
+                  <li>Filed by the <em>payer</em> of nonemployee compensation (trade/business payments to independent contractors), not by the service provider reporting their own income.</li>
+                  <li>Federal threshold: generally <strong className="text-[var(--text-primary)]">$600</strong> for payments in calendar year 2025; <strong className="text-[var(--text-primary)]">$2,000</strong> for tax years beginning after 2025 (payments in 2026+). Backup withholding is reported even below the threshold when required.</li>
+                  <li>If you file 10 or more information returns in total (all form types combined), you must e-file via the IRS Information Returns Intake System (IRIS).</li>
+                  <li>UrsaDeFi CSV: one row per payee, Box 1 = sum of paid invoices; profile is treated as payer. Collect recipient TINs on Form W-9 before any IRS upload.</li>
+                </ul>
+              </div>
+
+              <div className="border border-[var(--border-color)] rounded-xl p-4">
+                <p className="font-medium text-[var(--text-primary)] mb-2">Europe — Invoice / VAT ledger</p>
+                <ul className="text-sm list-disc pl-5 space-y-1">
+                  <li>There is no single EU tax-return CSV. Member states apply the EU VAT Directive with local rules; B2B e-invoicing mandates continue to expand by country.</li>
+                  <li>Full VAT invoices generally need: unique sequential number, issue date, supplier name/address and VAT ID, customer name/address (and customer VAT ID when the customer is liable), description, taxable amount, VAT rate(s), VAT amount, and total.</li>
+                  <li>UrsaDeFi export is a line-item bookkeeping ledger (net/VAT/gross, status, XRPL ref). VAT defaults to 0% until you set the correct rate with your accountant.</li>
+                </ul>
+              </div>
+
+              <div className="border border-[var(--border-color)] rounded-xl p-4">
+                <p className="font-medium text-[var(--text-primary)] mb-2">Japan — Qualified invoice ledger (インボイス制度)</p>
+                <ul className="text-sm list-disc pl-5 space-y-1">
+                  <li>Under the Qualified Invoice System (適格請求書等保存方式, since 1 Oct 2023), buyers generally need a qualified invoice from a registered issuer to claim full consumption-tax input credit.</li>
+                  <li>Registration number format: <strong className="text-[var(--text-primary)]">T</strong> + 13 digits (National Tax Agency).</li>
+                  <li>Standard consumption tax <strong className="text-[var(--text-primary)]">10%</strong>; reduced rate <strong className="text-[var(--text-primary)]">8%</strong> for certain items. Qualified invoices break amounts and tax by rate and show the issuer registration number.</li>
+                  <li>UrsaDeFi CSV is oriented to that structure (issuer, registration-number field, excl./tax/incl., XRP settlement). Rate defaults to 0% until set. UTF-8 BOM included for Excel.</li>
+                </ul>
+              </div>
+            </div>
+
+            <p className="text-xs text-[var(--text-muted)]">
+              Not tax advice. Rules change. Confirm with your accountant or the relevant tax authority before filing.
             </p>
           </div>
         </section>
@@ -260,7 +314,7 @@ export default function HelpPage() {
               </ul>
               <p className="mt-3">
                 Optional features such as minting an invoice as an XRPL NFT can carry additional small costs
-                paid by the creator. Minimum service amount to mint is $50.
+                paid by the creator. Minimum service amount to mint is $50 (after activated and marked Paid).
               </p>
             </div>
 
@@ -294,13 +348,13 @@ export default function HelpPage() {
               <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">5. Login security — XRPL + Xaman</h3>
               <p className="mb-3">
                 UrsaDeFi does not use traditional username and password login. Authentication is based on the
-                user&apos;s XRPL account, managed through the Xaman wallet. This is intentional and is one of the
+                user's XRPL account, managed through the Xaman wallet. This is intentional and is one of the
                 strongest security choices available for a non-custodial financial product.
               </p>
               <p className="mb-3">
                 <strong className="text-[var(--text-primary)]">How login works:</strong> the user connects with
-                Xaman. Xaman holds the private keys on the user&apos;s device and signs requests only with the
-                user&apos;s approval. UrsaDeFi never receives the seed phrase, private key, or any secret that
+                Xaman. Xaman holds the private keys on the user's device and signs requests only with the
+                user's approval. UrsaDeFi never receives the seed phrase, private key, or any secret that
                 could move funds. There is no password database on UrsaDeFi servers to steal, leak, or
                 brute-force.
               </p>
@@ -309,7 +363,7 @@ export default function HelpPage() {
               </p>
               <ul className="list-disc pl-5 space-y-1 mb-3">
                 <li>No shared secret stored by the application — removes credential stuffing and password reuse risk.</li>
-                <li>No seed phrase or private key ever leaves the user&apos;s Xaman wallet.</li>
+                <li>No seed phrase or private key ever leaves the user's Xaman wallet.</li>
                 <li>Every sensitive action (fee payment, mint, burn) requires an explicit signature in Xaman.</li>
                 <li>Compromise of the UrsaDeFi web app cannot drain wallets, because the app cannot sign without Xaman.</li>
               </ul>
@@ -323,15 +377,15 @@ export default function HelpPage() {
               <p>
                 Demo mode is separate: it uses a fixed test address so people can explore the interface without
                 connecting a real wallet. Real commercial use requires connecting Xaman so that every action is
-                signed under the user&apos;s own keys.
+                signed under the user's own keys.
               </p>
             </div>
 
             <div>
               <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">6. Non-custodial guarantee</h3>
               <p>
-                UrsaDeFi never holds user funds or private keys. All signing happens inside the user&apos;s own
-                Xaman wallet. The platform fee is a standard XRPL Payment from the creator&apos;s wallet to the
+                UrsaDeFi never holds user funds or private keys. All signing happens inside the user's own
+                Xaman wallet. The platform fee is a standard XRPL Payment from the creator's wallet to the
                 official fee address:
               </p>
               <p className="mt-2 font-mono text-sm text-[var(--text-primary)] break-all">
@@ -351,7 +405,7 @@ export default function HelpPage() {
             <div>
               <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">8. Roadmap</h3>
               <ul className="list-disc pl-5 space-y-1">
-                <li>Phase 1 (current): Fee on activation + optional XRPL NFT minting of invoices.</li>
+                <li>Phase 1: Fee on activation, Paid confirmation, optional XRPL NFT minting, regional tax CSV exports.</li>
                 <li>Phase 2: Deeper payment monitoring and optional settlement flows.</li>
                 <li>Phase 3: Expanded tooling and integrations for human and agent users.</li>
               </ul>
@@ -399,30 +453,33 @@ export default function HelpPage() {
               </div>
               <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
                 Open <strong className="text-[var(--text-primary)]">Profile</strong> and add your company name,
-                address, EIN (if applicable), and logo. This information appears on the invoices your clients receive.
+                address, EIN (if applicable), and logo. This information appears on the invoices your clients receive
+                and feeds US IRIS-oriented exports when you file as a payer.
               </p>
             </div>
 
             <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6">
               <div className="flex items-center gap-3 mb-3">
                 <span className="w-8 h-8 rounded-full bg-[var(--brand-primary)] text-white flex items-center justify-center text-sm font-bold">3</span>
-                <h3 className="text-lg font-semibold">Create and activate invoices</h3>
+                <h3 className="text-lg font-semibold">Create, activate, mark Paid, optionally mint</h3>
               </div>
               <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
                 Create invoices from the Dashboard. Drafts are free. Service amount must be at least $25 to activate.
                 When you activate, the platform fee (0.15%, minimum $0.25) is charged to your wallet via Xaman.
-                Your client pays the total shown on the invoice. Minting as an XRPL NFT requires a $50 minimum.
+                Mark the invoice Paid when your client pays (confirmation required). Mint as an XRPL NFT only after
+                activated + Paid, with a $50 minimum.
               </p>
             </div>
 
             <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6">
               <div className="flex items-center gap-3 mb-3">
                 <span className="w-8 h-8 rounded-full bg-[var(--brand-primary)] text-white flex items-center justify-center text-sm font-bold">4</span>
-                <h3 className="text-lg font-semibold">Track, mark paid, and export</h3>
+                <h3 className="text-lg font-semibold">Track and export</h3>
               </div>
               <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-                Monitor outstanding invoices, mark them paid when funds arrive, optionally mint them as XRPL NFTs,
-                and export clean CSVs for your accountant from the Reports page.
+                Monitor outstanding invoices on the dashboard and Invoices page. Export US, Europe, or Japan CSVs
+                from the <Link href="/reports" className="text-[var(--brand-primary)] hover:underline">Reports</Link> page
+                for your accountant.
               </p>
             </div>
           </div>
