@@ -8,7 +8,7 @@ import BrowserInvoicePDF from '@/components/invoice/BrowserInvoicePDF';
 import { Invoice } from '@/types';
 import {
   FileText, Search, Plus, Trash2, Home, Users, User,
-  CheckCircle2, RotateCcw, Bell, X, CalendarPlus
+  CheckCircle2, Bell, X, CalendarPlus
 } from 'lucide-react';
 import { supabaseBrowser } from '@/lib/supabase';
 
@@ -56,7 +56,6 @@ export default function InvoicesPage() {
   const [remindDate, setRemindDate] = useState('');
   const [remindNote, setRemindNote] = useState('');
   const [confirmPaid, setConfirmPaid] = useState<Invoice | null>(null);
-  const [confirmUnpaid, setConfirmUnpaid] = useState<Invoice | null>(null);
 
   useEffect(() => {
     setReminders(loadReminders());
@@ -182,19 +181,20 @@ export default function InvoicesPage() {
     } catch {}
   };
 
-  const handleSetStatus = async (invoice: Invoice, status: 'paid' | 'draft') => {
+  /** Paid is permanent. Only allow transition to paid; never reverse. */
+  const handleMarkPaid = async (invoice: Invoice) => {
     setConfirmPaid(null);
-    setConfirmUnpaid(null);
+    if (invoice.status === 'paid') return;
     setUpdatingId(invoice.id);
-    updateLocalStatus(invoice.id, status);
-    setInvoices(prev => prev.map(i => (i.id === invoice.id ? { ...i, status } : i)));
-    if (selectedInvoice?.id === invoice.id) setSelectedInvoice({ ...invoice, status });
+    updateLocalStatus(invoice.id, 'paid');
+    setInvoices(prev => prev.map(i => (i.id === invoice.id ? { ...i, status: 'paid' } : i)));
+    if (selectedInvoice?.id === invoice.id) setSelectedInvoice({ ...invoice, status: 'paid' });
     try {
-      await supabaseBrowser.from('invoices').update({ status }).eq('id', invoice.id);
+      await supabaseBrowser.from('invoices').update({ status: 'paid' }).eq('id', invoice.id);
     } catch (err) {
       console.warn('Status cloud update failed (local updated)', err);
     }
-    if (status === 'paid') clearReminder(invoice.id);
+    clearReminder(invoice.id);
     window.dispatchEvent(new Event('invoices-updated'));
     setUpdatingId(null);
   };
@@ -339,14 +339,13 @@ export default function InvoicesPage() {
                             {isUpdating ? '...' : 'Mark Paid'}
                           </button>
                         ) : (
-                          <button
-                            onClick={() => setConfirmUnpaid(inv)}
-                            disabled={isUpdating}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-[var(--border-color)] hover:bg-[var(--bg-primary)] rounded-full transition disabled:opacity-50"
+                          <span
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-emerald-500/15 text-emerald-500 rounded-full"
+                            title="Paid is permanent and cannot be reversed"
                           >
-                            <RotateCcw className="w-3.5 h-3.5" />
-                            {isUpdating ? '...' : 'Unpaid'}
-                          </button>
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            Paid
+                          </span>
                         )}
                         <BrowserInvoicePDF invoice={inv} mode="open" />
                         <button
@@ -411,7 +410,7 @@ export default function InvoicesPage() {
         </div>
       </div>
 
-      {/* Mark Paid confirmation */}
+      {/* Mark Paid confirmation — permanent, no take-backs */}
       {confirmPaid && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4"
@@ -427,8 +426,11 @@ export default function InvoicesPage() {
               <span className="font-mono text-[var(--brand-primary)]">{confirmPaid.id}</span>
               {confirmPaid.to ? ` from ${confirmPaid.to}` : ''}.
             </p>
-            <p className="text-sm text-[var(--text-secondary)] mb-6">
+            <p className="text-sm text-[var(--text-secondary)] mb-3">
               Amount: <strong className="text-[var(--text-primary)]">${Number(confirmPaid.total).toFixed(2)}</strong>
+            </p>
+            <p className="text-sm text-amber-500/95 mb-6 leading-relaxed font-medium">
+              This cannot be undone. Once marked Paid, the status is permanent — no reversing to Unpaid.
             </p>
             <div className="flex gap-3">
               <button
@@ -438,46 +440,10 @@ export default function InvoicesPage() {
                 Cancel
               </button>
               <button
-                onClick={() => handleSetStatus(confirmPaid, 'paid')}
+                onClick={() => handleMarkPaid(confirmPaid)}
                 className="flex-1 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium transition"
               >
                 Yes, Mark Paid
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Unpaid / reverse confirmation — strong warning */}
-      {confirmUnpaid && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4"
-          onClick={() => setConfirmUnpaid(null)}
-        >
-          <div
-            className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6 max-w-sm w-full shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Mark as Unpaid?</h3>
-            <p className="text-sm text-[var(--text-secondary)] mb-4 leading-relaxed">
-              This will reverse the Paid status on invoice{' '}
-              <span className="font-mono text-[var(--brand-primary)]">{confirmUnpaid.id}</span>.
-            </p>
-            <p className="text-sm text-amber-500/90 mb-6 leading-relaxed">
-              Only do this if the payment was recorded by mistake. Once unpaid, the invoice can be marked Paid again later.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setConfirmUnpaid(null)}
-                className="flex-1 py-2.5 rounded-full border border-[var(--border-color)] text-sm hover:bg-[var(--bg-primary)] transition"
-              >
-                Keep Paid
-              </button>
-              <button
-                onClick={() => handleSetStatus(confirmUnpaid, 'draft')}
-                className="flex-1 py-2.5 rounded-full bg-amber-600 hover:bg-amber-500 text-white text-sm font-medium transition"
-              >
-                Yes, Mark Unpaid
               </button>
             </div>
           </div>
