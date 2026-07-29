@@ -339,18 +339,22 @@ export default function InvoiceCard({ invoice }: Props) {
   const handleShareToX = () => {
     const amount = invoice.total;
     const client = invoice.to || (invoice as any).clientName || 'client';
-    const nftPart = localNftId
-      ? `\n\nMinted as XRPL NFT: ${localNftId}`
+    const bithomp = localNftId
+      ? `https://bithomp.com/nft/${localNftId}`
       : '';
 
-    const text = `Just sent a $${amount} invoice to ${client} with @ursadefi ⚡\n\nNon-custodial XRPL invoicing via @XamanWallet · settle in $XRP\n\n#XRPL #XRP #invoicing\n\nTry it: ursadefi.com${nftPart}`;
+    let text = `Just sent a $${amount} invoice to ${client} with @UrsaDeFi ⚡\n\nNon-custodial XRPL invoicing via @XamanWallet · settle in $XRP\n\n#XRPL #XRP #invoicing\n\nTry it: ursadefi.com`;
+
+    if (localNftId) {
+      text += `\n\nMinted as XRPL NFT\n${bithomp}\n\nThanks for using UrsaDeFi 🙏`;
+    }
 
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank');
   };
 
   const handleViewExplorer = () => {
     if (!localNftId) return;
-    window.open(`https://livenet.xrpl.org/nft/${localNftId}`, '_blank');
+    window.open(`https://bithomp.com/nft/${localNftId}`, '_blank');
   };
 
   const getStatusBadge = () => {
@@ -462,7 +466,7 @@ export default function InvoiceCard({ invoice }: Props) {
             onClick={handleViewExplorer}
             className="ml-2 text-[var(--brand-primary)] underline hover:no-underline"
           >
-            View on Explorer
+            View on Bithomp
           </button>
         </div>
       )}
