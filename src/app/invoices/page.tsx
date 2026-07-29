@@ -55,6 +55,8 @@ export default function InvoicesPage() {
   const [reminderFor, setReminderFor] = useState<Invoice | null>(null);
   const [remindDate, setRemindDate] = useState('');
   const [remindNote, setRemindNote] = useState('');
+  const [confirmPaid, setConfirmPaid] = useState<Invoice | null>(null);
+  const [confirmUnpaid, setConfirmUnpaid] = useState<Invoice | null>(null);
 
   useEffect(() => {
     setReminders(loadReminders());
@@ -181,6 +183,8 @@ export default function InvoicesPage() {
   };
 
   const handleSetStatus = async (invoice: Invoice, status: 'paid' | 'draft') => {
+    setConfirmPaid(null);
+    setConfirmUnpaid(null);
     setUpdatingId(invoice.id);
     updateLocalStatus(invoice.id, status);
     setInvoices(prev => prev.map(i => (i.id === invoice.id ? { ...i, status } : i)));
@@ -327,7 +331,7 @@ export default function InvoicesPage() {
                       <div className="flex flex-col sm:flex-row gap-2 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                         {!isPaid ? (
                           <button
-                            onClick={() => handleSetStatus(inv, 'paid')}
+                            onClick={() => setConfirmPaid(inv)}
                             disabled={isUpdating}
                             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-full transition disabled:opacity-50"
                           >
@@ -336,7 +340,7 @@ export default function InvoicesPage() {
                           </button>
                         ) : (
                           <button
-                            onClick={() => handleSetStatus(inv, 'draft')}
+                            onClick={() => setConfirmUnpaid(inv)}
                             disabled={isUpdating}
                             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-[var(--border-color)] hover:bg-[var(--bg-primary)] rounded-full transition disabled:opacity-50"
                           >
@@ -406,6 +410,79 @@ export default function InvoicesPage() {
           )}
         </div>
       </div>
+
+      {/* Mark Paid confirmation */}
+      {confirmPaid && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4"
+          onClick={() => setConfirmPaid(null)}
+        >
+          <div
+            className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6 max-w-sm w-full shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Mark as Paid?</h3>
+            <p className="text-sm text-[var(--text-secondary)] mb-2 leading-relaxed">
+              Confirm that you have received payment for invoice{' '}
+              <span className="font-mono text-[var(--brand-primary)]">{confirmPaid.id}</span>
+              {confirmPaid.to ? ` from ${confirmPaid.to}` : ''}.
+            </p>
+            <p className="text-sm text-[var(--text-secondary)] mb-6">
+              Amount: <strong className="text-[var(--text-primary)]">${Number(confirmPaid.total).toFixed(2)}</strong>
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmPaid(null)}
+                className="flex-1 py-2.5 rounded-full border border-[var(--border-color)] text-sm hover:bg-[var(--bg-primary)] transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleSetStatus(confirmPaid, 'paid')}
+                className="flex-1 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium transition"
+              >
+                Yes, Mark Paid
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unpaid / reverse confirmation — strong warning */}
+      {confirmUnpaid && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4"
+          onClick={() => setConfirmUnpaid(null)}
+        >
+          <div
+            className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6 max-w-sm w-full shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Mark as Unpaid?</h3>
+            <p className="text-sm text-[var(--text-secondary)] mb-4 leading-relaxed">
+              This will reverse the Paid status on invoice{' '}
+              <span className="font-mono text-[var(--brand-primary)]">{confirmUnpaid.id}</span>.
+            </p>
+            <p className="text-sm text-amber-500/90 mb-6 leading-relaxed">
+              Only do this if the payment was recorded by mistake. Once unpaid, the invoice can be marked Paid again later.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmUnpaid(null)}
+                className="flex-1 py-2.5 rounded-full border border-[var(--border-color)] text-sm hover:bg-[var(--bg-primary)] transition"
+              >
+                Keep Paid
+              </button>
+              <button
+                onClick={() => handleSetStatus(confirmUnpaid, 'draft')}
+                className="flex-1 py-2.5 rounded-full bg-amber-600 hover:bg-amber-500 text-white text-sm font-medium transition"
+              >
+                Yes, Mark Unpaid
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Reminder modal */}
       {reminderFor && (
