@@ -44,6 +44,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       meta.content = content;
       document.head.appendChild(meta);
     }
+
+    // Force Ursa logo as tab favicon (overrides any cached default)
+    const setIcon = (rel: string) => {
+      let link = document.querySelector(`link[rel="${rel}"]`) as HTMLLinkElement | null;
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = rel;
+        document.head.appendChild(link);
+      }
+      link.type = 'image/png';
+      link.href = `/ursa-logo.png?v=2`;
+    };
+    setIcon('icon');
+    setIcon('shortcut icon');
+    setIcon('apple-touch-icon');
   }, []);
 
   const toggleTheme = () => {
@@ -62,6 +77,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${poppins.variable} ${isDark ? 'dark' : ''}`}>
       <head>
+        <link rel="icon" href="/ursa-logo.png" type="image/png" />
+        <link rel="shortcut icon" href="/ursa-logo.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/ursa-logo.png" />
         <JsonLd />
       </head>
       <body className="min-h-screen transition-colors duration-200 bg-[var(--bg-primary)] text-[var(--text-primary)] font-sans">
