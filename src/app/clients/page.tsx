@@ -1,15 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-
 import { useWallet } from '@/context/WalletContext';
-
 import { supabaseBrowser } from '@/lib/supabase';
-
+import { isDemoWallet } from '@/lib/demo';
 import Link from 'next/link';
-
 import { AlertTriangle } from 'lucide-react';
-
 import LeftSidebar from '@/components/layout/LeftSidebar';
 import { useToast } from '@/components/ui/Toast';
 
@@ -22,12 +18,27 @@ interface Client {
   created_at: string;
 }
 
+const CLIENTS_KEY = 'clients';
+
+function loadLocalClients(): Client[] {
+  try {
+    return JSON.parse(localStorage.getItem(CLIENTS_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalClients(list: Client[]) {
+  localStorage.setItem(CLIENTS_KEY, JSON.stringify(list));
+}
+
 export default function ClientsPage() {
   const { wallet, isConnected } = useWallet();
   const { success, error, warning } = useToast();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const demo = isDemoWallet(wallet?.address);
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [newName, setNewName] = useState('');
@@ -46,6 +57,13 @@ export default function ClientsPage() {
   const fetchClients = async () => {
     if (!wallet?.address) return;
     setLoading(true);
+
+    if (demo) {
+      setClients(loadLocalClients());
+      setLoading(false);
+      return;
+    }
+
     const { data, error: err } = await supabaseBrowser
       .from('clients')
       .select('*')
@@ -57,7 +75,7 @@ export default function ClientsPage() {
 
   useEffect(() => {
     if (isConnected) fetchClients();
-  }, [wallet?.address, isConnected]);
+  }, [wallet?.address, isConnected, demo]);
 
   const filteredClients = clients.filter(client =>
     client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -67,6 +85,24 @@ export default function ClientsPage() {
   const handleAddClient = async () => {
     if (!newName.trim() || !wallet?.address) {
       warning('Client name is required');
+      return;
+    }
+
+    if (demo) {
+      const local: Client = {
+        id: 'local-' + Date.now(),
+        name: newName.trim(),
+        email: newEmail.trim() || undefined,
+        address: newAddress.trim() || undefined,
+        city_state: newPhone.trim() || undefined,
+        created_at: new Date().toISOString(),
+      };
+      const next = [local, ...loadLocalClients()];
+      saveLocalClients(next);
+      setClients(next);
+      setNewName(''); setNewEmail(''); setNewAddress(''); setNewPhone('');
+      setShowAddForm(false);
+      success('Client added');
       return;
     }
 
@@ -99,6 +135,15 @@ export default function ClientsPage() {
   const handleDelete = async () => {
     if (!clientToDelete) return;
 
+    if (demo) {
+      const next = loadLocalClients().filter(c => c.id !== clientToDelete.id);
+      saveLocalClients(next);
+      setClients(next);
+      success('Client deleted');
+      setClientToDelete(null);
+      return;
+    }
+
     const { error: err } = await supabaseBrowser
       .from('clients')
       .delete()
@@ -106,7 +151,6 @@ export default function ClientsPage() {
 
     if (err) {
       error('Failed to delete client');
-      console.error('Delete error:', err);
     } else {
       setClients(prev => prev.filter(c => c.id !== clientToDelete.id));
       success('Client deleted');
@@ -125,6 +169,25 @@ export default function ClientsPage() {
   const handleSaveEdit = async () => {
     if (!editingClient || !editName.trim()) return;
 
+    if (demo) {
+      const next = loadLocalClients().map(c =>
+        c.id === editingClient.id
+          ? {
+              ...c,
+              name: editName.trim(),
+              email: editEmail.trim() || undefined,
+              address: editAddress.trim() || undefined,
+              city_state: editPhone.trim() || undefined,
+            }
+          : c
+      );
+      saveLocalClients(next);
+      setClients(next);
+      setEditingClient(null);
+      success('Client updated');
+      return;
+    }
+
     const { error: err } = await supabaseBrowser
       .from('clients')
       .update({
@@ -141,7 +204,13 @@ export default function ClientsPage() {
       setClients(prev =>
         prev.map(c =>
           c.id === editingClient.id
-            ? { ...c, name: editName.trim(), email: editEmail.trim() || undefined, address: editAddress.trim() || undefined, city_state: editPhone.trim() || undefined }
+            ? {
+                ...c,
+                name: editName.trim(),
+                email: editEmail.trim() || undefined,
+                address: editAddress.trim() || undefined,
+                city_state: editPhone.trim() || undefined,
+              }
             : c
         )
       );
@@ -163,18 +232,19 @@ export default function ClientsPage() {
 
   return (
     <div className="flex min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)]">
-      {/* Left Navigation Only */}
       <div className="w-72 border-r border-[var(--border-color)] hidden lg:block flex-shrink-0">
         <LeftSidebar />
       </div>
 
-      {/* Main Content */}
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-5xl mx-auto px-6 py-8">
           <div className="flex items-center justify-between mb-8">
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Clients</h1>
-              <p className="text-[var(--text-secondary)] mt-1">Manage your client database</p>
+              <p className="text-[var(--text-secondary)] mt-1">
+                Manage your client database
+                {demo ? ' · Demo (this device only)' : ''}
+              </p>
             </div>
 
             <button
@@ -234,7 +304,6 @@ export default function ClientsPage() {
         </div>
       </div>
 
-      {/* Edit Modal */}
       {editingClient && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
           <div className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl p-8 w-full max-w-md">
@@ -255,7 +324,6 @@ export default function ClientsPage() {
         </div>
       )}
 
-      {/* Custom Delete Warning Modal */}
       {clientToDelete && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
           <div className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl p-8 w-full max-w-md text-center">
