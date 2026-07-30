@@ -1,6 +1,7 @@
 'use client';
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { upsertProfile } from '@/lib/supabase';
+import { isDemoWallet } from '@/lib/demo';
 
 interface Wallet {
   address: string;
@@ -31,10 +32,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         const parsed = JSON.parse(saved);
         if (parsed?.address) {
           setWalletState(parsed);
-          // Sync profile in background on return visit
-          upsertProfile(parsed.address, parsed.publicKey).then((res) => {
-            setProfileSynced(res.ok);
-          });
+          // Never sync demo wallet to cloud (avoids leaking personal profile into shared demo)
+          if (!isDemoWallet(parsed.address)) {
+            upsertProfile(parsed.address, parsed.publicKey).then((res) => {
+              setProfileSynced(res.ok);
+            });
+          }
         }
       } catch {
         localStorage.removeItem('xrpl_wallet');
@@ -49,10 +52,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       setWalletState(newWallet);
       setProfileSynced(false);
 
-      // Create / refresh account in Supabase (non-blocking)
-      upsertProfile(newWallet.address, newWallet.publicKey).then((res) => {
-        setProfileSynced(res.ok);
-      });
+      if (!isDemoWallet(newWallet.address)) {
+        upsertProfile(newWallet.address, newWallet.publicKey).then((res) => {
+          setProfileSynced(res.ok);
+        });
+      }
     } else {
       localStorage.removeItem('xrpl_wallet');
       setWalletState(null);
