@@ -11,10 +11,11 @@ import {
   CheckCircle2, Bell, X, CalendarPlus
 } from 'lucide-react';
 import { supabaseBrowser } from '@/lib/supabase';
+import { isDemoWallet } from '@/lib/demo';
 
 type InvoiceReminder = {
   invoiceId: string;
-  remindAt: string; // YYYY-MM-DD
+  remindAt: string;
   note?: string;
   client?: string;
 };
@@ -38,7 +39,6 @@ function googleCalendarUrl(inv: Invoice, remindAt: string, note: string) {
   const details = encodeURIComponent(
     `UrsaDeFi reminder\nInvoice: ${inv.id}\nAmount: $${Number(inv.total).toFixed(2)} (≈ ${Number(inv.xrpAmount).toFixed(6)} XRP)\n${note || ''}`
   );
-  // All-day event on remindAt
   const day = remindAt.replace(/-/g, '');
   const dates = `${day}/${day}`;
   return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&dates=${dates}`;
@@ -56,6 +56,7 @@ export default function InvoicesPage() {
   const [remindDate, setRemindDate] = useState('');
   const [remindNote, setRemindNote] = useState('');
   const [confirmPaid, setConfirmPaid] = useState<Invoice | null>(null);
+  const demo = isDemoWallet(wallet?.address);
 
   useEffect(() => {
     setReminders(loadReminders());
@@ -70,7 +71,8 @@ export default function InvoicesPage() {
       all = [...local];
     } catch {}
 
-    if (wallet?.address) {
+    // Never hydrate demo from cloud (shared address may hold personal history)
+    if (wallet?.address && !demo) {
       try {
         const { data, error } = await supabaseBrowser
           .from('invoices')
@@ -125,7 +127,7 @@ export default function InvoicesPage() {
     const handler = () => loadInvoices();
     window.addEventListener('invoices-updated', handler);
     return () => window.removeEventListener('invoices-updated', handler);
-  }, [wallet?.address, isConnected]);
+  }, [wallet?.address, isConnected, demo]);
 
   const filtered = invoices.filter(inv => {
     const term = searchTerm.toLowerCase();
@@ -181,7 +183,6 @@ export default function InvoicesPage() {
     } catch {}
   };
 
-  /** Paid is permanent. Only allow transition to paid; never reverse. */
   const handleMarkPaid = async (invoice: Invoice) => {
     setConfirmPaid(null);
     if (invoice.status === 'paid') return;
@@ -189,10 +190,12 @@ export default function InvoicesPage() {
     updateLocalStatus(invoice.id, 'paid');
     setInvoices(prev => prev.map(i => (i.id === invoice.id ? { ...i, status: 'paid' } : i)));
     if (selectedInvoice?.id === invoice.id) setSelectedInvoice({ ...invoice, status: 'paid' });
-    try {
-      await supabaseBrowser.from('invoices').update({ status: 'paid' }).eq('id', invoice.id);
-    } catch (err) {
-      console.warn('Status cloud update failed (local updated)', err);
+    if (!demo) {
+      try {
+        await supabaseBrowser.from('invoices').update({ status: 'paid' }).eq('id', invoice.id);
+      } catch (err) {
+        console.warn('Status cloud update failed (local updated)', err);
+      }
     }
     clearReminder(invoice.id);
     window.dispatchEvent(new Event('invoices-updated'));
@@ -203,9 +206,11 @@ export default function InvoicesPage() {
     if (!confirm(`Delete invoice ${invoice.id}?`)) return;
     const existing = JSON.parse(localStorage.getItem('invoices') || '[]');
     localStorage.setItem('invoices', JSON.stringify(existing.filter((i: Invoice) => i.id !== invoice.id)));
-    try {
-      await supabaseBrowser.from('invoices').delete().eq('id', invoice.id);
-    } catch {}
+    if (!demo) {
+      try {
+        await supabaseBrowser.from('invoices').delete().eq('id', invoice.id);
+      } catch {}
+    }
     clearReminder(invoice.id);
     setInvoices(prev => prev.filter(i => i.id !== invoice.id));
     if (selectedInvoice?.id === invoice.id) setSelectedInvoice(null);
@@ -410,7 +415,6 @@ export default function InvoicesPage() {
         </div>
       </div>
 
-      {/* Mark Paid confirmation — permanent, no take-backs */}
       {confirmPaid && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4"
@@ -450,7 +454,6 @@ export default function InvoicesPage() {
         </div>
       )}
 
-      {/* Reminder modal */}
       {reminderFor && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
