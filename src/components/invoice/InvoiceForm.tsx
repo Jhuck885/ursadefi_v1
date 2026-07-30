@@ -7,6 +7,7 @@ import BrowserInvoicePDF from './BrowserInvoicePDF';
 import { Invoice } from '@/types';
 import { supabaseBrowser } from '@/lib/supabase';
 import { useToast } from '@/components/ui/Toast';
+import { isDemoWallet } from '@/lib/demo';
 import {
   MIN_INVOICE_USD,
   MIN_MINT_USD,
@@ -52,6 +53,7 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
   const [newClientEmail, setNewClientEmail] = useState('');
   const [newClientAddress, setNewClientAddress] = useState('');
   const [newClientPhone, setNewClientPhone] = useState('');
+  const demo = isDemoWallet(wallet?.address);
 
   const { register, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm<InvoiceFormData>({
     defaultValues: {
@@ -77,7 +79,7 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
   );
 
   const fetchClients = async () => {
-    if (!wallet?.address) return;
+    if (!wallet?.address || demo) return; // demo: local-only, never cloud
     try {
       const { data, error: err } = await supabaseBrowser
         .from('clients')
@@ -90,7 +92,7 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
     }
   };
 
-  useEffect(() => { fetchClients(); }, [wallet?.address]);
+  useEffect(() => { fetchClients(); }, [wallet?.address, demo]);
 
   const handleClientSelect = (clientId: string) => {
     setSelectedClientId(clientId);
@@ -114,31 +116,38 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
         city_state: newClientPhone.trim() || undefined,
       };
 
-      try {
-        const { data, error: err } = await supabaseBrowser
-          .from('clients')
-          .insert([{
-            wallet_address: wallet.address,
-            name: newClientName.trim(),
-            email: newClientEmail.trim() || null,
-            address: newClientAddress.trim() || null,
-            city_state: newClientPhone.trim() || null,
-          }])
-          .select()
-          .single();
-        if (!err && data) {
-          setClients(prev => [data as Client, ...prev]);
-          setSelectedClientId(data.id);
-          setValue('to', data.name);
-        } else {
+      // Always keep local; cloud only for real wallets
+      if (demo) {
+        setClients(prev => [localClient as Client, ...prev]);
+        setSelectedClientId(localClient.id);
+        setValue('to', localClient.name);
+      } else {
+        try {
+          const { data, error: err } = await supabaseBrowser
+            .from('clients')
+            .insert([{
+              wallet_address: wallet.address,
+              name: newClientName.trim(),
+              email: newClientEmail.trim() || null,
+              address: newClientAddress.trim() || null,
+              city_state: newClientPhone.trim() || null,
+            }])
+            .select()
+            .single();
+          if (!err && data) {
+            setClients(prev => [data as Client, ...prev]);
+            setSelectedClientId(data.id);
+            setValue('to', data.name);
+          } else {
+            setClients(prev => [localClient as Client, ...prev]);
+            setSelectedClientId(localClient.id);
+            setValue('to', localClient.name);
+          }
+        } catch {
           setClients(prev => [localClient as Client, ...prev]);
           setSelectedClientId(localClient.id);
           setValue('to', localClient.name);
         }
-      } catch {
-        setClients(prev => [localClient as Client, ...prev]);
-        setSelectedClientId(localClient.id);
-        setValue('to', localClient.name);
       }
 
       setNewClientName(''); setNewClientEmail(''); setNewClientAddress(''); setNewClientPhone('');
@@ -206,22 +215,25 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
       console.error('localStorage save failed', e);
     }
 
-    try {
-      await supabaseBrowser.from('invoices').insert([{
-        id: newInvoice.id,
-        wallet_address: wallet.address,
-        from_name: newInvoice.from,
-        to_name: newInvoice.to,
-        items: newInvoice.items,
-        total: newInvoice.total,
-        xrp_amount: newInvoice.xrpAmount,
-        receiver: newInvoice.receiver,
-        due_date: newInvoice.dueDate,
-        description: newInvoice.description,
-        status: newInvoice.status,
-      }]);
-    } catch (e) {
-      console.warn('Supabase insert failed (saved locally)', e);
+    // Demo sandbox: never write to shared cloud
+    if (!demo) {
+      try {
+        await supabaseBrowser.from('invoices').insert([{
+          id: newInvoice.id,
+          wallet_address: wallet.address,
+          from_name: newInvoice.from,
+          to_name: newInvoice.to,
+          items: newInvoice.items,
+          total: newInvoice.total,
+          xrp_amount: newInvoice.xrpAmount,
+          receiver: newInvoice.receiver,
+          due_date: newInvoice.dueDate,
+          description: newInvoice.description,
+          status: newInvoice.status,
+        }]);
+      } catch (e) {
+        console.warn('Supabase insert failed (saved locally)', e);
+      }
     }
 
     onSuccess?.(newInvoice);
@@ -229,6 +241,7 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
   };
 
   const triggerPlatformFeePayment = async (invoice: Invoice) => {
+    if (demo) return; // no real Xaman fee in demo
     try {
       setMintStatus('Creating platform fee payment...');
       const res = await fetch('/api/xaman/pay-fee', {
@@ -295,6 +308,31 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
     }
     if (!wallet?.address) {
       warning('Please connect your wallet first');
+      return;
+    }
+
+    // Demo: mint is simulated as local-only record (no Xaman / no cloud)
+    if (demo) {
+      setLoading(true);
+      setMintStatus('Saving demo invoice...');
+      const invoice = await saveInvoice(formValues as InvoiceFormData);
+      if (invoice) {
+        setMintStatus(null);
+        success('Demo draft saved locally — connect Xaman for real minting');
+        reset({
+          invoiceName: '',
+          to: '',
+          description: '',
+          amount: 0,
+          total: 0,
+          xrpAmount: 0,
+          receiver: formValues.receiver,
+          dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        });
+        setSelectedClientId('');
+      }
+      setLoading(false);
+      setMintStatus(null);
       return;
     }
 
@@ -551,7 +589,7 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
               <span>${amountDue.toFixed(2)}</span>
             </div>
             <div className="text-xs text-[var(--text-muted)]">
-              ≈ {watchedXrp.toFixed(2)} XRP (auto) · Drafts are free · No $50 product fee
+              ≈ {watchedXrp.toFixed(2)} XRP (auto) · Drafts are free
             </div>
           </div>
         )}
@@ -562,7 +600,6 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
           </div>
         )}
 
-        {/* Primary path: save draft (free). Mint is secondary / optional. */}
         <div className="flex flex-col gap-3 pt-2">
           <button type="submit" disabled={loading || belowInvoiceMin} className={primaryButton}>
             Save draft (free)
@@ -574,7 +611,7 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
             className={secondaryButton}
             title={
               belowMintMin
-                ? `Optional NFT mint requires service amount ≥ $${MIN_MINT_USD} — not a fee to use the product`
+                ? `Optional NFT mint requires service amount ≥ $${MIN_MINT_USD}`
                 : 'Optional: mint a permanent on-chain NFT record'
             }
           >
@@ -584,7 +621,6 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
             <p className="text-[10px] text-[var(--text-muted)] text-center leading-relaxed">
               NFT mint is optional and only for invoices of ${MIN_MINT_USD}+.
               It is <strong className="text-[var(--text-secondary)]">not</strong> a charge to use UrsaDeFi.
-              Save the draft above — activation fee is just 0.15% (min $0.25).
             </p>
           )}
         </div>
@@ -592,6 +628,7 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
         <div className="text-[10px] text-[var(--text-muted)] text-center leading-relaxed">
           Free drafts · Platform fee {PLATFORM_FEE_PERCENT_LABEL} (min ${MIN_PLATFORM_FEE_USD.toFixed(2)}) on activate ·
           Min invoice ${MIN_INVOICE_USD} · Optional NFT on ${MIN_MINT_USD}+ invoices only
+          {demo ? ' · Demo sandbox (local only)' : ''}
         </div>
       </form>
 
