@@ -3,11 +3,7 @@
 import { useState, useEffect } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useWallet } from '@/context/WalletContext';
-import {
-  DEMO_WALLET_ADDRESS,
-  DEMO_WALLET_PUBLIC_KEY,
-  resetDemoLocalState,
-} from '@/lib/demo';
+import { startFreshDemoSandbox } from '@/lib/demo';
 
 interface XRPLConnectProps {
   onConnect?: (wallet: { address: string; publicKey: string }) => void;
@@ -89,13 +85,8 @@ export default function XRPLConnect({ onConnect }: XRPLConnectProps = {}) {
   }, [polling, uuid, setWallet, onConnect]);
 
   const handleDemoConnect = () => {
-    // Clean slate — never carry a real user's name/email/invoices into demo
-    resetDemoLocalState();
-
-    const demoWallet = {
-      address: DEMO_WALLET_ADDRESS,
-      publicKey: DEMO_WALLET_PUBLIC_KEY,
-    };
+    // Brand-new sandbox for this visitor — wipe + unique id, never shared
+    const demoWallet = startFreshDemoSandbox();
     setWallet(demoWallet);
     onConnect?.(demoWallet);
 
