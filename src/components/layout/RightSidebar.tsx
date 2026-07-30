@@ -6,6 +6,7 @@ import { Invoice } from '@/types';
 import { supabaseBrowser } from '@/lib/supabase';
 import CreateInvoiceButton from '@/components/layout/CreateInvoiceButton';
 import { useWallet } from '@/context/WalletContext';
+import { isDemoWallet } from '@/lib/demo';
 
 const PriceCard = ({ coinId, label }: { coinId: string; label: string }) => {
   const [price, setPrice] = useState<number | null>(null);
@@ -74,11 +75,11 @@ const OutstandingCard = () => {
   const [outstanding, setOutstanding] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const { wallet, isConnected } = useWallet();
+  const demo = isDemoWallet(wallet?.address);
 
   const loadOutstanding = async () => {
     setLoading(true);
 
-    // Prefer localStorage as source of truth for what the user currently sees
     let local: Invoice[] = [];
     try {
       local = JSON.parse(localStorage.getItem('invoices') || '[]');
@@ -86,18 +87,17 @@ const OutstandingCard = () => {
       local = [];
     }
 
-    // If local is empty, treat as "user cleared everything" and show nothing
     if (local.length === 0) {
       setOutstanding([]);
       setLoading(false);
       return;
     }
 
-    // Optionally enrich with Supabase, but never re-introduce deleted invoices
     const localIds = new Set(local.map((i) => i.id));
     let merged = [...local];
 
-    if (isConnected && wallet?.address) {
+    // Real wallets only — demo never hits Supabase
+    if (isConnected && wallet?.address && !demo) {
       try {
         const { data, error } = await supabaseBrowser
           .from('invoices')
@@ -107,7 +107,7 @@ const OutstandingCard = () => {
 
         if (!error && data) {
           const remote: Invoice[] = data
-            .filter((row: any) => localIds.has(row.id)) // only keep ones that still exist locally
+            .filter((row: any) => localIds.has(row.id))
             .map((row: any) => ({
               id: row.id,
               from: row.from_name || row.from || '',
@@ -123,7 +123,6 @@ const OutstandingCard = () => {
               user_id: row.wallet_address,
             }));
 
-          // Merge: local wins for status, remote can fill missing fields
           const map = new Map<string, Invoice>();
           remote.forEach((inv) => map.set(inv.id, inv));
           local.forEach((inv) => {
@@ -158,7 +157,7 @@ const OutstandingCard = () => {
     const handler = () => loadOutstanding();
     window.addEventListener('invoices-updated', handler);
     return () => window.removeEventListener('invoices-updated', handler);
-  }, [wallet?.address, isConnected]);
+  }, [wallet?.address, isConnected, demo]);
 
   const totalOutstanding = outstanding.reduce((sum, i) => sum + (Number(i.total) || 0), 0);
 
