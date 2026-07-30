@@ -19,11 +19,27 @@ export default function Landing() {
         <p className="text-[var(--text-secondary)] text-base sm:text-lg mb-2 leading-relaxed">
           Non-custodial XRPL invoicing for freelancers and small businesses.
         </p>
-        <p className="text-[var(--text-muted)] text-sm mb-8 leading-relaxed">
+        <p className="text-[var(--text-muted)] text-sm mb-3 leading-relaxed">
           Bill in USD. Settle in XRP. Keep your keys in Xaman.
-          <br />
-          Platform fee 0.15% (min $0.25). Drafts are free.
         </p>
+
+        {/* Pricing hierarchy — no $50 anywhere on the door */}
+        <div className="mb-8 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-5 py-4 text-left text-sm space-y-2">
+          <p className="text-[var(--text-primary)] font-medium">Pricing (simple)</p>
+          <ul className="space-y-1.5 text-[var(--text-secondary)]">
+            <li>
+              <span className="text-[var(--text-primary)] font-medium">Free to start</span>
+              {' '}— drafts cost nothing. No signup fee.
+            </li>
+            <li>
+              <span className="text-[var(--text-primary)] font-medium">0.15% platform fee</span>
+              {' '}(minimum $0.25) when <em>you</em> activate an invoice — paid from your wallet, not a $50 charge.
+            </li>
+            <li>
+              Optional NFT mint is a separate feature for larger invoices — not required to use UrsaDeFi.
+            </li>
+          </ul>
+        </div>
 
         <XRPLConnect />
 
@@ -51,7 +67,7 @@ export default function Landing() {
         </div>
 
         <p className="mt-10 text-xs text-[var(--text-muted)]">
-          Dallas, TX · Non-custodial · XRPL-native
+          Dallas, TX · Non-custodial · XRPL-native · No $50 to join
         </p>
       </div>
     </div>
