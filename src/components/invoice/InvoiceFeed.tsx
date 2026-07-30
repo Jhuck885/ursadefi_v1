@@ -5,6 +5,7 @@ import InvoiceCard from './InvoiceCard';
 import { Invoice } from '@/types';
 import { supabaseBrowser as supabase } from '@/lib/supabase';
 import { useWallet } from '@/context/WalletContext';
+import { isDemoWallet } from '@/lib/demo';
 
 export default function InvoiceFeed() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -20,6 +21,9 @@ export default function InvoiceFeed() {
   };
 
   const loadFromSupabase = async (walletAddress: string): Promise<Invoice[]> => {
+    // Demo shares one address — never pull anyone's cloud history into demo
+    if (isDemoWallet(walletAddress)) return [];
+
     try {
       const { data, error } = await supabase
         .from('invoices')
@@ -55,16 +59,13 @@ export default function InvoiceFeed() {
   const mergeInvoices = (local: Invoice[], remote: Invoice[]): Invoice[] => {
     const map = new Map<string, Invoice>();
 
-    // Remote first
     remote.forEach((inv) => map.set(inv.id, inv));
 
-    // Local overwrites / adds — this is what makes the UI update instantly after mint
     local.forEach((inv) => {
       const existing = map.get(inv.id);
       if (!existing) {
         map.set(inv.id, inv);
       } else {
-        // Prefer local if it has newer status or an nftoken_id
         const preferLocal =
           inv.nftoken_id ||
           (inv.status === 'minted' && existing.status !== 'minted') ||
@@ -86,7 +87,7 @@ export default function InvoiceFeed() {
 
     const local = loadFromLocal();
 
-    if (isConnected && wallet?.address) {
+    if (isConnected && wallet?.address && !isDemoWallet(wallet.address)) {
       const remote = await loadFromSupabase(wallet.address);
       setInvoices(mergeInvoices(local, remote));
     } else {
