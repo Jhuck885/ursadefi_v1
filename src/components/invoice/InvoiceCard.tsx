@@ -5,6 +5,8 @@ import { Invoice } from '@/types';
 import BrowserInvoicePDF from './BrowserInvoicePDF';
 import { supabaseBrowser } from '@/lib/supabase';
 import { useToast } from '@/components/ui/Toast';
+import { useWallet } from '@/context/WalletContext';
+import { isDemoWallet } from '@/lib/demo';
 import { MIN_MINT_USD, calcPlatformFee } from '@/lib/constants';
 
 interface Props {
@@ -12,6 +14,8 @@ interface Props {
 }
 
 export default function InvoiceCard({ invoice }: Props) {
+  const { wallet } = useWallet();
+  const demo = isDemoWallet(wallet?.address);
   const { success, error, warning, info } = useToast();
   const [isMinting, setIsMinting] = useState(false);
   const [isBurning, setIsBurning] = useState(false);
@@ -75,13 +79,15 @@ export default function InvoiceCard({ invoice }: Props) {
       console.warn('localStorage update failed', e);
     }
 
-    try {
-      await supabaseBrowser
-        .from('invoices')
-        .update({ nftoken_id: nftokenId, xrpl_tx_hash: txHash, status: 'minted' })
-        .eq('id', invoice.id);
-    } catch (e) {
-      console.warn('Supabase NFT update failed', e);
+    if (!demo) {
+      try {
+        await supabaseBrowser
+          .from('invoices')
+          .update({ nftoken_id: nftokenId, xrpl_tx_hash: txHash, status: 'minted' })
+          .eq('id', invoice.id);
+      } catch (e) {
+        console.warn('Supabase NFT update failed', e);
+      }
     }
 
     window.dispatchEvent(new Event('invoices-updated'));
@@ -98,12 +104,14 @@ export default function InvoiceCard({ invoice }: Props) {
       localStorage.setItem('invoices', JSON.stringify(next));
     } catch {}
 
-    try {
-      await supabaseBrowser
-        .from('invoices')
-        .update({ status: 'activated' })
-        .eq('id', invoice.id);
-    } catch {}
+    if (!demo) {
+      try {
+        await supabaseBrowser
+          .from('invoices')
+          .update({ status: 'activated' })
+          .eq('id', invoice.id);
+      } catch {}
+    }
 
     window.dispatchEvent(new Event('invoices-updated'));
   };
@@ -194,6 +202,16 @@ export default function InvoiceCard({ invoice }: Props) {
 
     setShowActivateGuide(false);
     setIsActivating(true);
+
+    // Demo: local activate only — no fee payment / no cloud
+    if (demo) {
+      setStatusMsg('Activating demo invoice...');
+      await markActivated();
+      setStatusMsg(null);
+      setIsActivating(false);
+      return;
+    }
+
     setStatusMsg('Creating platform fee payment...');
 
     try {
@@ -237,6 +255,11 @@ export default function InvoiceCard({ invoice }: Props) {
 
     if (!isPaid) {
       info('Mark this invoice as Paid first — then you can mint it as an XRPL NFT.');
+      return;
+    }
+
+    if (demo) {
+      warning('Connect Xaman for real NFT minting — demo stays local only.');
       return;
     }
 
@@ -316,12 +339,14 @@ export default function InvoiceCard({ invoice }: Props) {
           localStorage.setItem('invoices', JSON.stringify(next));
         } catch {}
 
-        try {
-          await supabaseBrowser
-            .from('invoices')
-            .update({ nftoken_id: null, status: 'burned' })
-            .eq('id', invoice.id);
-        } catch {}
+        if (!demo) {
+          try {
+            await supabaseBrowser
+              .from('invoices')
+              .update({ nftoken_id: null, status: 'burned' })
+              .eq('id', invoice.id);
+          } catch {}
+        }
 
         window.dispatchEvent(new Event('invoices-updated'));
         success('Invoice NFT burned');
@@ -366,7 +391,6 @@ export default function InvoiceCard({ invoice }: Props) {
   };
 
   const canMint = Number(invoice.total) >= MIN_MINT_USD;
-  // Mint only after activated AND paid (or already minted)
   const showMintButton =
     isActivated && isPaid && !localNftId && !mintSigned && localStatus !== 'burned';
   const showMintLocked =
@@ -377,19 +401,22 @@ export default function InvoiceCard({ invoice }: Props) {
       className="border border-[var(--card-border)] rounded-3xl p-5 bg-[var(--card-bg)] hover:border-[var(--brand-primary)]/40 transition-all group relative"
       data-card
     >
-      {/* Activate guide popup */}
       {showActivateGuide && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
           <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6 max-w-sm w-full shadow-xl">
             <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Activate this invoice?</h3>
             <p className="text-sm text-[var(--text-secondary)] mb-4 leading-relaxed">
-              Activating charges the small platform fee (<strong className="text-[var(--text-primary)]">${feeUsd.toFixed(2)}</strong>) and unlocks the invoice for real use.
+              {demo
+                ? 'Demo activation is local only — no fee, no cloud.'
+                : `Activating charges the small platform fee ($${feeUsd.toFixed(2)}) and unlocks the invoice for real use.`}
             </p>
-            <ol className="text-sm text-[var(--text-secondary)] mb-6 space-y-2 list-decimal pl-5">
-              <li><strong className="text-[var(--text-primary)]">Activate</strong> — pay the platform fee in Xaman</li>
-              <li><strong className="text-[var(--text-primary)]">Mark Paid</strong> — when your client pays you</li>
-              <li><strong className="text-[var(--text-primary)]">Mint NFT</strong> — optional permanent on-chain record</li>
-            </ol>
+            {!demo && (
+              <ol className="text-sm text-[var(--text-secondary)] mb-6 space-y-2 list-decimal pl-5">
+                <li><strong className="text-[var(--text-primary)]">Activate</strong> — pay the platform fee in Xaman</li>
+                <li><strong className="text-[var(--text-primary)]">Mark Paid</strong> — when your client pays you</li>
+                <li><strong className="text-[var(--text-primary)]">Mint NFT</strong> — optional permanent on-chain record</li>
+              </ol>
+            )}
             <div className="flex gap-3">
               <button
                 onClick={() => setShowActivateGuide(false)}
@@ -402,20 +429,19 @@ export default function InvoiceCard({ invoice }: Props) {
                 disabled={isActivating}
                 className="flex-1 py-2.5 rounded-full bg-[var(--brand-primary)] hover:opacity-90 text-white text-sm font-medium transition disabled:opacity-50"
               >
-                {isActivating ? 'Activating...' : `Activate · $${feeUsd.toFixed(2)}`}
+                {isActivating ? 'Activating...' : demo ? 'Activate demo' : `Activate · $${feeUsd.toFixed(2)}`}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Burn Confirmation Modal */}
       {showBurnConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
           <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6 max-w-sm w-full shadow-xl">
             <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Burn this NFT?</h3>
             <p className="text-sm text-[var(--text-secondary)] mb-6 leading-relaxed">
-              This will permanently destroy the on-chain NFT for this invoice. This action <strong className="text-[var(--text-primary)]">cannot be undone</strong>. Only continue if this was a mistake or the record needs to be removed.
+              This will permanently destroy the on-chain NFT for this invoice. This action <strong className="text-[var(--text-primary)]">cannot be undone</strong>.
             </p>
             <div className="flex gap-3">
               <button
@@ -488,7 +514,7 @@ export default function InvoiceCard({ invoice }: Props) {
             disabled={isActivating}
             className="btn-secondary text-xs px-3.5 py-1.5 bg-[var(--brand-primary)]/10 hover:bg-[var(--brand-primary)]/20 text-[var(--brand-primary)] border-[var(--brand-primary)]/30 disabled:opacity-50"
           >
-            {isActivating ? 'Activating...' : `Activate ($${feeUsd.toFixed(2)})`}
+            {isActivating ? 'Activating...' : demo ? 'Activate' : `Activate ($${feeUsd.toFixed(2)})`}
           </button>
         )}
 
