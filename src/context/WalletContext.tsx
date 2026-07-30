@@ -1,7 +1,7 @@
 'use client';
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { upsertProfile } from '@/lib/supabase';
-import { isDemoWallet } from '@/lib/demo';
+import { isDemoWallet, resetDemoLocalState } from '@/lib/demo';
 
 interface Wallet {
   address: string;
@@ -24,19 +24,23 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [isReady, setIsReady] = useState(false);
   const [profileSynced, setProfileSynced] = useState(false);
 
-  // Rehydrate wallet from localStorage on mount
   useEffect(() => {
     const saved = localStorage.getItem('xrpl_wallet');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         if (parsed?.address) {
-          setWalletState(parsed);
-          // Never sync demo wallet to cloud (avoids leaking personal profile into shared demo)
-          if (!isDemoWallet(parsed.address)) {
-            upsertProfile(parsed.address, parsed.publicKey).then((res) => {
-              setProfileSynced(res.ok);
-            });
+          // Legacy shared demo address: do not rehydrate personal leftovers — wipe and stay logged out
+          if (isDemoWallet(parsed.address) && parsed.address === 'rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh') {
+            resetDemoLocalState();
+            setWalletState(null);
+          } else {
+            setWalletState(parsed);
+            if (!isDemoWallet(parsed.address)) {
+              upsertProfile(parsed.address, parsed.publicKey).then((res) => {
+                setProfileSynced(res.ok);
+              });
+            }
           }
         }
       } catch {
@@ -64,7 +68,17 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const disconnect = () => setWallet(null);
+  const disconnect = () => {
+    const addr = wallet?.address;
+    // Leaving demo wipes any typed personal data from this browser
+    if (isDemoWallet(addr)) {
+      resetDemoLocalState();
+    } else {
+      localStorage.removeItem('xrpl_wallet');
+    }
+    setWalletState(null);
+    setProfileSynced(false);
+  };
 
   return (
     <WalletContext.Provider
