@@ -5,6 +5,7 @@ import { useWallet } from '@/context/WalletContext';
 import Link from 'next/link';
 import LeftSidebar from '@/components/layout/LeftSidebar';
 import { supabaseBrowser, loadProfile } from '@/lib/supabase';
+import { isDemoWallet } from '@/lib/demo';
 import {
   Copy, Check, ExternalLink, Wallet, User, Settings, LogOut,
   Building2, Globe, Phone, MapPin, Hash, Mail, Camera, Save
@@ -48,21 +49,26 @@ export default function ProfilePage() {
   const [saved, setSaved] = useState(false);
   const [cloudSynced, setCloudSynced] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const demo = isDemoWallet(wallet?.address);
 
-  // Load local + cloud profile
   useEffect(() => {
     const load = async () => {
       try {
         const invoices = JSON.parse(localStorage.getItem('invoices') || '[]');
         setInvoiceCount(invoices.length);
 
-        // 1. Local first (fast)
+        // Demo is always a blank slate — never pull cloud identity
+        if (demo) {
+          setProfile(defaultProfile);
+          setCloudSynced(false);
+          return;
+        }
+
         const savedProfile = localStorage.getItem('ursadefi_company_profile');
         if (savedProfile) {
           setProfile({ ...defaultProfile, ...JSON.parse(savedProfile) });
         }
 
-        // 2. Cloud (authoritative if present)
         if (wallet?.address) {
           const cloud = await loadProfile(wallet.address);
           if (cloud) {
@@ -79,7 +85,6 @@ export default function ProfilePage() {
               tagline: cloud.tagline || '',
               logoDataUrl: cloud.logo_data_url || '',
             };
-            // Prefer cloud if it has company name; otherwise keep local
             if (cloud.company_name || cloud.username) {
               setProfile(mapped);
               localStorage.setItem('ursadefi_company_profile', JSON.stringify(mapped));
@@ -93,7 +98,7 @@ export default function ProfilePage() {
     };
 
     load();
-  }, [wallet?.address]);
+  }, [wallet?.address, demo]);
 
   const copyAddress = () => {
     if (!wallet?.address) return;
@@ -130,49 +135,40 @@ export default function ProfilePage() {
 
     setSaving(true);
     try {
-      // Always save locally
       localStorage.setItem('ursadefi_company_profile', JSON.stringify(profile));
       window.dispatchEvent(new CustomEvent('company-profile-updated', { detail: profile }));
 
-      // Sync to Supabase
-      let cloudOk = false;
-      try {
-        const { error } = await supabaseBrowser
-          .from('profiles')
-          .upsert({
-            wallet_address: wallet.address,
-            username: profile.username || null,
-            company_name: profile.companyName || null,
-            website: profile.website || null,
-            phone: profile.phone || null,
-            email: profile.email || null,
-            address: profile.address || null,
-            city_state_zip: profile.cityStateZip || null,
-            country: profile.country || 'United States',
-            ein: profile.ein || null,
-            tagline: profile.tagline || null,
-            logo_data_url: profile.logoDataUrl || null,
-            updated_at: new Date().toISOString(),
-          }, { onConflict: 'wallet_address' });
+      // Never write personal profile onto the shared demo wallet in the cloud
+      if (!demo) {
+        try {
+          const { error } = await supabaseBrowser
+            .from('profiles')
+            .upsert({
+              wallet_address: wallet.address,
+              username: profile.username || null,
+              company_name: profile.companyName || null,
+              website: profile.website || null,
+              phone: profile.phone || null,
+              email: profile.email || null,
+              address: profile.address || null,
+              city_state_zip: profile.cityStateZip || null,
+              country: profile.country || 'United States',
+              ein: profile.ein || null,
+              tagline: profile.tagline || null,
+              logo_data_url: profile.logoDataUrl || null,
+              updated_at: new Date().toISOString(),
+            }, { onConflict: 'wallet_address' });
 
-        if (!error) {
-          cloudOk = true;
-          setCloudSynced(true);
-        } else {
-          console.warn('Cloud profile save failed:', error.message);
+          if (!error) setCloudSynced(true);
+          else console.warn('Cloud profile save failed:', error.message);
+        } catch (e) {
+          console.warn('Cloud profile save exception:', e);
         }
-      } catch (e) {
-        console.warn('Cloud profile save exception:', e);
       }
 
       setSaved(true);
       setIsEditing(false);
       setTimeout(() => setSaved(false), 3000);
-
-      if (!cloudOk) {
-        // Still success locally — soft note
-        console.info('Profile saved locally. Cloud sync pending (run profiles SQL if table missing).');
-      }
     } catch (err) {
       console.error(err);
       alert('Failed to save profile');
@@ -214,7 +210,8 @@ export default function ProfilePage() {
               <h1 className="text-3xl font-bold tracking-tight">Company Profile</h1>
               <p className="text-[var(--text-secondary)] mt-1">
                 This info appears on your invoices
-                {cloudSynced && <span className="ml-2 text-emerald-500 text-xs">● Cloud synced</span>}
+                {demo && <span className="ml-2 text-xs text-[var(--text-muted)]">· Demo (not saved to cloud)</span>}
+                {!demo && cloudSynced && <span className="ml-2 text-emerald-500 text-xs">● Cloud synced</span>}
               </p>
             </div>
             {!isEditing ? (
@@ -246,11 +243,10 @@ export default function ProfilePage() {
 
           {saved && (
             <div className="mb-6 px-4 py-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 rounded-xl text-sm">
-              Profile saved. Local + cloud updated. This data will be used on future invoices.
+              Profile saved{demo ? ' locally for this demo session' : '. Local + cloud updated'}.
             </div>
           )}
 
-          {/* Logo + Company Name */}
           <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6 mb-6">
             <div className="flex items-center gap-6">
               <div className="relative">
@@ -313,7 +309,6 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Company Details */}
           <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6 mb-6">
             <h3 className="font-semibold text-lg mb-5 flex items-center gap-2">
               <Building2 className="w-5 h-5" />
@@ -409,7 +404,6 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Wallet Card */}
           <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6 mb-6">
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-center gap-4">
@@ -435,7 +429,6 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Stats + Actions */}
           <div className="grid grid-cols-2 gap-4 mb-8">
             <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-5">
               <p className="text-sm text-[var(--text-secondary)] mb-1">Invoices Created</p>
