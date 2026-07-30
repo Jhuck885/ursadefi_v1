@@ -19,7 +19,7 @@ export default function Landing() {
         <p className="text-[var(--text-secondary)] text-base sm:text-lg mb-8 leading-relaxed">
           Non-custodial XRPL invoicing.
           <br />
-          Bill in USD. Settle in XRP. Keep your keys.
+          Tax-ready US · Europe · Japan. Settle in XRP. Keep your keys.
         </p>
 
         <XRPLConnect />
