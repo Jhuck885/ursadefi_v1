@@ -260,7 +260,7 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
     try {
       const inv = await saveInvoice(formData);
       if (inv) {
-        success('Invoice saved');
+        success('Invoice saved as draft — free. Activate later to pay the small platform fee.');
         reset({
           invoiceName: '',
           to: '',
@@ -284,7 +284,9 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
     const serviceAmount = Number(formValues.amount) || 0;
 
     if (serviceAmount < MIN_MINT_USD) {
-      warning(`Minimum $${MIN_MINT_USD} service amount to mint an NFT`);
+      warning(
+        `NFT mint is optional and only available on invoices of $${MIN_MINT_USD}+. Save the draft now — no $50 fee to use UrsaDeFi.`
+      );
       return;
     }
     if (!formValues.invoiceName || !formValues.to) {
@@ -365,7 +367,6 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
             window.dispatchEvent(new Event('invoices-updated'));
             success(`Minted successfully · ${resolveData.nftokenId.slice(0, 12)}…`);
 
-            // === AUTOMATIC PLATFORM FEE PAYMENT (Option A) ===
             await triggerPlatformFeePayment({
               ...invoice,
               nftoken_id: resolveData.nftokenId,
@@ -423,8 +424,10 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
     }
   };
 
-  const pillButton =
-    'flex-1 py-3.5 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-semibold rounded-full transition disabled:opacity-60';
+  const primaryButton =
+    'w-full py-3.5 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-semibold rounded-full transition disabled:opacity-60';
+  const secondaryButton =
+    'w-full py-3 text-sm border border-[var(--border-color)] hover:bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-full transition disabled:opacity-60';
 
   const belowInvoiceMin = subtotal > 0 && subtotal < MIN_INVOICE_USD;
   const belowMintMin = subtotal > 0 && subtotal < MIN_MINT_USD;
@@ -539,7 +542,7 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
             </div>
             <div className="flex justify-between text-[var(--text-secondary)]">
               <span>
-                Platform fee ({PLATFORM_FEE_PERCENT_LABEL}, min ${MIN_PLATFORM_FEE_USD.toFixed(2)})
+                Platform fee ({PLATFORM_FEE_PERCENT_LABEL}, min ${MIN_PLATFORM_FEE_USD.toFixed(2)}) — paid by you on activate
               </span>
               <span className="text-[var(--text-primary)] font-medium">${platformFee.toFixed(2)}</span>
             </div>
@@ -548,7 +551,7 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
               <span>${amountDue.toFixed(2)}</span>
             </div>
             <div className="text-xs text-[var(--text-muted)]">
-              ≈ {watchedXrp.toFixed(2)} XRP (auto) · Shown on invoice for client transparency
+              ≈ {watchedXrp.toFixed(2)} XRP (auto) · Drafts are free · No $50 product fee
             </div>
           </div>
         )}
@@ -559,17 +562,36 @@ export default function InvoiceForm({ onSuccess }: Props = {}) {
           </div>
         )}
 
-        <div className="flex flex-col sm:flex-row gap-3 pt-2">
-          <button type="submit" disabled={loading || belowInvoiceMin} className={pillButton}>
-            Save Invoice
+        {/* Primary path: save draft (free). Mint is secondary / optional. */}
+        <div className="flex flex-col gap-3 pt-2">
+          <button type="submit" disabled={loading || belowInvoiceMin} className={primaryButton}>
+            Save draft (free)
           </button>
-          <button type="button" onClick={handleMint} disabled={loading || belowMintMin} className={pillButton}>
-            {loading && mintStatus ? 'Minting...' : 'Mint as XRPL NFT'}
+          <button
+            type="button"
+            onClick={handleMint}
+            disabled={loading || belowMintMin}
+            className={secondaryButton}
+            title={
+              belowMintMin
+                ? `Optional NFT mint requires service amount ≥ $${MIN_MINT_USD} — not a fee to use the product`
+                : 'Optional: mint a permanent on-chain NFT record'
+            }
+          >
+            {loading && mintStatus ? 'Minting...' : 'Optional: mint as XRPL NFT'}
           </button>
+          {belowMintMin && subtotal > 0 && (
+            <p className="text-[10px] text-[var(--text-muted)] text-center leading-relaxed">
+              NFT mint is optional and only for invoices of ${MIN_MINT_USD}+.
+              It is <strong className="text-[var(--text-secondary)]">not</strong> a charge to use UrsaDeFi.
+              Save the draft above — activation fee is just 0.15% (min $0.25).
+            </p>
+          )}
         </div>
 
-        <div className="text-[10px] text-[var(--text-muted)] text-center">
-          Fee {PLATFORM_FEE_PERCENT_LABEL} (min ${MIN_PLATFORM_FEE_USD.toFixed(2)}) · Non-custodial · Min ${MIN_INVOICE_USD} · ${MIN_MINT_USD} to mint
+        <div className="text-[10px] text-[var(--text-muted)] text-center leading-relaxed">
+          Free drafts · Platform fee {PLATFORM_FEE_PERCENT_LABEL} (min ${MIN_PLATFORM_FEE_USD.toFixed(2)}) on activate ·
+          Min invoice ${MIN_INVOICE_USD} · Optional NFT on ${MIN_MINT_USD}+ invoices only
         </div>
       </form>
 
