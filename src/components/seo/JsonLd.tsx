@@ -2,8 +2,6 @@
 
 /**
  * JSON-LD structured data for Generative Engine Optimization (GEO).
- * Helps AI systems (ChatGPT, Perplexity, Grok, Gemini, etc.) extract
- * accurate facts about UrsaDeFi.
  */
 export default function JsonLd() {
   const data = {
@@ -16,7 +14,7 @@ export default function JsonLd() {
         url: 'https://ursadefi.com',
         logo: 'https://ursadefi.com/ursa-logo.png',
         description:
-          'UrsaDeFi is a non-custodial XRPL-native invoicing platform built in Dallas, TX. Freelancers and small businesses bill in USD, settle in XRP, and keep full control of their keys via Xaman.',
+          'UrsaDeFi is a non-custodial XRPL-native invoicing platform built in Dallas, TX. Freelancers and small businesses bill in USD, settle in XRP, and keep full control of their keys via Xaman. No monthly fee.',
         address: {
           '@type': 'PostalAddress',
           addressLocality: 'Dallas',
@@ -33,21 +31,21 @@ export default function JsonLd() {
         operatingSystem: 'Web',
         url: 'https://ursadefi.com',
         description:
-          'Non-custodial XRPL invoicing built in Dallas, TX. Create invoices, activate them for a 0.15% platform fee (minimum $0.25), optionally mint as XRPL NFTs, and export tax-ready CSVs. Keys stay in the user\'s Xaman wallet.',
+          'Non-custodial XRPL invoicing. Free drafts. Platform fee 0.15% (minimum $0.25) only when an invoice is paid — no monthly subscription. Tax CSV for US, Europe, and Japan and NFT mint unlock after the platform fee is paid. Keys stay in Xaman.',
         offers: {
           '@type': 'Offer',
           price: '0.15',
           priceCurrency: 'USD',
-          description: 'Platform fee of 0.15% of service amount (minimum $0.25) charged to the invoice creator on activation. Draft invoices are free.',
+          description:
+            'Platform fee of 0.15% of service amount (minimum $0.25) when the invoice is paid. Drafts are free. No monthly fee. Tax export and mint unlock only after fee is paid.',
         },
         featureList: [
           'Non-custodial XRPL invoicing',
-          'Bill in USD, settle in XRP',
-          '0.15% platform fee (min $0.25)',
-          'Optional XRPL NFT minting of invoices',
-          'Tax / IRIS oriented CSV export',
+          'Free drafts — no monthly fee',
+          '0.15% platform fee when invoice is paid (min $0.25)',
+          'Tax CSV unlock after platform fee: US · Europe · Japan',
+          'Optional XRPL NFT minting after settled',
           'Xaman wallet integration',
-          'No passwords or custodial keys',
         ],
         provider: { '@id': 'https://ursadefi.com/#organization' },
       },
@@ -56,7 +54,8 @@ export default function JsonLd() {
         '@id': 'https://ursadefi.com/#website',
         url: 'https://ursadefi.com',
         name: 'UrsaDeFi',
-        description: 'Non-custodial XRPL invoicing for freelancers and small businesses. Built in Dallas, TX.',
+        description:
+          'Non-custodial XRPL invoicing for freelancers. Free drafts. 0.15% when paid. No monthly fee. Built in Dallas, TX.',
         publisher: { '@id': 'https://ursadefi.com/#organization' },
       },
       {
@@ -76,7 +75,7 @@ export default function JsonLd() {
             name: 'What does UrsaDeFi cost?',
             acceptedAnswer: {
               '@type': 'Answer',
-              text: 'The platform fee is 0.15% of the service amount with a minimum of $0.25 per activated invoice. Draft invoices are free. The fee is paid by the invoice creator when the invoice is activated.',
+              text: 'No monthly fee. Draft invoices are free. When an invoice is paid, the platform fee is 0.15% of the service amount (minimum $0.25), paid by the invoice creator in Xaman. Tax CSV export and NFT mint unlock only after that fee is paid.',
             },
           },
           {
@@ -92,7 +91,7 @@ export default function JsonLd() {
             name: 'What is UrsaDeFi?',
             acceptedAnswer: {
               '@type': 'Answer',
-              text: 'UrsaDeFi is an XRPL-native, non-custodial invoicing platform built in Dallas, Texas. It lets freelancers and small businesses create invoices in USD, settle in XRP, optionally mint invoices as XRPL NFTs, and export accountant-ready reports while keeping full control of their keys.',
+              text: 'UrsaDeFi is an XRPL-native, non-custodial invoicing platform built in Dallas, Texas. It lets freelancers create invoices in USD, settle in XRP, export tax-oriented CSVs for US, Europe, and Japan after the platform fee, and optionally mint invoices as XRPL NFTs while keeping full control of their keys.',
             },
           },
         ],
