@@ -7,12 +7,23 @@ import LeftSidebar from '@/components/layout/LeftSidebar';
 import { Invoice } from '@/types';
 import {
   BarChart3, Download, FileText, DollarSign, TrendingUp,
-  Calendar, Printer
+  Calendar, Printer, Receipt
 } from 'lucide-react';
 import { supabaseBrowser } from '@/lib/supabase';
 import { isSettled } from '@/lib/invoice-status';
 
 type ExportFormat = 'us-iris-1099nec' | 'europe' | 'japan';
+
+type ExpenseRow = {
+  id: string;
+  date: string;
+  category: string;
+  description: string;
+  amount: number;
+  miles?: number;
+  ratePerMile?: number;
+  created_at?: string;
+};
 
 function digitsOnly(value: string | undefined | null): string {
   return (value || '').replace(/\D/g, '').slice(0, 9);
@@ -33,6 +44,14 @@ function loadProfile() {
     return JSON.parse(localStorage.getItem('ursadefi_company_profile') || '{}');
   } catch {
     return {};
+  }
+}
+
+function loadExpenses(): ExpenseRow[] {
+  try {
+    return JSON.parse(localStorage.getItem('ursadefi_expenses') || '[]');
+  } catch {
+    return [];
   }
 }
 
@@ -82,9 +101,19 @@ const JP_LEDGER_HEADERS = [
   'Amount XRP', 'Payment Status', 'Due Date', 'Settlement Reference',
 ];
 
+const COMBINED_HEADERS = [
+  'Type', 'ID', 'Date', 'Tax Year', 'Category', 'Party / Description', 'Currency',
+  'Amount USD', 'Miles', 'Rate Per Mile', 'Status / Notes',
+];
+
+const EXPENSE_HEADERS = [
+  'Expense ID', 'Date', 'Tax Year', 'Category', 'Description', 'Amount USD', 'Miles', 'Rate Per Mile',
+];
+
 export default function ReportsPage() {
   const { wallet, isConnected } = useWallet();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [year, setYear] = useState(new Date().getFullYear());
   const [exportFormat, setExportFormat] = useState<ExportFormat>('us-iris-1099nec');
@@ -127,6 +156,7 @@ export default function ReportsPage() {
       }
     }
     setInvoices(all);
+    setExpenses(loadExpenses());
     setLoading(false);
   };
 
@@ -135,7 +165,11 @@ export default function ReportsPage() {
     else setLoading(false);
     const handler = () => loadInvoices();
     window.addEventListener('invoices-updated', handler);
-    return () => window.removeEventListener('invoices-updated', handler);
+    window.addEventListener('expenses-updated', handler);
+    return () => {
+      window.removeEventListener('invoices-updated', handler);
+      window.removeEventListener('expenses-updated', handler);
+    };
   }, [wallet?.address, isConnected]);
 
   const yearInvoices = useMemo(() => {
@@ -145,10 +179,21 @@ export default function ReportsPage() {
     });
   }, [invoices, year]);
 
-  /** Only settled (platform fee paid) unlock tax CSV value */
   const settledYearInvoices = useMemo(
     () => yearInvoices.filter(i => isSettled(i.status)),
     [yearInvoices]
+  );
+
+  const yearExpenses = useMemo(() => {
+    return expenses.filter((e) => {
+      const y = e.date ? new Date(e.date + 'T12:00:00').getFullYear() : (e.created_at ? new Date(e.created_at).getFullYear() : 0);
+      return y === year;
+    });
+  }, [expenses, year]);
+
+  const expenseTotal = useMemo(
+    () => yearExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0),
+    [yearExpenses]
   );
 
   const stats = useMemo(() => {
@@ -292,6 +337,67 @@ export default function ReportsPage() {
     return exportUsIris();
   };
 
+  /** Expenses only — always available (bookkeeping helper) */
+  const handleExportExpenses = () => {
+    if (yearExpenses.length === 0) {
+      alert('No expenses for this year. Add mileage, food, or entertainment under Expenses.');
+      return;
+    }
+    const rows = yearExpenses.map((e) =>
+      [
+        e.id,
+        e.date || '',
+        String(year),
+        e.category || '',
+        e.description || '',
+        money(e.amount),
+        e.miles != null ? String(e.miles) : '',
+        e.ratePerMile != null ? money(e.ratePerMile) : '',
+      ].map(csvCell).join(',')
+    );
+    downloadCsv(`Expenses-${year}.csv`, EXPENSE_HEADERS, rows);
+  };
+
+  /** Settled income + all expenses for the year in one bookkeeping file */
+  const handleExportCombined = () => {
+    const invRows = settledYearInvoices.map((inv) => {
+      const d = inv.created_at ? new Date(inv.created_at).toISOString().slice(0, 10) : '';
+      return [
+        'INCOME',
+        inv.id || '',
+        d,
+        String(year),
+        'settled_invoice',
+        inv.to || inv.description || '',
+        'USD',
+        money(inv.total),
+        '',
+        '',
+        inv.status || 'settled',
+      ].map(csvCell).join(',');
+    });
+    const expRows = yearExpenses.map((e) =>
+      [
+        'EXPENSE',
+        e.id,
+        e.date || '',
+        String(year),
+        e.category || '',
+        e.description || '',
+        'USD',
+        money(e.amount),
+        e.miles != null ? String(e.miles) : '',
+        e.ratePerMile != null ? money(e.ratePerMile) : '',
+        '',
+      ].map(csvCell).join(',')
+    );
+    if (invRows.length === 0 && expRows.length === 0) {
+      alert('Nothing to export for this year. Settle invoices and/or add expenses.');
+      return;
+    }
+    downloadCsv(`Income-Expenses-${year}.csv`, COMBINED_HEADERS, [...invRows, ...expRows]);
+  };
+
   const handlePrintReport = () => {
     if (!requireSettledOrAlert()) return;
     const win = window.open('', '_blank');
@@ -319,15 +425,34 @@ export default function ReportsPage() {
         );
       })
       .join('');
+    const expHtml = yearExpenses
+      .map((e) =>
+        '<tr><td>' +
+        (e.category || '') +
+        '</td><td>' +
+        (e.date || '') +
+        '</td><td>' +
+        (e.description || '') +
+        '</td><td style="text-align:right">$' +
+        Number(e.amount || 0).toFixed(2) +
+        '</td></tr>'
+      )
+      .join('');
     const bodyRows = rowsHtml || '<tr><td colspan="6">No settled invoices</td></tr>';
     const html =
       '<!DOCTYPE html><html><head><title>Tax Report ' + year + '</title>' +
-      '<style>body{font-family:system-ui;padding:40px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px;border-bottom:1px solid #eee;text-align:left}th{background:#f8f8f8}</style>' +
+      '<style>body{font-family:system-ui;padding:40px}table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:24px}th,td{padding:8px;border-bottom:1px solid #eee;text-align:left}th{background:#f8f8f8}</style>' +
       '</head><body>' +
-      '<h1>Income & Tax Report - ' + year + ' (settled only)</h1>' +
+      '<h1>Income & Expenses - ' + year + '</h1>' +
       '<p><strong>' + companyName + '</strong><br>EIN: ' + ein + '</p>' +
+      '<h2>Settled income</h2>' +
       '<table><thead><tr><th>Invoice ID</th><th>Date</th><th>Client</th><th>USD</th><th>XRP</th><th>Status</th></tr></thead>' +
       '<tbody>' + bodyRows + '</tbody></table>' +
+      '<h2>Expenses</h2>' +
+      '<table><thead><tr><th>Category</th><th>Date</th><th>Description</th><th>USD</th></tr></thead>' +
+      '<tbody>' +
+      (expHtml || '<tr><td colspan="4">No expenses</td></tr>') +
+      '</tbody></table>' +
       '<script>window.onload=function(){setTimeout(function(){window.print()},300)}</script>' +
       '</body></html>';
     win.document.write(html);
@@ -339,9 +464,12 @@ export default function ReportsPage() {
     invoices.forEach(inv => {
       if (inv.created_at) years.add(new Date(inv.created_at).getFullYear());
     });
+    expenses.forEach((e) => {
+      if (e.date) years.add(new Date(e.date + 'T12:00:00').getFullYear());
+    });
     years.add(new Date().getFullYear());
     return Array.from(years).sort((a, b) => b - a);
-  }, [invoices]);
+  }, [invoices, expenses]);
 
   if (!isConnected) {
     return (
@@ -367,9 +495,9 @@ export default function ReportsPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Reports</h1>
-              <p className="text-[var(--text-secondary)] mt-1">Tax-ready reports — US · Europe · Japan</p>
+              <p className="text-[var(--text-secondary)] mt-1">Tax-ready — settled income + expenses</p>
               <p className="text-xs text-[var(--text-muted)] mt-1">
-                Export only includes <strong className="text-[var(--text-secondary)]">settled</strong> invoices (platform fee paid). No monthly fee.
+                Invoice CSV requires <strong className="text-[var(--text-secondary)]">settled</strong>. Expenses always export.
               </p>
             </div>
 
@@ -399,7 +527,7 @@ export default function ReportsPage() {
                 className="flex items-center gap-2 px-4 py-2.5 border border-[var(--border-color)] hover:bg-[var(--bg-secondary)] rounded-full text-sm transition"
               >
                 <Printer className="w-4 h-4" />
-                Print Report
+                Print
               </button>
 
               <button
@@ -407,7 +535,23 @@ export default function ReportsPage() {
                 className="flex items-center gap-2 px-5 py-2.5 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white rounded-full text-sm font-medium transition"
               >
                 <Download className="w-4 h-4" />
-                Export CSV
+                Invoice CSV
+              </button>
+
+              <button
+                onClick={handleExportExpenses}
+                className="flex items-center gap-2 px-4 py-2.5 border border-[var(--border-color)] hover:bg-[var(--bg-secondary)] rounded-full text-sm transition"
+              >
+                <Receipt className="w-4 h-4" />
+                Expenses CSV
+              </button>
+
+              <button
+                onClick={handleExportCombined}
+                className="flex items-center gap-2 px-4 py-2.5 border border-emerald-600/40 text-emerald-500 hover:bg-emerald-950/20 rounded-full text-sm transition"
+              >
+                <Download className="w-4 h-4" />
+                Income + Expenses
               </button>
             </div>
           </div>
@@ -416,10 +560,10 @@ export default function ReportsPage() {
             <div className="text-center py-16 text-[var(--text-secondary)]">Loading report data...</div>
           ) : (
             <>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
                 <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-5">
                   <div className="flex items-center gap-2 text-[var(--text-secondary)] text-sm mb-2">
-                    <DollarSign className="w-4 h-4" /> Total Income (USD)
+                    <DollarSign className="w-4 h-4" /> Total Income
                   </div>
                   <p className="text-2xl font-bold">
                     ${stats.totalIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -445,6 +589,15 @@ export default function ReportsPage() {
                   <p className="text-2xl font-bold text-emerald-500">
                     ${stats.paidIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
+                </div>
+                <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-5">
+                  <div className="flex items-center gap-2 text-[var(--text-secondary)] text-sm mb-2">
+                    <Receipt className="w-4 h-4" /> Expenses
+                  </div>
+                  <p className="text-2xl font-bold text-amber-500">
+                    ${expenseTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                  <p className="text-xs text-[var(--text-muted)] mt-1">{yearExpenses.length} entries</p>
                 </div>
               </div>
 
@@ -477,13 +630,14 @@ export default function ReportsPage() {
               </div>
 
               <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6">
-                <h3 className="font-semibold mb-2">Export gate</h3>
-                <p className="text-sm text-[var(--text-secondary)] mb-4">
-                  Tax CSV and print include only invoices with status <strong className="text-[var(--text-primary)]">settled</strong>
-                  (client paid + platform fee 0.15% paid). No monthly subscription.
-                </p>
-                <p className="text-xs text-[var(--text-muted)]">
-                  Not tax advice. Confirm with your accountant before filing.
+                <h3 className="font-semibold mb-2">Exports</h3>
+                <ul className="text-sm text-[var(--text-secondary)] space-y-2 list-disc pl-5">
+                  <li><strong className="text-[var(--text-primary)]">Invoice CSV</strong> — settled invoices only (fee paid).</li>
+                  <li><strong className="text-[var(--text-primary)]">Expenses CSV</strong> — mileage, food, entertainment, other for the year.</li>
+                  <li><strong className="text-[var(--text-primary)]">Income + Expenses</strong> — one combined bookkeeping file for your accountant.</li>
+                </ul>
+                <p className="text-xs text-[var(--text-muted)] mt-4">
+                  Not tax advice. Confirm deductible categories and rates with your accountant.
                 </p>
               </div>
             </>
