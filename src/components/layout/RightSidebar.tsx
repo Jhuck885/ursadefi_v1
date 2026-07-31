@@ -56,7 +56,7 @@ const PriceCard = ({ coinId, label }: { coinId: string; label: string }) => {
     <div className="mb-4 p-4 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)]">
       <div className="text-sm text-[var(--text-secondary)] mb-1">{label} Price (Live)</div>
       <div className="text-2xl font-bold text-[var(--text-primary)]">
-        ${price?.toFixed(2) || '—.--'}
+        ${price?.toFixed(coinId === 'bitcoin' ? 0 : 4) || '—.--'}
         {change !== null && (
           <span className={`ml-2 text-lg ${color}`}>
             {arrow} {Math.abs(change).toFixed(2)}%
@@ -70,6 +70,108 @@ const PriceCard = ({ coinId, label }: { coinId: string; label: string }) => {
 
 const XRPPriceCard = () => <PriceCard coinId="ripple" label="XRP Price" />;
 const BTCPriceCard = () => <PriceCard coinId="bitcoin" label="BTC Price" />;
+
+type Region = 'us' | 'europe' | 'japan';
+
+/** Indicative convert: bill USD → settlement assets + regional fiat display */
+const ConvertCard = () => {
+  const [usd, setUsd] = useState('100');
+  const [region, setRegion] = useState<Region>('us');
+  const [xrpUsd, setXrpUsd] = useState<number | null>(null);
+  const [btcUsd, setBtcUsd] = useState<number | null>(null);
+  const [eurUsd, setEurUsd] = useState<number | null>(null);
+  const [jpyUsd, setJpyUsd] = useState<number | null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch(
+          'https://api.coingecko.com/api/v3/simple/price?ids=ripple,bitcoin,tether&vs_currencies=usd,eur,jpy'
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        setXrpUsd(data.ripple?.usd ?? null);
+        setBtcUsd(data.bitcoin?.usd ?? null);
+        // EUR/JPY via inverse of USD per unit from tether or use xrp eur fields
+        // CoinGecko returns eur as "price of asset in EUR" → USD/EUR ≈ asset_usd / asset_eur
+        if (data.ripple?.usd && data.ripple?.eur) {
+          setEurUsd(data.ripple.usd / data.ripple.eur);
+        }
+        if (data.ripple?.usd && data.ripple?.jpy) {
+          setJpyUsd(data.ripple.usd / data.ripple.jpy);
+        }
+      } catch (e) {
+        console.warn('Convert rates failed', e);
+      }
+    };
+    load();
+    const id = setInterval(load, 60000);
+    return () => clearInterval(id);
+  }, []);
+
+  const amount = parseFloat(usd) || 0;
+  const xrpOut = xrpUsd && xrpUsd > 0 ? amount / xrpUsd : null;
+  const btcOut = btcUsd && btcUsd > 0 ? amount / btcUsd : null;
+  const usdcOut = amount; // ~1:1
+  const localFiat =
+    region === 'europe' && eurUsd
+      ? amount / eurUsd
+      : region === 'japan' && jpyUsd
+        ? amount / jpyUsd
+        : amount;
+  const localLabel = region === 'europe' ? 'EUR' : region === 'japan' ? 'JPY' : 'USD';
+
+  return (
+    <div className="mb-4 p-4 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)]">
+      <div className="text-sm text-[var(--text-secondary)] mb-2">Convert (indicative)</div>
+      <div className="flex gap-2 mb-3">
+        <input
+          type="number"
+          min="0"
+          step="0.01"
+          value={usd}
+          onChange={(e) => setUsd(e.target.value)}
+          className="flex-1 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-sm"
+          placeholder="USD"
+        />
+        <select
+          value={region}
+          onChange={(e) => setRegion(e.target.value as Region)}
+          className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-2 py-2 text-xs"
+        >
+          <option value="us">US</option>
+          <option value="europe">EU</option>
+          <option value="japan">JP</option>
+        </select>
+      </div>
+      <div className="space-y-1.5 text-sm">
+        <div className="flex justify-between">
+          <span className="text-[var(--text-muted)]">≈ XRP</span>
+          <span className="font-mono">{xrpOut != null ? xrpOut.toFixed(4) : '—'}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-[var(--text-muted)]">≈ USDC</span>
+          <span className="font-mono">{usdcOut.toFixed(2)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-[var(--text-muted)]">≈ BTC</span>
+          <span className="font-mono">{btcOut != null ? btcOut.toFixed(6) : '—'}</span>
+        </div>
+        <div className="flex justify-between border-t border-[var(--border-color)] pt-1.5 mt-1">
+          <span className="text-[var(--text-muted)]">Region ({localLabel})</span>
+          <span className="font-mono">
+            {region === 'us'
+              ? `$${amount.toFixed(2)}`
+              : localFiat.toLocaleString(undefined, { maximumFractionDigits: region === 'japan' ? 0 : 2 })}
+          </span>
+        </div>
+      </div>
+      <p className="text-[10px] text-[var(--text-muted)] mt-2 leading-relaxed">
+        Live rates · not a guaranteed settle quote · you never custody funds
+      </p>
+    </div>
+  );
+};
 
 const OutstandingCard = () => {
   const [outstanding, setOutstanding] = useState<Invoice[]>([]);
@@ -96,7 +198,6 @@ const OutstandingCard = () => {
     const localIds = new Set(local.map((i) => i.id));
     let merged = [...local];
 
-    // Real wallets only — demo never hits Supabase
     if (isConnected && wallet?.address && !demo) {
       try {
         const { data, error } = await supabaseBrowser
@@ -139,7 +240,7 @@ const OutstandingCard = () => {
     const unpaid = merged
       .filter((inv) => {
         const s = (inv.status || 'draft').toLowerCase();
-        return s !== 'paid' && s !== 'burned';
+        return s !== 'paid' && s !== 'settled' && s !== 'minted' && s !== 'burned' && s !== 'paid_fee_due';
       })
       .sort((a, b) => {
         const da = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
@@ -239,13 +340,12 @@ export default function RightSidebar() {
     <div className="p-6 h-full overflow-y-auto text-[var(--text-primary)]">
       <XRPPriceCard />
       <BTCPriceCard />
+      <ConvertCard />
 
       <h2 className="text-xl font-bold mb-4">Tax Overview</h2>
       <div className="bg-[var(--bg-secondary)] rounded-xl p-4 mb-6 border border-[var(--border-color)]">
-        <p className="text-sm text-[var(--text-secondary)]">Next est. payment</p>
-        <p className="text-2xl font-bold">$6,283</p>
-        <p className="text-sm text-[var(--text-secondary)]">Apr 15, 2026</p>
-        <p className="text-[var(--brand-accent)] text-sm mt-2">Upcoming</p>
+        <p className="text-sm text-[var(--text-secondary)]">Settled unlocks CSV</p>
+        <p className="text-sm text-[var(--text-muted)] mt-1">US · Europe · Japan · 0.15% when paid</p>
       </div>
 
       <h3 className="text-lg font-bold mb-4">Outstanding</h3>
