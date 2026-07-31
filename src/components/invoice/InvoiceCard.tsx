@@ -1,13 +1,15 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { Invoice } from '@/types';
 import BrowserInvoicePDF from './BrowserInvoicePDF';
 import { supabaseBrowser } from '@/lib/supabase';
 import { useToast } from '@/components/ui/Toast';
 import { useWallet } from '@/context/WalletContext';
 import { isDemoWallet } from '@/lib/demo';
-import { MIN_MINT_USD, calcPlatformFee } from '@/lib/constants';
+import { MIN_MINT_USD } from '@/lib/constants';
+import { isSettled, isPaidFeeDue, statusLabel } from '@/lib/invoice-status';
 
 interface Props {
   invoice: Invoice;
@@ -19,12 +21,10 @@ export default function InvoiceCard({ invoice }: Props) {
   const { success, error, warning, info } = useToast();
   const [isMinting, setIsMinting] = useState(false);
   const [isBurning, setIsBurning] = useState(false);
-  const [isActivating, setIsActivating] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [lastMintUuid, setLastMintUuid] = useState<string | null>(null);
   const [mintSigned, setMintSigned] = useState(false);
   const [showBurnConfirm, setShowBurnConfirm] = useState(false);
-  const [showActivateGuide, setShowActivateGuide] = useState(false);
 
   const [localNftId, setLocalNftId] = useState<string | null>(invoice.nftoken_id || null);
   const [localStatus, setLocalStatus] = useState(invoice.status);
@@ -42,22 +42,8 @@ export default function InvoiceCard({ invoice }: Props) {
     };
   }, []);
 
-  const isActivated = Boolean(
-    localStatus === 'activated' ||
-    localStatus === 'paid' ||
-    localStatus === 'minted' ||
-    localNftId ||
-    mintSigned
-  );
-
-  const isPaid = Boolean(
-    localStatus === 'paid' ||
-    localStatus === 'minted' ||
-    localNftId ||
-    mintSigned
-  );
-
-  const feeUsd = calcPlatformFee(Number(invoice.subtotal) || Number(invoice.total) || 0);
+  const settled = isSettled(localStatus) || Boolean(localNftId || mintSigned);
+  const feeDue = isPaidFeeDue(localStatus) && !settled;
 
   const saveNftToInvoice = async (nftokenId: string, txHash: string) => {
     setLocalNftId(nftokenId);
@@ -88,29 +74,6 @@ export default function InvoiceCard({ invoice }: Props) {
       } catch (e) {
         console.warn('Supabase NFT update failed', e);
       }
-    }
-
-    window.dispatchEvent(new Event('invoices-updated'));
-  };
-
-  const markActivated = async () => {
-    setLocalStatus('activated');
-
-    try {
-      const existing: any[] = JSON.parse(localStorage.getItem('invoices') || '[]');
-      const next = existing.map((i) =>
-        i.id === invoice.id ? { ...i, status: 'activated', fee_paid: true } : i
-      );
-      localStorage.setItem('invoices', JSON.stringify(next));
-    } catch {}
-
-    if (!demo) {
-      try {
-        await supabaseBrowser
-          .from('invoices')
-          .update({ status: 'activated' })
-          .eq('id', invoice.id);
-      } catch {}
     }
 
     window.dispatchEvent(new Event('invoices-updated'));
@@ -192,55 +155,6 @@ export default function InvoiceCard({ invoice }: Props) {
     pollRef.current = setTimeout(poll, 2500);
   };
 
-  const handleActivateClick = () => {
-    if (isActivated) return;
-    setShowActivateGuide(true);
-  };
-
-  const handleActivate = async () => {
-    if (isActivated) return;
-
-    setShowActivateGuide(false);
-    setIsActivating(true);
-
-    // Demo: local activate only — no fee payment / no cloud
-    if (demo) {
-      setStatusMsg('Activating demo invoice...');
-      await markActivated();
-      setStatusMsg(null);
-      setIsActivating(false);
-      return;
-    }
-
-    setStatusMsg('Creating platform fee payment...');
-
-    try {
-      const res = await fetch('/api/xaman/pay-fee', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ invoice }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to create fee payment');
-      if (!data.next) throw new Error('No Xaman link returned');
-
-      setStatusMsg(`Approve $${data.feeUsd?.toFixed(2) || feeUsd.toFixed(2)} platform fee in Xaman...`);
-      info(`Approve platform fee of $${data.feeUsd?.toFixed(2) || feeUsd.toFixed(2)} in Xaman`);
-      window.open(data.next, '_blank');
-
-      await markActivated();
-      success(`Invoice activated. Next: mark Paid when your client pays, then you can mint the NFT.`);
-      setStatusMsg(null);
-      setIsActivating(false);
-    } catch (e: any) {
-      console.error(e);
-      setStatusMsg(null);
-      setIsActivating(false);
-      error(e.message || 'Activation failed');
-    }
-  };
-
   const handleMint = async () => {
     const total = Number(invoice.total) || 0;
     if (total < MIN_MINT_USD) {
@@ -248,13 +162,8 @@ export default function InvoiceCard({ invoice }: Props) {
       return;
     }
 
-    if (!isActivated) {
-      warning('Activate the invoice first (pay the platform fee).');
-      return;
-    }
-
-    if (!isPaid) {
-      info('Mark this invoice as Paid first — then you can mint it as an XRPL NFT.');
+    if (!settled) {
+      warning('Pay the platform fee after the client pays — mint unlocks when settled. Open Invoices.');
       return;
     }
 
@@ -364,9 +273,7 @@ export default function InvoiceCard({ invoice }: Props) {
   const handleShareToX = () => {
     const amount = invoice.total;
     const client = invoice.to || (invoice as any).clientName || 'client';
-    const bithomp = localNftId
-      ? `https://bithomp.com/nft/${localNftId}`
-      : '';
+    const bithomp = localNftId ? `https://bithomp.com/nft/${localNftId}` : '';
 
     let text = `Just sent a $${amount} invoice to ${client} with @UrsaDeFi ⚡\n\nNon-custodial XRPL invoicing via @XamanWallet · settle in $XRP\n\n#XRPL #XRP #invoicing\n\nTry it: ursadefi.com`;
 
@@ -385,63 +292,27 @@ export default function InvoiceCard({ invoice }: Props) {
   const getStatusBadge = () => {
     if (localNftId || mintSigned) return <div className="badge badge-minted">Minted</div>;
     if (localStatus === 'burned') return <div className="badge badge-draft">Burned</div>;
-    if (localStatus === 'paid') return <div className="badge badge-paid">Paid</div>;
-    if (isActivated) return <div className="badge badge-paid">Activated</div>;
-    return <div className="badge badge-draft">Draft</div>;
+    if (settled) return <div className="badge badge-paid">Settled</div>;
+    if (feeDue) return <div className="badge badge-draft">Fee due</div>;
+    return <div className="badge badge-draft">{statusLabel(localStatus)}</div>;
   };
 
   const canMint = Number(invoice.total) >= MIN_MINT_USD;
-  const showMintButton =
-    isActivated && isPaid && !localNftId && !mintSigned && localStatus !== 'burned';
-  const showMintLocked =
-    isActivated && !isPaid && !localNftId && !mintSigned && localStatus !== 'burned';
+  const showMintButton = settled && !localNftId && !mintSigned && localStatus !== 'burned';
+  const showMintLocked = !settled && !localNftId && !mintSigned && localStatus !== 'burned';
 
   return (
     <div
       className="border border-[var(--card-border)] rounded-3xl p-5 bg-[var(--card-bg)] hover:border-[var(--brand-primary)]/40 transition-all group relative"
       data-card
     >
-      {showActivateGuide && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
-          <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6 max-w-sm w-full shadow-xl">
-            <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Activate this invoice?</h3>
-            <p className="text-sm text-[var(--text-secondary)] mb-4 leading-relaxed">
-              {demo
-                ? 'Demo activation is local only — no fee, no cloud.'
-                : `Activating charges the small platform fee ($${feeUsd.toFixed(2)}) and unlocks the invoice for real use.`}
-            </p>
-            {!demo && (
-              <ol className="text-sm text-[var(--text-secondary)] mb-6 space-y-2 list-decimal pl-5">
-                <li><strong className="text-[var(--text-primary)]">Activate</strong> — pay the platform fee in Xaman</li>
-                <li><strong className="text-[var(--text-primary)]">Mark Paid</strong> — when your client pays you</li>
-                <li><strong className="text-[var(--text-primary)]">Mint NFT</strong> — optional permanent on-chain record</li>
-              </ol>
-            )}
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowActivateGuide(false)}
-                className="flex-1 py-2.5 rounded-full border border-[var(--border-color)] text-sm hover:bg-[var(--bg-primary)] transition"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleActivate}
-                disabled={isActivating}
-                className="flex-1 py-2.5 rounded-full bg-[var(--brand-primary)] hover:opacity-90 text-white text-sm font-medium transition disabled:opacity-50"
-              >
-                {isActivating ? 'Activating...' : demo ? 'Activate demo' : `Activate · $${feeUsd.toFixed(2)}`}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {showBurnConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
           <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6 max-w-sm w-full shadow-xl">
             <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Burn this NFT?</h3>
             <p className="text-sm text-[var(--text-secondary)] mb-6 leading-relaxed">
-              This will permanently destroy the on-chain NFT for this invoice. This action <strong className="text-[var(--text-primary)]">cannot be undone</strong>.
+              This will permanently destroy the on-chain NFT for this invoice. This action{' '}
+              <strong className="text-[var(--text-primary)]">cannot be undone</strong>.
             </p>
             <div className="flex gap-3">
               <button
@@ -508,14 +379,13 @@ export default function InvoiceCard({ invoice }: Props) {
           <BrowserInvoicePDF invoice={invoice} compact />
         </div>
 
-        {!isActivated && (
-          <button
-            onClick={handleActivateClick}
-            disabled={isActivating}
-            className="btn-secondary text-xs px-3.5 py-1.5 bg-[var(--brand-primary)]/10 hover:bg-[var(--brand-primary)]/20 text-[var(--brand-primary)] border-[var(--brand-primary)]/30 disabled:opacity-50"
+        {feeDue && (
+          <Link
+            href="/invoices"
+            className="btn-secondary text-xs px-3.5 py-1.5 bg-amber-600/15 text-amber-500 border-amber-500/30"
           >
-            {isActivating ? 'Activating...' : demo ? 'Activate' : `Activate ($${feeUsd.toFixed(2)})`}
-          </button>
+            Pay fee to unlock
+          </Link>
         )}
 
         {showMintButton ? (
@@ -539,10 +409,16 @@ export default function InvoiceCard({ invoice }: Props) {
           </>
         ) : showMintLocked ? (
           <button
-            onClick={() => info('Mark this invoice as Paid first — then you can mint it as an XRPL NFT.')}
+            onClick={() =>
+              info(
+                feeDue
+                  ? 'Pay the platform fee on Invoices to settle — then mint unlocks.'
+                  : 'Mark Paid on Invoices, pay the 0.15% fee, then mint.'
+              )
+            }
             className="btn-secondary text-xs px-3.5 py-1.5 opacity-70"
           >
-            Mint (mark Paid first)
+            Mint (settle first)
           </button>
         ) : localNftId || mintSigned ? (
           <button
