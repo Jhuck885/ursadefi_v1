@@ -20,6 +20,10 @@ type ExpenseRow = {
   category: string;
   description: string;
   amount: number;
+  distance?: number;
+  distanceUnit?: string;
+  ratePerUnit?: number;
+  region?: string;
   miles?: number;
   ratePerMile?: number;
   created_at?: string;
@@ -53,6 +57,32 @@ function loadExpenses(): ExpenseRow[] {
   } catch {
     return [];
   }
+}
+
+function expenseDistance(e: ExpenseRow): string {
+  if (e.distance != null) return String(e.distance);
+  if (e.miles != null) return String(e.miles);
+  return '';
+}
+
+function expenseUnit(e: ExpenseRow): string {
+  if (e.distanceUnit) return e.distanceUnit;
+  if (e.miles != null) return 'mi';
+  return '';
+}
+
+function expenseRate(e: ExpenseRow): string {
+  if (e.ratePerUnit != null) return money(e.ratePerUnit);
+  if (e.ratePerMile != null) return money(e.ratePerMile);
+  return '';
+}
+
+function expenseRegion(e: ExpenseRow): string {
+  if (!e.region) return '';
+  if (e.region === 'us') return 'US';
+  if (e.region === 'europe') return 'Europe';
+  if (e.region === 'japan') return 'Japan';
+  return e.region;
 }
 
 function downloadCsv(filename: string, headers: string[], rows: string[]) {
@@ -103,11 +133,12 @@ const JP_LEDGER_HEADERS = [
 
 const COMBINED_HEADERS = [
   'Type', 'ID', 'Date', 'Tax Year', 'Category', 'Party / Description', 'Currency',
-  'Amount USD', 'Miles', 'Rate Per Mile', 'Status / Notes',
+  'Amount', 'Distance', 'Distance Unit', 'Rate Per Unit', 'Region', 'Status / Notes',
 ];
 
 const EXPENSE_HEADERS = [
-  'Expense ID', 'Date', 'Tax Year', 'Category', 'Description', 'Amount USD', 'Miles', 'Rate Per Mile',
+  'Expense ID', 'Date', 'Tax Year', 'Category', 'Description', 'Amount',
+  'Distance', 'Distance Unit', 'Rate Per Unit', 'Region',
 ];
 
 export default function ReportsPage() {
@@ -337,10 +368,9 @@ export default function ReportsPage() {
     return exportUsIris();
   };
 
-  /** Expenses only — always available (bookkeeping helper) */
   const handleExportExpenses = () => {
     if (yearExpenses.length === 0) {
-      alert('No expenses for this year. Add mileage, food, or entertainment under Expenses.');
+      alert('No expenses for this year. Add travel, food, or entertainment under Expenses.');
       return;
     }
     const rows = yearExpenses.map((e) =>
@@ -351,14 +381,15 @@ export default function ReportsPage() {
         e.category || '',
         e.description || '',
         money(e.amount),
-        e.miles != null ? String(e.miles) : '',
-        e.ratePerMile != null ? money(e.ratePerMile) : '',
+        expenseDistance(e),
+        expenseUnit(e),
+        expenseRate(e),
+        expenseRegion(e),
       ].map(csvCell).join(',')
     );
     downloadCsv(`Expenses-${year}.csv`, EXPENSE_HEADERS, rows);
   };
 
-  /** Settled income + all expenses for the year in one bookkeeping file */
   const handleExportCombined = () => {
     const invRows = settledYearInvoices.map((inv) => {
       const d = inv.created_at ? new Date(inv.created_at).toISOString().slice(0, 10) : '';
@@ -373,6 +404,8 @@ export default function ReportsPage() {
         money(inv.total),
         '',
         '',
+        '',
+        '',
         inv.status || 'settled',
       ].map(csvCell).join(',');
     });
@@ -384,10 +417,12 @@ export default function ReportsPage() {
         String(year),
         e.category || '',
         e.description || '',
-        'USD',
+        '',
         money(e.amount),
-        e.miles != null ? String(e.miles) : '',
-        e.ratePerMile != null ? money(e.ratePerMile) : '',
+        expenseDistance(e),
+        expenseUnit(e),
+        expenseRate(e),
+        expenseRegion(e),
         '',
       ].map(csvCell).join(',')
     );
@@ -433,7 +468,9 @@ export default function ReportsPage() {
         (e.date || '') +
         '</td><td>' +
         (e.description || '') +
-        '</td><td style="text-align:right">$' +
+        '</td><td>' +
+        expenseRegion(e) +
+        '</td><td style="text-align:right">' +
         Number(e.amount || 0).toFixed(2) +
         '</td></tr>'
       )
@@ -448,10 +485,10 @@ export default function ReportsPage() {
       '<h2>Settled income</h2>' +
       '<table><thead><tr><th>Invoice ID</th><th>Date</th><th>Client</th><th>USD</th><th>XRP</th><th>Status</th></tr></thead>' +
       '<tbody>' + bodyRows + '</tbody></table>' +
-      '<h2>Expenses</h2>' +
-      '<table><thead><tr><th>Category</th><th>Date</th><th>Description</th><th>USD</th></tr></thead>' +
+      '<h2>Expenses (US · Europe · Japan)</h2>' +
+      '<table><thead><tr><th>Category</th><th>Date</th><th>Description</th><th>Region</th><th>Amount</th></tr></thead>' +
       '<tbody>' +
-      (expHtml || '<tr><td colspan="4">No expenses</td></tr>') +
+      (expHtml || '<tr><td colspan="5">No expenses</td></tr>') +
       '</tbody></table>' +
       '<script>window.onload=function(){setTimeout(function(){window.print()},300)}</script>' +
       '</body></html>';
@@ -495,7 +532,7 @@ export default function ReportsPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Reports</h1>
-              <p className="text-[var(--text-secondary)] mt-1">Tax-ready — settled income + expenses</p>
+              <p className="text-[var(--text-secondary)] mt-1">Tax-ready — settled income + expenses (US · Europe · Japan)</p>
               <p className="text-xs text-[var(--text-muted)] mt-1">
                 Invoice CSV requires <strong className="text-[var(--text-secondary)]">settled</strong>. Expenses always export.
               </p>
@@ -633,11 +670,11 @@ export default function ReportsPage() {
                 <h3 className="font-semibold mb-2">Exports</h3>
                 <ul className="text-sm text-[var(--text-secondary)] space-y-2 list-disc pl-5">
                   <li><strong className="text-[var(--text-primary)]">Invoice CSV</strong> — settled invoices only (fee paid).</li>
-                  <li><strong className="text-[var(--text-primary)]">Expenses CSV</strong> — mileage, food, entertainment, other for the year.</li>
-                  <li><strong className="text-[var(--text-primary)]">Income + Expenses</strong> — one combined bookkeeping file for your accountant.</li>
+                  <li><strong className="text-[var(--text-primary)]">Expenses CSV</strong> — travel (US mi / EU·JP km), food, entertainment; region column included.</li>
+                  <li><strong className="text-[var(--text-primary)]">Income + Expenses</strong> — combined bookkeeping file.</li>
                 </ul>
                 <p className="text-xs text-[var(--text-muted)] mt-4">
-                  Not tax advice. Confirm deductible categories and rates with your accountant.
+                  Not tax advice. Confirm deductible categories and current mileage/km rates for US, Europe, and Japan with your accountant.
                 </p>
               </div>
             </>
