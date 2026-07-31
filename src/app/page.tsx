@@ -19,7 +19,9 @@ export default function Landing() {
         <p className="text-[var(--text-secondary)] text-base sm:text-lg mb-8 leading-relaxed">
           Non-custodial XRPL invoicing.
           <br />
-          Tax-ready US · Europe · Japan. Settle in XRP. Keep your keys.
+          Free drafts. 0.15% when paid. No monthly fee.
+          <br />
+          <span className="text-sm text-[var(--text-muted)]">Tax CSV US · Europe · Japan · Settle in XRP · Keep your keys</span>
         </p>
 
         <XRPLConnect />
