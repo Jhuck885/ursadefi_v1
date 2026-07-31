@@ -68,6 +68,67 @@ const PriceCard = ({ coinId, label }: { coinId: string; label: string }) => {
   );
 };
 
+/** MicroStrategy / Strategy (NASDAQ: MSTR) — BTC proxy equity */
+const MSTRPriceCard = () => {
+  const [price, setPrice] = useState<number | null>(null);
+  const [change, setChange] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPrice = async () => {
+      try {
+        const res = await fetch('/api/quotes/mstr');
+        if (res.ok) {
+          const data = await res.json();
+          setPrice(typeof data.price === 'number' ? data.price : null);
+          setChange(typeof data.changePct === 'number' ? data.changePct : null);
+        } else {
+          setPrice(null);
+          setChange(null);
+        }
+      } catch (err) {
+        console.error('MSTR price fetch failed', err);
+        setPrice(null);
+        setChange(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPrice();
+    const interval = setInterval(fetchPrice, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="mb-4 p-4 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)]">
+        <div className="text-sm text-[var(--text-secondary)]">MicroStrategy (MSTR)</div>
+        <div className="text-[var(--text-secondary)] text-sm">Loading...</div>
+      </div>
+    );
+  }
+
+  const isUp = change !== null && change > 0;
+  const arrow = isUp ? '↑' : '↓';
+  const color = isUp ? 'text-green-500' : change !== null ? 'text-red-500' : 'text-[var(--text-muted)]';
+
+  return (
+    <div className="mb-4 p-4 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)]">
+      <div className="text-sm text-[var(--text-secondary)] mb-1">MicroStrategy (MSTR)</div>
+      <div className="text-2xl font-bold text-[var(--text-primary)]">
+        ${price != null ? price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—.--'}
+        {change !== null && (
+          <span className={`ml-2 text-lg ${color}`}>
+            {arrow} {Math.abs(change).toFixed(2)}%
+          </span>
+        )}
+      </div>
+      <div className="text-xs text-[var(--text-secondary)] mt-1">NASDAQ · Strategy / BTC treasury</div>
+    </div>
+  );
+};
+
 const XRPPriceCard = () => <PriceCard coinId="ripple" label="XRP Price" />;
 const BTCPriceCard = () => <PriceCard coinId="bitcoin" label="BTC Price" />;
 
@@ -92,8 +153,6 @@ const ConvertCard = () => {
         const data = await res.json();
         setXrpUsd(data.ripple?.usd ?? null);
         setBtcUsd(data.bitcoin?.usd ?? null);
-        // EUR/JPY via inverse of USD per unit from tether or use xrp eur fields
-        // CoinGecko returns eur as "price of asset in EUR" → USD/EUR ≈ asset_usd / asset_eur
         if (data.ripple?.usd && data.ripple?.eur) {
           setEurUsd(data.ripple.usd / data.ripple.eur);
         }
@@ -112,7 +171,7 @@ const ConvertCard = () => {
   const amount = parseFloat(usd) || 0;
   const xrpOut = xrpUsd && xrpUsd > 0 ? amount / xrpUsd : null;
   const btcOut = btcUsd && btcUsd > 0 ? amount / btcUsd : null;
-  const usdcOut = amount; // ~1:1
+  const usdcOut = amount;
   const localFiat =
     region === 'europe' && eurUsd
       ? amount / eurUsd
@@ -340,6 +399,7 @@ export default function RightSidebar() {
     <div className="p-6 h-full overflow-y-auto text-[var(--text-primary)]">
       <XRPPriceCard />
       <BTCPriceCard />
+      <MSTRPriceCard />
       <ConvertCard />
 
       <h2 className="text-xl font-bold mb-4">Tax Overview</h2>
