@@ -6,10 +6,10 @@ import Link from 'next/link';
 import LeftSidebar from '@/components/layout/LeftSidebar';
 import { Plus, Trash2, Receipt } from 'lucide-react';
 import { isDemoWallet } from '@/lib/demo';
+import { getOfficialPreset, type MileageRegion, type DistanceUnit } from '@/lib/mileage-rates';
 
 export type ExpenseCategory = 'mileage' | 'food' | 'entertainment' | 'other';
-export type DistanceUnit = 'mi' | 'km';
-export type ExpenseRegion = 'us' | 'europe' | 'japan';
+export type ExpenseRegion = MileageRegion;
 
 export interface Expense {
   id: string;
@@ -17,15 +17,11 @@ export interface Expense {
   category: ExpenseCategory;
   description: string;
   amount: number;
-  /** Distance driven — mileage only */
   distance?: number;
-  /** mi or km */
   distanceUnit?: DistanceUnit;
-  /** Rate per unit in local reporting currency (user-entered) */
   ratePerUnit?: number;
-  /** Tax region this expense is tracked for */
   region?: ExpenseRegion;
-  /** Legacy field kept for older rows */
+  rateSource?: string;
   miles?: number;
   ratePerMile?: number;
   created_at: string;
@@ -38,30 +34,6 @@ const CATEGORIES: { value: ExpenseCategory; label: string }[] = [
   { value: 'food', label: 'Food / meals' },
   { value: 'entertainment', label: 'Entertainment' },
   { value: 'other', label: 'Other' },
-];
-
-const REGIONS: { value: ExpenseRegion; label: string; unit: DistanceUnit; rateHint: string; defaultRate: string }[] = [
-  {
-    value: 'us',
-    label: 'United States',
-    unit: 'mi',
-    rateHint: 'IRS standard mileage rate (business) — confirm current year rate with your accountant',
-    defaultRate: '0.70',
-  },
-  {
-    value: 'europe',
-    label: 'Europe',
-    unit: 'km',
-    rateHint: 'National scale (e.g. FR bareme km, DE kilometerpauschale) — set your country’s rate',
-    defaultRate: '0.30',
-  },
-  {
-    value: 'japan',
-    label: 'Japan',
-    unit: 'km',
-    rateHint: 'Business travel / commute rules vary — use actual costs or company rate; confirm with accountant',
-    defaultRate: '0.20',
-  },
 ];
 
 function loadExpenses(): Expense[] {
@@ -82,7 +54,7 @@ function distanceLabel(e: Expense): string {
   if (d == null) return '';
   const unit = e.distanceUnit || (e.miles != null ? 'mi' : 'km');
   const rate = e.ratePerUnit ?? e.ratePerMile;
-  if (rate != null) return `${d} ${unit} × ${rate.toFixed(2)}/${unit}`;
+  if (rate != null && rate > 0) return `${d} ${unit} × ${rate.toFixed(3)}/${unit}`;
   return `${d} ${unit}`;
 }
 
@@ -97,9 +69,9 @@ export default function ExpensesPage() {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [distance, setDistance] = useState('');
-  const [ratePerUnit, setRatePerUnit] = useState('0.70');
+  const [ratePerUnit, setRatePerUnit] = useState('0.76');
 
-  const regionMeta = REGIONS.find((r) => r.value === region) || REGIONS[0];
+  const preset = useMemo(() => getOfficialPreset(region, date), [region, date]);
 
   useEffect(() => {
     setExpenses(loadExpenses());
@@ -108,10 +80,16 @@ export default function ExpensesPage() {
     return () => window.removeEventListener('expenses-updated', h);
   }, []);
 
+  // Apply official rate when region or date changes (US date-split)
   useEffect(() => {
-    const meta = REGIONS.find((r) => r.value === region);
-    if (meta) setRatePerUnit(meta.defaultRate);
-  }, [region]);
+    if (category !== 'mileage') return;
+    const p = getOfficialPreset(region, date);
+    if (region === 'japan') {
+      setRatePerUnit('');
+    } else {
+      setRatePerUnit(String(p.defaultRate));
+    }
+  }, [region, date, category]);
 
   const totals = useMemo(() => {
     const byCat: Record<string, number> = {
@@ -130,6 +108,7 @@ export default function ExpensesPage() {
   }, [expenses]);
 
   const computedTravelAmount = () => {
+    if (region === 'japan') return parseFloat(amount) || 0;
     const d = parseFloat(distance) || 0;
     const r = parseFloat(ratePerUnit) || 0;
     return parseFloat((d * r).toFixed(2));
@@ -143,11 +122,17 @@ export default function ExpensesPage() {
     let unit: DistanceUnit | undefined;
 
     if (category === 'mileage') {
+      unit = preset.unit;
       distNum = parseFloat(distance) || 0;
-      rate = parseFloat(ratePerUnit) || 0;
-      unit = regionMeta.unit;
-      if (distNum > 0 && rate > 0) amt = parseFloat((distNum * rate).toFixed(2));
-      if (!distNum || distNum <= 0) return;
+      if (region === 'japan') {
+        // Actual cost — amount entered directly
+        if (amt <= 0) return;
+        rate = distNum > 0 ? parseFloat((amt / distNum).toFixed(4)) : undefined;
+      } else {
+        rate = parseFloat(ratePerUnit) || 0;
+        if (distNum > 0 && rate > 0) amt = parseFloat((distNum * rate).toFixed(2));
+        if (!distNum || distNum <= 0 || rate <= 0) return;
+      }
     } else if (amt <= 0) {
       return;
     }
@@ -165,7 +150,7 @@ export default function ExpensesPage() {
       distanceUnit: unit,
       ratePerUnit: rate,
       region: category === 'mileage' ? region : undefined,
-      // legacy mirrors for older export code
+      rateSource: category === 'mileage' ? preset.source : undefined,
       miles: unit === 'mi' ? distNum : undefined,
       ratePerMile: unit === 'mi' ? rate : undefined,
       created_at: new Date().toISOString(),
@@ -212,7 +197,7 @@ export default function ExpensesPage() {
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Expenses</h1>
               <p className="text-[var(--text-secondary)] mt-1">
-                Travel · Food · Entertainment — US · Europe · Japan · tax CSV on Reports
+                Travel · Food · Entertainment — official rates where published (US · Europe · Japan)
                 {demo ? ' · Demo (this device)' : ''}
               </p>
             </div>
@@ -233,7 +218,7 @@ export default function ExpensesPage() {
               >
                 <p className="text-xs text-[var(--text-muted)] mb-1">{c.label}</p>
                 <p className="text-lg font-semibold">
-                  ${(totals.byCat[c.value] || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  {(totals.byCat[c.value] || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </p>
               </div>
             ))}
@@ -241,7 +226,7 @@ export default function ExpensesPage() {
           <p className="text-sm text-[var(--text-secondary)] mb-6">
             Total expenses:{' '}
             <strong className="text-[var(--text-primary)]">
-              ${totals.all.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              {totals.all.toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </strong>
           </p>
 
@@ -286,25 +271,25 @@ export default function ExpensesPage() {
                 {category === 'mileage' ? (
                   <>
                     <div className="md:col-span-2">
-                      <label className="text-xs text-[var(--text-muted)]">Region (tax rules)</label>
+                      <label className="text-xs text-[var(--text-muted)]">Region</label>
                       <select
                         value={region}
                         onChange={(e) => setRegion(e.target.value as ExpenseRegion)}
                         className="w-full mt-1 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-4 py-2.5 text-sm"
                       >
-                        {REGIONS.map((r) => (
-                          <option key={r.value} value={r.value}>
-                            {r.label} ({r.unit})
-                          </option>
-                        ))}
+                        <option value="us">United States (mi) — IRS</option>
+                        <option value="europe">Europe (km) — DE €0.30 · FR barème note</option>
+                        <option value="japan">Japan (km) — actual cost</option>
                       </select>
                       <p className="text-[11px] text-[var(--text-muted)] mt-1.5 leading-relaxed">
-                        {regionMeta.rateHint}
+                        <strong className="text-[var(--text-secondary)]">{preset.rateLabel}</strong>
+                        {' — '}
+                        {preset.detail}
                       </p>
                     </div>
                     <div>
                       <label className="text-xs text-[var(--text-muted)]">
-                        Distance ({regionMeta.unit})
+                        Distance ({preset.unit})
                       </label>
                       <input
                         type="number"
@@ -315,27 +300,52 @@ export default function ExpensesPage() {
                         className="w-full mt-1 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-4 py-2.5 text-sm"
                       />
                     </div>
-                    <div>
-                      <label className="text-xs text-[var(--text-muted)]">
-                        Rate per {regionMeta.unit} (your currency)
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={ratePerUnit}
-                        onChange={(e) => setRatePerUnit(e.target.value)}
-                        className="w-full mt-1 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-4 py-2.5 text-sm"
-                      />
-                    </div>
+                    {region === 'japan' ? (
+                      <div>
+                        <label className="text-xs text-[var(--text-muted)]">
+                          Actual amount (¥ or your books currency)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={amount}
+                          onChange={(e) => setAmount(e.target.value)}
+                          className="w-full mt-1 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-4 py-2.5 text-sm"
+                        />
+                      </div>
+                    ) : (
+                      <div>
+                        <label className="text-xs text-[var(--text-muted)]">
+                          Official rate / {preset.unit}
+                        </label>
+                        <input
+                          type="number"
+                          min="0"	ractable="0.001"
+                          step="0.001"
+                          value={ratePerUnit}
+                          onChange={(e) => setRatePerUnit(e.target.value)}
+                          className="w-full mt-1 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-4 py-2.5 text-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setRatePerUnit(String(preset.defaultRate))}
+                          className="text-[11px] text-[var(--brand-primary)] mt-1 hover:underline"
+                        >
+                          Reset to official {preset.rateLabel}
+                        </button>
+                      </div>
+                    )}
                     <div className="md:col-span-2 text-sm text-[var(--text-secondary)]">
                       Amount:{' '}
                       <strong className="text-[var(--text-primary)]">
                         {computedTravelAmount().toFixed(2)}
-                      </strong>{' '}
-                      <span className="text-xs text-[var(--text-muted)]">
-                        ({distance || 0} {regionMeta.unit} × {ratePerUnit || 0})
-                      </span>
+                      </strong>
+                      {region !== 'japan' && (
+                        <span className="text-xs text-[var(--text-muted)] ml-1">
+                          ({distance || 0} {preset.unit} × {ratePerUnit || 0})
+                        </span>
+                      )}
                     </div>
                   </>
                 ) : (
@@ -397,6 +407,9 @@ export default function ExpensesPage() {
                     {e.category === 'mileage' && (e.distance != null || e.miles != null) && (
                       <p className="text-xs text-[var(--text-muted)] mt-1">{distanceLabel(e)}</p>
                     )}
+                    {e.rateSource && (
+                      <p className="text-[10px] text-[var(--text-muted)] mt-0.5">{e.rateSource}</p>
+                    )}
                   </div>
                   <div className="flex items-center gap-3 flex-shrink-0">
                     <span className="font-semibold">{Number(e.amount).toFixed(2)}</span>
@@ -412,12 +425,23 @@ export default function ExpensesPage() {
             </div>
           )}
 
-          <p className="text-xs text-[var(--text-muted)] mt-8 leading-relaxed">
-            Travel distance supports <strong className="text-[var(--text-secondary)]">US (mi)</strong>,{' '}
-            <strong className="text-[var(--text-secondary)]">Europe (km)</strong>, and{' '}
-            <strong className="text-[var(--text-secondary)]">Japan (km)</strong>. Rates are editable defaults — not official
-            government rates. Confirm deductible rules and current rates with your accountant before filing.
-          </p>
+          <div className="mt-8 text-xs text-[var(--text-muted)] leading-relaxed space-y-2">
+            <p>
+              <strong className="text-[var(--text-secondary)]">US (2026 IRS business):</strong> $0.725/mi
+              (Jan 1–Jun 30); <strong className="text-[var(--text-secondary)]">$0.76/mi</strong> (Jul 1–Dec 31).
+              Rate follows expense date.
+            </p>
+            <p>
+              <strong className="text-[var(--text-secondary)]">Europe:</strong> default{' '}
+              <strong className="text-[var(--text-secondary)]">€0.30/km</strong> (Germany). France uses barème by
+              fiscal HP — override rate as needed.
+            </p>
+            <p>
+              <strong className="text-[var(--text-secondary)]">Japan:</strong> no national ¥/km standard — enter{' '}
+              <strong className="text-[var(--text-secondary)]">actual costs</strong> (fuel, tolls, transit).
+            </p>
+            <p>Not tax advice. Confirm with your accountant before filing.</p>
+          </div>
         </div>
       </div>
     </div>
