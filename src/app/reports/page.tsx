@@ -10,6 +10,7 @@ import {
   Calendar, Printer
 } from 'lucide-react';
 import { supabaseBrowser } from '@/lib/supabase';
+import { isSettled } from '@/lib/invoice-status';
 
 type ExportFormat = 'us-iris-1099nec' | 'europe' | 'japan';
 
@@ -75,22 +76,10 @@ const EU_LEDGER_HEADERS = [
 ];
 
 const JP_LEDGER_HEADERS = [
-  'Invoice Number',
-  'Transaction Date',
-  'Tax Year',
-  'Issuer Name',
-  'Qualified Invoice Registration No.',
-  'Counterparty Name',
-  'Description',
-  'Currency',
-  'Amount excl. tax',
-  'Consumption Tax Rate %',
-  'Consumption Tax Amount',
-  'Amount incl. tax',
-  'Amount XRP',
-  'Payment Status',
-  'Due Date',
-  'Settlement Reference',
+  'Invoice Number', 'Transaction Date', 'Tax Year', 'Issuer Name',
+  'Qualified Invoice Registration No.', 'Counterparty Name', 'Description', 'Currency',
+  'Amount excl. tax', 'Consumption Tax Rate %', 'Consumption Tax Amount', 'Amount incl. tax',
+  'Amount XRP', 'Payment Status', 'Due Date', 'Settlement Reference',
 ];
 
 export default function ReportsPage() {
@@ -156,19 +145,27 @@ export default function ReportsPage() {
     });
   }, [invoices, year]);
 
-  const paidYearInvoices = useMemo(
-    () => yearInvoices.filter(i => i.status === 'paid'),
+  /** Only settled (platform fee paid) unlock tax CSV value */
+  const settledYearInvoices = useMemo(
+    () => yearInvoices.filter(i => isSettled(i.status)),
     [yearInvoices]
   );
 
   const stats = useMemo(() => {
     const totalIncome = yearInvoices.reduce((sum, i) => sum + (Number(i.total) || 0), 0);
     const totalXrp = yearInvoices.reduce((sum, i) => sum + (Number(i.xrpAmount) || 0), 0);
-    const paid = paidYearInvoices;
+    const settled = settledYearInvoices;
     const draft = yearInvoices.filter(i => i.status === 'draft' || !i.status);
-    const paidIncome = paid.reduce((sum, i) => sum + (Number(i.total) || 0), 0);
-    return { totalIncome, totalXrp, count: yearInvoices.length, paidCount: paid.length, draftCount: draft.length, paidIncome };
-  }, [yearInvoices, paidYearInvoices]);
+    const settledIncome = settled.reduce((sum, i) => sum + (Number(i.total) || 0), 0);
+    return {
+      totalIncome,
+      totalXrp,
+      count: yearInvoices.length,
+      paidCount: settled.length,
+      draftCount: draft.length,
+      paidIncome: settledIncome,
+    };
+  }, [yearInvoices, settledYearInvoices]);
 
   const monthlyData = useMemo(() => {
     const months = Array.from({ length: 12 }, (_, i) => ({
@@ -190,7 +187,7 @@ export default function ReportsPage() {
 
   const recipientTotals = useMemo(() => {
     const map = new Map<string, { name: string; total: number; account: string }>();
-    paidYearInvoices.forEach(inv => {
+    settledYearInvoices.forEach(inv => {
       const name = (inv.to || 'Unknown').trim();
       const key = name.toLowerCase();
       const prev = map.get(key) || { name, total: 0, account: inv.id || '' };
@@ -198,11 +195,22 @@ export default function ReportsPage() {
       map.set(key, prev);
     });
     return Array.from(map.values()).filter(r => r.total > 0);
-  }, [paidYearInvoices]);
+  }, [settledYearInvoices]);
+
+  const requireSettledOrAlert = (): boolean => {
+    if (settledYearInvoices.length === 0) {
+      alert(
+        'No settled invoices for this year. Pay the platform fee (0.15%) on paid invoices to unlock tax CSV export. No monthly fee — fee only when paid.'
+      );
+      return false;
+    }
+    return true;
+  };
 
   const exportUsIris = () => {
+    if (!requireSettledOrAlert()) return;
     if (recipientTotals.length === 0) {
-      alert('No paid invoices for this year. Mark invoices as Paid before exporting IRIS 1099-NEC.');
+      alert('No settled invoices for this year.');
       return;
     }
     const profile = loadProfile();
@@ -237,23 +245,20 @@ export default function ReportsPage() {
   };
 
   const exportEurope = () => {
-    if (yearInvoices.length === 0) {
-      alert('No invoices for this year to export.');
-      return;
-    }
+    if (!requireSettledOrAlert()) return;
     const profile = loadProfile();
     const supplierName = profile.companyName || '';
     const supplierTaxId = profile.ein || '';
     const supplierCountry = (profile.country || 'US').slice(0, 2).toUpperCase();
     const supplierAddress = [profile.address, profile.cityStateZip].filter(Boolean).join(', ');
-    const rows = yearInvoices.map((inv) => {
+    const rows = settledYearInvoices.map((inv) => {
       const gross = Number(inv.total) || 0;
       const invDate = inv.created_at ? new Date(inv.created_at).toISOString().slice(0, 10) : '';
       const cells = [
         'INVOICE', inv.id || '', invDate, String(year), supplierName, supplierTaxId,
         supplierCountry, supplierAddress, inv.to || '', '', inv.description || '', 'USD',
         money(gross), money(0), money(0), money(gross),
-        money(Number(inv.xrpAmount) || 0), (inv.status || 'draft').toUpperCase(),
+        money(Number(inv.xrpAmount) || 0), (inv.status || 'settled').toUpperCase(),
         inv.dueDate || '', inv.receiver || '',
       ];
       return cells.map(csvCell).join(',');
@@ -262,36 +267,19 @@ export default function ReportsPage() {
   };
 
   const exportJapan = () => {
-    if (yearInvoices.length === 0) {
-      alert('No invoices for this year to export.');
-      return;
-    }
+    if (!requireSettledOrAlert()) return;
     const profile = loadProfile();
     const issuerName = profile.companyName || '';
     const registrationNo = '';
-    const rows = yearInvoices.map((inv) => {
+    const rows = settledYearInvoices.map((inv) => {
       const gross = Number(inv.total) || 0;
-      const taxRate = 0;
-      const taxAmount = 0;
-      const exclTax = gross;
       const invDate = inv.created_at ? new Date(inv.created_at).toISOString().slice(0, 10) : '';
       const cells = [
-        inv.id || '',
-        invDate,
-        String(year),
-        issuerName,
-        registrationNo,
-        inv.to || '',
-        inv.description || '',
-        'USD',
-        money(exclTax),
-        money(taxRate),
-        money(taxAmount),
-        money(gross),
-        money(Number(inv.xrpAmount) || 0),
-        (inv.status || 'draft').toUpperCase(),
-        inv.dueDate || '',
-        inv.receiver || '',
+        inv.id || '', invDate, String(year), issuerName, registrationNo,
+        inv.to || '', inv.description || '', 'USD',
+        money(gross), money(0), money(0), money(gross),
+        money(Number(inv.xrpAmount) || 0), (inv.status || 'settled').toUpperCase(),
+        inv.dueDate || '', inv.receiver || '',
       ];
       return cells.map(csvCell).join(',');
     });
@@ -305,19 +293,20 @@ export default function ReportsPage() {
   };
 
   const handlePrintReport = () => {
+    if (!requireSettledOrAlert()) return;
     const win = window.open('', '_blank');
     if (!win) return;
     const profile = loadProfile();
     const companyName = profile.companyName || 'Your Company';
     const ein = profile.ein || '-';
-    const rowsHtml = yearInvoices
+    const rowsHtml = settledYearInvoices
       .map((inv) => {
         const id = inv.id || '';
         const date = inv.created_at ? new Date(inv.created_at).toLocaleDateString() : '';
         const to = inv.to || '';
         const usd = Number(inv.total || 0).toFixed(2);
         const xrp = Number(inv.xrpAmount || 0).toFixed(4);
-        const status = inv.status || 'draft';
+        const status = inv.status || 'settled';
         return (
           '<tr>' +
           '<td>' + id + '</td>' +
@@ -330,12 +319,12 @@ export default function ReportsPage() {
         );
       })
       .join('');
-    const bodyRows = rowsHtml || '<tr><td colspan="6">No invoices</td></tr>';
+    const bodyRows = rowsHtml || '<tr><td colspan="6">No settled invoices</td></tr>';
     const html =
       '<!DOCTYPE html><html><head><title>Tax Report ' + year + '</title>' +
       '<style>body{font-family:system-ui;padding:40px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px;border-bottom:1px solid #eee;text-align:left}th{background:#f8f8f8}</style>' +
       '</head><body>' +
-      '<h1>Income & Tax Report - ' + year + '</h1>' +
+      '<h1>Income & Tax Report - ' + year + ' (settled only)</h1>' +
       '<p><strong>' + companyName + '</strong><br>EIN: ' + ein + '</p>' +
       '<table><thead><tr><th>Invoice ID</th><th>Date</th><th>Client</th><th>USD</th><th>XRP</th><th>Status</th></tr></thead>' +
       '<tbody>' + bodyRows + '</tbody></table>' +
@@ -379,6 +368,9 @@ export default function ReportsPage() {
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Reports</h1>
               <p className="text-[var(--text-secondary)] mt-1">Tax-ready reports — US · Europe · Japan</p>
+              <p className="text-xs text-[var(--text-muted)] mt-1">
+                Export only includes <strong className="text-[var(--text-secondary)]">settled</strong> invoices (platform fee paid). No monthly fee.
+              </p>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
@@ -444,11 +436,11 @@ export default function ReportsPage() {
                     <FileText className="w-4 h-4" /> Invoices
                   </div>
                   <p className="text-2xl font-bold">{stats.count}</p>
-                  <p className="text-xs text-[var(--text-muted)] mt-1">{stats.paidCount} paid · {stats.draftCount} draft</p>
+                  <p className="text-xs text-[var(--text-muted)] mt-1">{stats.paidCount} settled · {stats.draftCount} draft</p>
                 </div>
                 <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-5">
                   <div className="flex items-center gap-2 text-[var(--text-secondary)] text-sm mb-2">
-                    <Calendar className="w-4 h-4" /> Paid Income
+                    <Calendar className="w-4 h-4" /> Settled Income
                   </div>
                   <p className="text-2xl font-bold text-emerald-500">
                     ${stats.paidIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -485,74 +477,13 @@ export default function ReportsPage() {
               </div>
 
               <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6">
-                <h3 className="font-semibold mb-2">Export formats & regional rules</h3>
-                <div className="space-y-5 text-sm text-[var(--text-secondary)]">
-                  <div>
-                    <p className="font-medium text-[var(--text-primary)] mb-1">United States — Form 1099-NEC (IRIS)</p>
-                    <ul className="list-disc pl-5 space-y-1">
-                      <li>
-                        <strong className="text-[var(--text-primary)]">Who files:</strong> the <em>payer</em> of nonemployee compensation
-                        (trade or business payments to independent contractors), not the service provider reporting their own income.
-                      </li>
-                      <li>
-                        <strong className="text-[var(--text-primary)]">Threshold:</strong> generally $600 or more for payments in calendar year 2025;
-                        for tax years beginning after 2025 (payments in 2026+), the federal threshold is $2,000 (inflation-adjusted later).
-                        Backup withholding, if required, is still reported even below the threshold.
-                      </li>
-                      <li>
-                        <strong className="text-[var(--text-primary)]">E-file:</strong> if you file 10 or more information returns in total (all form types combined),
-                        you must e-file. Use the IRS Information Returns Intake System (IRIS).
-                      </li>
-                      <li>
-                        This CSV is a helper template: one row per payee, Box 1 = sum of <strong>paid</strong> invoices to that name.
-                        Your profile is treated as the payer. Collect recipient TINs on Form W-9 and complete address/TIN fields before any IRS upload.
-                        It is not a finished filing.
-                      </li>
-                    </ul>
-                  </div>
-                  <div>
-                    <p className="font-medium text-[var(--text-primary)] mb-1">Europe — Invoice / VAT ledger</p>
-                    <ul className="list-disc pl-5 space-y-1">
-                      <li>
-                        There is no single EU tax-return CSV. Member states apply the EU VAT Directive with local rules;
-                        B2B e-invoicing mandates are expanding country by country.
-                      </li>
-                      <li>
-                        Full VAT invoices generally need: unique sequential number, issue date, supplier name/address and VAT ID,
-                        customer name/address (and customer VAT ID when the customer is liable, e.g. reverse charge),
-                        description of supply, taxable amount, VAT rate(s), VAT amount, and total.
-                      </li>
-                      <li>
-                        This export is a line-item bookkeeping ledger (supplier/customer, net/VAT/gross, currency, status, XRPL ref).
-                        VAT rate defaults to 0% — set the correct rate and VAT amount with your accountant. Not a national filing format.
-                      </li>
-                    </ul>
-                  </div>
-                  <div>
-                    <p className="font-medium text-[var(--text-primary)] mb-1">Japan — Qualified invoice ledger (インボイス制度)</p>
-                    <ul className="list-disc pl-5 space-y-1">
-                      <li>
-                        Under the Qualified Invoice System (適格請求書等保存方式, in force since 1 Oct 2023), buyers generally need a
-                        <em>qualified invoice</em> from a registered issuer to claim full consumption-tax input credit.
-                      </li>
-                      <li>
-                        Registration number format: <strong className="text-[var(--text-primary)]">T</strong> + 13 digits
-                        (issued by the National Tax Agency after registration as a 適格請求書発行事業者).
-                      </li>
-                      <li>
-                        Standard consumption tax rate is <strong className="text-[var(--text-primary)]">10%</strong>; reduced rate
-                        <strong className="text-[var(--text-primary)]">8%</strong> applies to certain items (e.g. food). Qualified invoices must break amounts
-                        and tax by rate and show the issuer registration number, transaction date, description, and counterparty as required.
-                      </li>
-                      <li>
-                        This CSV is oriented to that structure (issuer, registration-number field, excl./tax/incl., XRP settlement).
-                        Rate defaults to 0% until you set 10% or 8%. UTF-8 BOM included for Excel. Not a substitute for official e-Tax filings.
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-                <p className="text-xs text-[var(--text-muted)] mt-4">
-                  Not tax advice. Rules change; confirm thresholds, e-file duties, and local invoice mandates with your accountant or tax authority before filing.
+                <h3 className="font-semibold mb-2">Export gate</h3>
+                <p className="text-sm text-[var(--text-secondary)] mb-4">
+                  Tax CSV and print include only invoices with status <strong className="text-[var(--text-primary)]">settled</strong>
+                  (client paid + platform fee 0.15% paid). No monthly subscription.
+                </p>
+                <p className="text-xs text-[var(--text-muted)]">
+                  Not tax advice. Confirm with your accountant before filing.
                 </p>
               </div>
             </>
