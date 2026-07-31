@@ -2,12 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, FileText, Users, BarChart3, Settings, User, LogOut } from 'lucide-react';
+import { Home, FileText, Users, BarChart3, Settings, User, LogOut, Receipt } from 'lucide-react';
 import { useWallet } from '@/context/WalletContext';
 
 const navItems = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
   { name: 'Invoices', href: '/invoices', icon: FileText },
+  { name: 'Expenses', href: '/expenses', icon: Receipt },
   { name: 'Clients', href: '/clients', icon: Users },
   { name: 'Reports', href: '/reports', icon: BarChart3 },
   { name: 'Settings', href: '/settings', icon: Settings },
