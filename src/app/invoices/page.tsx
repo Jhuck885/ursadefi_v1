@@ -8,10 +8,12 @@ import BrowserInvoicePDF from '@/components/invoice/BrowserInvoicePDF';
 import { Invoice } from '@/types';
 import {
   FileText, Search, Plus, Trash2, Home, Users, User,
-  CheckCircle2, Bell, X, CalendarPlus
+  CheckCircle2, Bell, X, CalendarPlus, DollarSign
 } from 'lucide-react';
 import { supabaseBrowser } from '@/lib/supabase';
 import { isDemoWallet } from '@/lib/demo';
+import { calcPlatformFee } from '@/lib/constants';
+import { isPaidFeeDue, isSettled, statusLabel } from '@/lib/invoice-status';
 
 type InvoiceReminder = {
   invoiceId: string;
@@ -56,6 +58,9 @@ export default function InvoicesPage() {
   const [remindDate, setRemindDate] = useState('');
   const [remindNote, setRemindNote] = useState('');
   const [confirmPaid, setConfirmPaid] = useState<Invoice | null>(null);
+  const [feeFor, setFeeFor] = useState<Invoice | null>(null);
+  const [feeBusy, setFeeBusy] = useState(false);
+  const [feeMsg, setFeeMsg] = useState<string | null>(null);
   const demo = isDemoWallet(wallet?.address);
 
   useEffect(() => {
@@ -71,7 +76,6 @@ export default function InvoicesPage() {
       all = [...local];
     } catch {}
 
-    // Never hydrate demo from cloud (shared address may hold personal history)
     if (wallet?.address && !demo) {
       try {
         const { data, error } = await supabaseBrowser
@@ -90,6 +94,8 @@ export default function InvoicesPage() {
               to: row.to_name || row.to || '',
               items: row.items || [{ desc: row.description || '', qty: 1, price: row.total || 0 }],
               total: row.total || 0,
+              subtotal: localCopy.subtotal ?? row.subtotal,
+              platformFee: localCopy.platformFee ?? row.platform_fee,
               xrpAmount: localCopy.xrpAmount ?? row.xrp_amount ?? row.xrpAmount ?? 0,
               receiver: row.receiver || localCopy.receiver || '',
               dueDate: row.due_date || row.dueDate || '',
@@ -183,23 +189,72 @@ export default function InvoicesPage() {
     } catch {}
   };
 
-  const handleMarkPaid = async (invoice: Invoice) => {
-    setConfirmPaid(null);
-    if (invoice.status === 'paid') return;
-    setUpdatingId(invoice.id);
-    updateLocalStatus(invoice.id, 'paid');
-    setInvoices(prev => prev.map(i => (i.id === invoice.id ? { ...i, status: 'paid' } : i)));
-    if (selectedInvoice?.id === invoice.id) setSelectedInvoice({ ...invoice, status: 'paid' });
+  const persistStatus = async (invoice: Invoice, status: string) => {
+    updateLocalStatus(invoice.id, status);
+    setInvoices(prev => prev.map(i => (i.id === invoice.id ? { ...i, status } : i)));
+    if (selectedInvoice?.id === invoice.id) setSelectedInvoice({ ...invoice, status });
     if (!demo) {
       try {
-        await supabaseBrowser.from('invoices').update({ status: 'paid' }).eq('id', invoice.id);
+        await supabaseBrowser.from('invoices').update({ status }).eq('id', invoice.id);
       } catch (err) {
         console.warn('Status cloud update failed (local updated)', err);
       }
     }
-    clearReminder(invoice.id);
     window.dispatchEvent(new Event('invoices-updated'));
+  };
+
+  /** Client paid → fee due (not settled until platform fee is paid) */
+  const handleMarkPaid = async (invoice: Invoice) => {
+    setConfirmPaid(null);
+    if (isSettled(invoice.status)) return;
+    setUpdatingId(invoice.id);
+    await persistStatus(invoice, 'paid_fee_due');
+    clearReminder(invoice.id);
     setUpdatingId(null);
+    setFeeFor({ ...invoice, status: 'paid_fee_due' });
+  };
+
+  const handlePayPlatformFee = async (invoice: Invoice) => {
+    const feeUsd = calcPlatformFee(Number(invoice.subtotal) || Number(invoice.total) || 0);
+
+    if (demo) {
+      setFeeBusy(true);
+      setFeeMsg('Demo: settling without on-chain fee…');
+      await persistStatus(invoice, 'settled');
+      setFeeMsg(null);
+      setFeeFor(null);
+      setFeeBusy(false);
+      return;
+    }
+
+    setFeeBusy(true);
+    setFeeMsg('Creating platform fee payment…');
+    try {
+      const res = await fetch('/api/xaman/pay-fee', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invoice }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to create fee payment');
+      if (!data.next) throw new Error('No Xaman link returned');
+
+      setFeeMsg(`Approve $${data.feeUsd?.toFixed(2) || feeUsd.toFixed(2)} platform fee in Xaman…`);
+      window.open(data.next, '_blank');
+    } catch (e: any) {
+      setFeeMsg(e.message || 'Fee payment failed');
+      setFeeBusy(false);
+    }
+  };
+
+  /** User confirms they signed the fee in Xaman */
+  const handleConfirmFeePaid = async (invoice: Invoice) => {
+    setFeeBusy(true);
+    setFeeMsg('Recording settled…');
+    await persistStatus(invoice, 'settled');
+    setFeeMsg(null);
+    setFeeFor(null);
+    setFeeBusy(false);
   };
 
   const handleDelete = async (invoice: Invoice) => {
@@ -249,6 +304,9 @@ export default function InvoicesPage() {
                   </span>
                 )}
               </p>
+              <p className="text-xs text-[var(--text-muted)] mt-1">
+                CSV & mint unlock only after platform fee (0.15%) is paid — no monthly fee.
+              </p>
             </div>
 
             <Link
@@ -288,9 +346,12 @@ export default function InvoicesPage() {
           ) : (
             <div className="space-y-3">
               {filtered.map((inv) => {
-                const isPaid = inv.status === 'paid';
+                const settled = isSettled(inv.status);
+                const feeDue = isPaidFeeDue(inv.status) && !settled;
                 const isUpdating = updatingId === inv.id;
                 const rem = reminderForId(inv.id);
+                const feeUsd = calcPlatformFee(Number(inv.subtotal) || Number(inv.total) || 0);
+                const label = statusLabel(inv.status);
 
                 return (
                   <div
@@ -303,13 +364,15 @@ export default function InvoicesPage() {
                         <div className="flex items-center gap-3 mb-1 flex-wrap">
                           <span className="font-mono text-sm text-[var(--brand-primary)]">{inv.id}</span>
                           <span className={`text-xs px-2 py-0.5 rounded-full ${
-                            isPaid
+                            settled
                               ? 'bg-emerald-500/15 text-emerald-500'
+                              : feeDue
+                              ? 'bg-amber-500/15 text-amber-500'
                               : inv.status === 'overdue'
                               ? 'bg-red-500/15 text-red-400'
                               : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]'
                           }`}>
-                            {inv.status || 'draft'}
+                            {label}
                           </span>
                           {rem && (
                             <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-500 flex items-center gap-1">
@@ -334,7 +397,7 @@ export default function InvoicesPage() {
                       </div>
 
                       <div className="flex flex-col sm:flex-row gap-2 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                        {!isPaid ? (
+                        {!settled && !feeDue && (
                           <button
                             onClick={() => setConfirmPaid(inv)}
                             disabled={isUpdating}
@@ -343,13 +406,23 @@ export default function InvoicesPage() {
                             <CheckCircle2 className="w-3.5 h-3.5" />
                             {isUpdating ? '...' : 'Mark Paid'}
                           </button>
-                        ) : (
+                        )}
+                        {feeDue && (
+                          <button
+                            onClick={() => setFeeFor(inv)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-amber-600 hover:bg-amber-500 text-white rounded-full transition"
+                          >
+                            <DollarSign className="w-3.5 h-3.5" />
+                            Pay fee ${feeUsd.toFixed(2)}
+                          </button>
+                        )}
+                        {settled && (
                           <span
                             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-emerald-500/15 text-emerald-500 rounded-full"
-                            title="Paid is permanent and cannot be reversed"
+                            title="Settled — CSV and mint unlocked"
                           >
                             <CheckCircle2 className="w-3.5 h-3.5" />
-                            Paid
+                            Settled
                           </span>
                         )}
                         <BrowserInvoicePDF invoice={inv} mode="open" />
@@ -385,6 +458,11 @@ export default function InvoicesPage() {
                           <p className="text-[var(--text-muted)] text-xs mb-1">Locked XRP amount (QR)</p>
                           <p className="font-mono text-xs">{Number(inv.xrpAmount).toFixed(6)} XRP</p>
                         </div>
+                        {feeDue && (
+                          <div className="md:col-span-2 text-amber-500 text-sm">
+                            Platform fee ${feeUsd.toFixed(2)} required to unlock tax CSV and mint.
+                          </div>
+                        )}
                         {rem && (
                           <div className="md:col-span-2">
                             <p className="text-[var(--text-muted)] text-xs mb-1">Reminder</p>
@@ -424,17 +502,17 @@ export default function InvoicesPage() {
             className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6 max-w-sm w-full shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Mark as Paid?</h3>
+            <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Client paid?</h3>
             <p className="text-sm text-[var(--text-secondary)] mb-2 leading-relaxed">
-              Confirm that you have received payment for invoice{' '}
+              Confirm you received payment for{' '}
               <span className="font-mono text-[var(--brand-primary)]">{confirmPaid.id}</span>
               {confirmPaid.to ? ` from ${confirmPaid.to}` : ''}.
             </p>
             <p className="text-sm text-[var(--text-secondary)] mb-3">
               Amount: <strong className="text-[var(--text-primary)]">${Number(confirmPaid.total).toFixed(2)}</strong>
             </p>
-            <p className="text-sm text-amber-500/95 mb-6 leading-relaxed font-medium">
-              This cannot be undone. Once marked Paid, the status is permanent — no reversing to Unpaid.
+            <p className="text-sm text-amber-500/95 mb-6 leading-relaxed">
+              Next step: pay the platform fee (0.15%, min $0.25) in Xaman. Tax CSV and mint stay locked until the fee is paid. No monthly fee.
             </p>
             <div className="flex gap-3">
               <button
@@ -447,9 +525,60 @@ export default function InvoicesPage() {
                 onClick={() => handleMarkPaid(confirmPaid)}
                 className="flex-1 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium transition"
               >
-                Yes, Mark Paid
+                Yes, client paid
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {feeFor && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4"
+          onClick={() => !feeBusy && setFeeFor(null)}
+        >
+          <div
+            className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6 max-w-sm w-full shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Platform fee required</h3>
+            <p className="text-sm text-[var(--text-secondary)] mb-3 leading-relaxed">
+              Unlock tax CSV, mint, and settled status for{' '}
+              <span className="font-mono text-[var(--brand-primary)]">{feeFor.id}</span>.
+            </p>
+            <p className="text-sm text-[var(--text-primary)] font-semibold mb-4">
+              Fee: ${calcPlatformFee(Number(feeFor.subtotal) || Number(feeFor.total) || 0).toFixed(2)}
+              <span className="text-[var(--text-muted)] font-normal"> (0.15%, min $0.25)</span>
+            </p>
+            {feeMsg && (
+              <p className="text-xs text-[var(--brand-primary)] mb-4 animate-pulse">{feeMsg}</p>
+            )}
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => handlePayPlatformFee(feeFor)}
+                disabled={feeBusy}
+                className="w-full py-2.5 rounded-full bg-[var(--brand-primary)] hover:opacity-90 text-white text-sm font-medium transition disabled:opacity-50"
+              >
+                {feeBusy ? 'Working…' : 'Pay fee in Xaman'}
+              </button>
+              <button
+                onClick={() => handleConfirmFeePaid(feeFor)}
+                disabled={feeBusy}
+                className="w-full py-2.5 rounded-full border border-emerald-600/50 text-emerald-500 text-sm font-medium transition disabled:opacity-50"
+              >
+                I signed — mark settled
+              </button>
+              <button
+                onClick={() => setFeeFor(null)}
+                disabled={feeBusy}
+                className="w-full py-2 text-xs text-[var(--text-muted)] hover:underline"
+              >
+                Later
+              </button>
+            </div>
+            <p className="text-[10px] text-[var(--text-muted)] mt-4 leading-relaxed">
+              No fee → no CSV, no mint, no settled. No monthly subscription.
+            </p>
           </div>
         </div>
       )}
