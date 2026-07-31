@@ -80,7 +80,6 @@ export default function ExpensesPage() {
     return () => window.removeEventListener('expenses-updated', h);
   }, []);
 
-  // Apply official rate when region or date changes (US date-split)
   useEffect(() => {
     if (category !== 'mileage') return;
     const p = getOfficialPreset(region, date);
@@ -125,7 +124,6 @@ export default function ExpensesPage() {
       unit = preset.unit;
       distNum = parseFloat(distance) || 0;
       if (region === 'japan') {
-        // Actual cost — amount entered directly
         if (amt <= 0) return;
         rate = distNum > 0 ? parseFloat((amt / distNum).toFixed(4)) : undefined;
       } else {
@@ -218,7 +216,9 @@ export default function ExpensesPage() {
               >
                 <p className="text-xs text-[var(--text-muted)] mb-1">{c.label}</p>
                 <p className="text-lg font-semibold">
-                  {(totals.byCat[c.value] || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  {(totals.byCat[c.value] || 0).toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                  })}
                 </p>
               </div>
             ))}
@@ -321,7 +321,7 @@ export default function ExpensesPage() {
                         </label>
                         <input
                           type="number"
-                          min="0"	ractable="0.001"
+                          min="0"
                           step="0.001"
                           value={ratePerUnit}
                           onChange={(e) => setRatePerUnit(e.target.value)}
