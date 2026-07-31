@@ -8,6 +8,8 @@ import { Plus, Trash2, Receipt } from 'lucide-react';
 import { isDemoWallet } from '@/lib/demo';
 
 export type ExpenseCategory = 'mileage' | 'food' | 'entertainment' | 'other';
+export type DistanceUnit = 'mi' | 'km';
+export type ExpenseRegion = 'us' | 'europe' | 'japan';
 
 export interface Expense {
   id: string;
@@ -15,9 +17,16 @@ export interface Expense {
   category: ExpenseCategory;
   description: string;
   amount: number;
-  /** Miles driven — only for mileage */
+  /** Distance driven — mileage only */
+  distance?: number;
+  /** mi or km */
+  distanceUnit?: DistanceUnit;
+  /** Rate per unit in local reporting currency (user-entered) */
+  ratePerUnit?: number;
+  /** Tax region this expense is tracked for */
+  region?: ExpenseRegion;
+  /** Legacy field kept for older rows */
   miles?: number;
-  /** Optional rate $/mile */
   ratePerMile?: number;
   created_at: string;
 }
@@ -25,10 +34,34 @@ export interface Expense {
 const EXPENSES_KEY = 'ursadefi_expenses';
 
 const CATEGORIES: { value: ExpenseCategory; label: string }[] = [
-  { value: 'mileage', label: 'Mileage' },
-  { value: 'food', label: 'Food' },
+  { value: 'mileage', label: 'Travel / mileage' },
+  { value: 'food', label: 'Food / meals' },
   { value: 'entertainment', label: 'Entertainment' },
   { value: 'other', label: 'Other' },
+];
+
+const REGIONS: { value: ExpenseRegion; label: string; unit: DistanceUnit; rateHint: string; defaultRate: string }[] = [
+  {
+    value: 'us',
+    label: 'United States',
+    unit: 'mi',
+    rateHint: 'IRS standard mileage rate (business) — confirm current year rate with your accountant',
+    defaultRate: '0.70',
+  },
+  {
+    value: 'europe',
+    label: 'Europe',
+    unit: 'km',
+    rateHint: 'National scale (e.g. FR bareme km, DE kilometerpauschale) — set your country’s rate',
+    defaultRate: '0.30',
+  },
+  {
+    value: 'japan',
+    label: 'Japan',
+    unit: 'km',
+    rateHint: 'Business travel / commute rules vary — use actual costs or company rate; confirm with accountant',
+    defaultRate: '0.20',
+  },
 ];
 
 function loadExpenses(): Expense[] {
@@ -44,18 +77,29 @@ function saveExpenses(list: Expense[]) {
   window.dispatchEvent(new Event('expenses-updated'));
 }
 
+function distanceLabel(e: Expense): string {
+  const d = e.distance ?? e.miles;
+  if (d == null) return '';
+  const unit = e.distanceUnit || (e.miles != null ? 'mi' : 'km');
+  const rate = e.ratePerUnit ?? e.ratePerMile;
+  if (rate != null) return `${d} ${unit} × ${rate.toFixed(2)}/${unit}`;
+  return `${d} ${unit}`;
+}
+
 export default function ExpensesPage() {
-  const { isConnected } = useWallet();
-  const { wallet } = useWallet();
+  const { isConnected, wallet } = useWallet();
   const demo = isDemoWallet(wallet?.address);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [category, setCategory] = useState<ExpenseCategory>('mileage');
+  const [region, setRegion] = useState<ExpenseRegion>('us');
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
-  const [miles, setMiles] = useState('');
-  const [ratePerMile, setRatePerMile] = useState('0.70');
+  const [distance, setDistance] = useState('');
+  const [ratePerUnit, setRatePerUnit] = useState('0.70');
+
+  const regionMeta = REGIONS.find((r) => r.value === region) || REGIONS[0];
 
   useEffect(() => {
     setExpenses(loadExpenses());
@@ -63,6 +107,11 @@ export default function ExpensesPage() {
     window.addEventListener('expenses-updated', h);
     return () => window.removeEventListener('expenses-updated', h);
   }, []);
+
+  useEffect(() => {
+    const meta = REGIONS.find((r) => r.value === region);
+    if (meta) setRatePerUnit(meta.defaultRate);
+  }, [region]);
 
   const totals = useMemo(() => {
     const byCat: Record<string, number> = {
@@ -80,35 +129,45 @@ export default function ExpensesPage() {
     return { byCat, all };
   }, [expenses]);
 
-  const computedMileageAmount = () => {
-    const m = parseFloat(miles) || 0;
-    const r = parseFloat(ratePerMile) || 0;
-    return parseFloat((m * r).toFixed(2));
+  const computedTravelAmount = () => {
+    const d = parseFloat(distance) || 0;
+    const r = parseFloat(ratePerUnit) || 0;
+    return parseFloat((d * r).toFixed(2));
   };
 
   const handleAdd = () => {
     if (!date) return;
     let amt = parseFloat(amount) || 0;
-    let milesNum: number | undefined;
+    let distNum: number | undefined;
     let rate: number | undefined;
+    let unit: DistanceUnit | undefined;
 
     if (category === 'mileage') {
-      milesNum = parseFloat(miles) || 0;
-      rate = parseFloat(ratePerMile) || 0;
-      if (milesNum > 0 && rate > 0) amt = parseFloat((milesNum * rate).toFixed(2));
+      distNum = parseFloat(distance) || 0;
+      rate = parseFloat(ratePerUnit) || 0;
+      unit = regionMeta.unit;
+      if (distNum > 0 && rate > 0) amt = parseFloat((distNum * rate).toFixed(2));
+      if (!distNum || distNum <= 0) return;
+    } else if (amt <= 0) {
+      return;
     }
-
-    if (amt <= 0 && category !== 'mileage') return;
-    if (category === 'mileage' && (!milesNum || milesNum <= 0)) return;
 
     const row: Expense = {
       id: 'exp-' + Date.now(),
       date,
       category,
-      description: description.trim() || CATEGORIES.find((c) => c.value === category)?.label || '',
+      description:
+        description.trim() ||
+        CATEGORIES.find((c) => c.value === category)?.label ||
+        '',
       amount: amt,
-      miles: milesNum,
-      ratePerMile: rate,
+      distance: distNum,
+      distanceUnit: unit,
+      ratePerUnit: rate,
+      region: category === 'mileage' ? region : undefined,
+      // legacy mirrors for older export code
+      miles: unit === 'mi' ? distNum : undefined,
+      ratePerMile: unit === 'mi' ? rate : undefined,
       created_at: new Date().toISOString(),
     };
 
@@ -117,7 +176,7 @@ export default function ExpensesPage() {
     setExpenses(next);
     setDescription('');
     setAmount('');
-    setMiles('');
+    setDistance('');
     setShowForm(false);
   };
 
@@ -153,7 +212,7 @@ export default function ExpensesPage() {
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Expenses</h1>
               <p className="text-[var(--text-secondary)] mt-1">
-                Mileage · Food · Entertainment — included in tax CSV on Reports
+                Travel · Food · Entertainment — US · Europe · Japan · tax CSV on Reports
                 {demo ? ' · Demo (this device)' : ''}
               </p>
             </div>
@@ -219,41 +278,69 @@ export default function ExpensesPage() {
                     type="text"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder="e.g. Client lunch, trip to site"
+                    placeholder="e.g. Client meeting travel, business meal"
                     className="w-full mt-1 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-4 py-2.5 text-sm"
                   />
                 </div>
+
                 {category === 'mileage' ? (
                   <>
+                    <div className="md:col-span-2">
+                      <label className="text-xs text-[var(--text-muted)]">Region (tax rules)</label>
+                      <select
+                        value={region}
+                        onChange={(e) => setRegion(e.target.value as ExpenseRegion)}
+                        className="w-full mt-1 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-4 py-2.5 text-sm"
+                      >
+                        {REGIONS.map((r) => (
+                          <option key={r.value} value={r.value}>
+                            {r.label} ({r.unit})
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-[11px] text-[var(--text-muted)] mt-1.5 leading-relaxed">
+                        {regionMeta.rateHint}
+                      </p>
+                    </div>
                     <div>
-                      <label className="text-xs text-[var(--text-muted)]">Miles</label>
+                      <label className="text-xs text-[var(--text-muted)]">
+                        Distance ({regionMeta.unit})
+                      </label>
                       <input
                         type="number"
                         min="0"
                         step="0.1"
-                        value={miles}
-                        onChange={(e) => setMiles(e.target.value)}
+                        value={distance}
+                        onChange={(e) => setDistance(e.target.value)}
                         className="w-full mt-1 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-4 py-2.5 text-sm"
                       />
                     </div>
                     <div>
-                      <label className="text-xs text-[var(--text-muted)]">Rate $/mile</label>
+                      <label className="text-xs text-[var(--text-muted)]">
+                        Rate per {regionMeta.unit} (your currency)
+                      </label>
                       <input
                         type="number"
                         min="0"
                         step="0.01"
-                        value={ratePerMile}
-                        onChange={(e) => setRatePerMile(e.target.value)}
+                        value={ratePerUnit}
+                        onChange={(e) => setRatePerUnit(e.target.value)}
                         className="w-full mt-1 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl px-4 py-2.5 text-sm"
                       />
                     </div>
                     <div className="md:col-span-2 text-sm text-[var(--text-secondary)]">
-                      Amount: <strong className="text-[var(--text-primary)]">${computedMileageAmount().toFixed(2)}</strong>
+                      Amount:{' '}
+                      <strong className="text-[var(--text-primary)]">
+                        {computedTravelAmount().toFixed(2)}
+                      </strong>{' '}
+                      <span className="text-xs text-[var(--text-muted)]">
+                        ({distance || 0} {regionMeta.unit} × {ratePerUnit || 0})
+                      </span>
                     </div>
                   </>
                 ) : (
                   <div>
-                    <label className="text-xs text-[var(--text-muted)]">Amount (USD)</label>
+                    <label className="text-xs text-[var(--text-muted)]">Amount</label>
                     <input
                       type="number"
                       min="0"
@@ -297,19 +384,22 @@ export default function ExpensesPage() {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
                       <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--bg-tertiary)] text-[var(--text-secondary)] capitalize">
-                        {e.category}
+                        {e.category === 'mileage' ? 'travel' : e.category}
                       </span>
+                      {e.region && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] uppercase">
+                          {e.region === 'us' ? 'US' : e.region === 'europe' ? 'EU' : 'JP'}
+                        </span>
+                      )}
                       <span className="text-xs text-[var(--text-muted)]">{e.date}</span>
                     </div>
                     <p className="font-medium truncate">{e.description || '—'}</p>
-                    {e.category === 'mileage' && e.miles != null && (
-                      <p className="text-xs text-[var(--text-muted)] mt-1">
-                        {e.miles} mi × ${(e.ratePerMile || 0).toFixed(2)}/mi
-                      </p>
+                    {e.category === 'mileage' && (e.distance != null || e.miles != null) && (
+                      <p className="text-xs text-[var(--text-muted)] mt-1">{distanceLabel(e)}</p>
                     )}
                   </div>
                   <div className="flex items-center gap-3 flex-shrink-0">
-                    <span className="font-semibold">${Number(e.amount).toFixed(2)}</span>
+                    <span className="font-semibold">{Number(e.amount).toFixed(2)}</span>
                     <button
                       onClick={() => handleDelete(e.id)}
                       className="p-2 text-red-400 hover:bg-red-950/40 rounded-xl transition"
@@ -322,8 +412,11 @@ export default function ExpensesPage() {
             </div>
           )}
 
-          <p className="text-xs text-[var(--text-muted)] mt-8">
-            Expenses are stored on this device and export with your tax CSV from Reports. Not tax advice — confirm deductible rules with your accountant.
+          <p className="text-xs text-[var(--text-muted)] mt-8 leading-relaxed">
+            Travel distance supports <strong className="text-[var(--text-secondary)]">US (mi)</strong>,{' '}
+            <strong className="text-[var(--text-secondary)]">Europe (km)</strong>, and{' '}
+            <strong className="text-[var(--text-secondary)]">Japan (km)</strong>. Rates are editable defaults — not official
+            government rates. Confirm deductible rules and current rates with your accountant before filing.
           </p>
         </div>
       </div>
