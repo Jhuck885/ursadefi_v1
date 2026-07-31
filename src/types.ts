@@ -1,4 +1,6 @@
 // src/types.ts — UNIFIED for MVP (matches InvoiceForm + XRPL NFT proof)
+export type SettlementRail = 'xrpl_xrp' | 'xrpl_usdc' | 'x_money' | 'external';
+
 export interface Invoice {
   id: string;
   from: string;
@@ -29,6 +31,12 @@ export interface Invoice {
   nftoken_id?: string | null;
   nft_uri?: string | null;
   xrpl_tx_hash?: string | null;
+  /** Client payment tx (if detected) */
+  payment_tx_hash?: string | null;
+  /** Platform fee tx */
+  fee_tx_hash?: string | null;
+  /** How the client settled */
+  settlement_rail?: SettlementRail;
   created_at?: string;
   user_id?: string;
   status?: string;
