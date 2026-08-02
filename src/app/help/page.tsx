@@ -48,11 +48,11 @@ const faqs = [
   },
   {
     q: 'What does UrsaDeFi cost?',
-    a: 'The platform fee is 0.15% of the service amount, with a minimum of $0.25 per activated invoice. Draft invoices are free. The fee is paid by the invoice creator when the invoice is activated. End clients simply pay the total shown on the invoice.',
+    a: 'The platform fee is 0.15% of the service amount, with a minimum of $0.25 per paid invoice. Draft invoices are free. No monthly subscription. The fee is paid by the invoice creator when the invoice is settled. End clients simply pay the total shown on the invoice.',
   },
   {
     q: 'What are the minimum amounts?',
-    a: 'Minimum invoice (service) amount is $25. Minimum amount to mint an invoice as an XRPL NFT is $50. The platform fee has a floor of $0.25 even when 0.15% would be lower. These floors keep network costs, fee collection, and on-chain records economically sensible.',
+    a: 'Minimum invoice (service) amount is $25. Minimum amount to mint an invoice as an XRPL NFT is $50. The platform fee has a floor of $0.25 even when 0.15% would be lower.',
   },
   {
     q: 'Do I need to create a password?',
@@ -60,15 +60,15 @@ const faqs = [
   },
   {
     q: 'What is the “Try Demo” button?',
-    a: 'Try Demo lets you explore the full app using a fixed test XRPL address. No real wallet is connected. It is ideal for learning the interface safely. When you are ready for real work, connect with Xaman instead.',
+    a: 'Try Demo lets you explore the full app in a private sandbox on your device. No real wallet is connected. Each demo session is isolated. When you are ready for real work, connect with Xaman instead.',
   },
   {
     q: 'How do invoices get paid?',
-    a: 'Each invoice can include an XRP amount and payment details. Clients can pay with Xaman. You mark invoices as Paid when funds arrive (with confirmation). Minting as an XRPL NFT is available after the invoice is activated and marked Paid.',
+    a: 'Each invoice can include an XRP amount and payment details. Clients can pay with Xaman. You can detect on-ledger payment or mark Paid when funds arrive. Settled status (and tax CSV / mint) unlock after the platform fee is paid.',
   },
   {
     q: 'Can I mint an invoice as an XRPL NFT?',
-    a: 'Yes. After an invoice is activated and marked Paid, you can optionally mint it as an XRPL NFT for a permanent on-chain record. Minimum service amount to mint is $50. Burning requires explicit confirmation and is irreversible.',
+    a: 'Yes. After an invoice is settled, you can optionally mint it as an XRPL NFT for a permanent on-chain record. Minimum service amount to mint is $50.',
   },
   {
     q: 'Can I export data for my accountant?',
@@ -76,7 +76,7 @@ const faqs = [
   },
   {
     q: 'Where is the platform fee sent?',
-    a: 'The platform fee is paid on the XRP Ledger to the official UrsaDeFi fee address: rwBJnEt8bcS558KTQTSKKRKLBZ7N1YJFJD. It is a normal non-custodial Payment transaction signed in Xaman.',
+    a: 'The platform fee is a normal non-custodial XRPL Payment signed in Xaman to UrsaDeFi’s official fee destination. The destination is configured server-side and shown only in the fee payment payload in Xaman — it is not published on this page.',
   },
 ];
 
@@ -118,11 +118,11 @@ export default function HelpPage() {
               </div>
               <div className="flex flex-col sm:flex-row sm:gap-4">
                 <dt className="text-[var(--text-muted)] sm:w-44 flex-shrink-0">Platform fee</dt>
-                <dd className="text-[var(--text-primary)]">0.15% of service amount (minimum $0.25) per activated invoice</dd>
+                <dd className="text-[var(--text-primary)]">0.15% of service amount (minimum $0.25) when paid — no monthly fee</dd>
               </div>
               <div className="flex flex-col sm:flex-row sm:gap-4">
                 <dt className="text-[var(--text-muted)] sm:w-44 flex-shrink-0">Who pays the fee</dt>
-                <dd className="text-[var(--text-primary)]">Invoice creator, on activation. Drafts are free.</dd>
+                <dd className="text-[var(--text-primary)]">Invoice creator, after client pays. Drafts are free.</dd>
               </div>
               <div className="flex flex-col sm:flex-row sm:gap-4">
                 <dt className="text-[var(--text-muted)] sm:w-44 flex-shrink-0">Min. invoice amount</dt>
@@ -130,7 +130,7 @@ export default function HelpPage() {
               </div>
               <div className="flex flex-col sm:flex-row sm:gap-4">
                 <dt className="text-[var(--text-muted)] sm:w-44 flex-shrink-0">Min. to mint NFT</dt>
-                <dd className="text-[var(--text-primary)]">$50 service amount (after activated + Paid)</dd>
+                <dd className="text-[var(--text-primary)]">$50 service amount (after settled)</dd>
               </div>
               <div className="flex flex-col sm:flex-row sm:gap-4">
                 <dt className="text-[var(--text-muted)] sm:w-44 flex-shrink-0">Custody</dt>
@@ -145,8 +145,8 @@ export default function HelpPage() {
                 <dd className="text-[var(--text-primary)]">US · Europe · Japan CSVs on the Reports page</dd>
               </div>
               <div className="flex flex-col sm:flex-row sm:gap-4">
-                <dt className="text-[var(--text-muted)] sm:w-44 flex-shrink-0">Fee address</dt>
-                <dd className="text-[var(--text-primary)] font-mono text-xs break-all">rwBJnEt8bcS558KTQTSKKRKLBZ7N1YJFJD</dd>
+                <dt className="text-[var(--text-muted)] sm:w-44 flex-shrink-0">Fee destination</dt>
+                <dd className="text-[var(--text-primary)]">Configured server-side · shown only in Xaman when you pay the fee</dd>
               </div>
             </dl>
           </div>
@@ -174,7 +174,7 @@ export default function HelpPage() {
               </li>
               <li className="flex items-start gap-2">
                 <Wallet className="w-4 h-4 mt-1 text-[var(--brand-primary)] flex-shrink-0" />
-                <span>Platform fee 0.15% (minimum $0.25) — paid by the invoice creator on activation</span>
+                <span>Platform fee 0.15% (minimum $0.25) — paid by the invoice creator when the invoice is paid</span>
               </li>
               <li className="flex items-start gap-2">
                 <FileText className="w-4 h-4 mt-1 text-[var(--brand-primary)] flex-shrink-0" />
@@ -200,36 +200,29 @@ export default function HelpPage() {
                 <p className="font-medium text-[var(--text-primary)] mb-1">Minimum invoice amount — $25</p>
                 <p className="text-sm">
                   The service amount on an invoice must be at least $25 to create or activate.
-                  Below that, network fees and operational cost would eat too large a share of the
-                  value, and the platform fee floor would feel disproportionate. $25 keeps real
-                  commercial use cases viable while filtering pure noise.
+                  Below that, network fees and operational cost would eat too large a share of the value.
                 </p>
               </div>
 
               <div className="border border-[var(--border-color)] rounded-xl p-4">
                 <p className="font-medium text-[var(--text-primary)] mb-1">Minimum to mint as XRPL NFT — $50</p>
                 <p className="text-sm">
-                  Minting creates a permanent on-chain record. That has a small ledger cost and is
-                  intended for invoices worth keeping as durable proof. The $50 floor ensures minting
-                  is used for meaningful invoices, not every draft or micro-bill. Mint is available after
-                  activation and after the invoice is marked Paid.
+                  Minting creates a permanent on-chain record. The $50 floor ensures minting is used for
+                  meaningful invoices. Mint is available after settled status.
                 </p>
               </div>
 
               <div className="border border-[var(--border-color)] rounded-xl p-4">
                 <p className="font-medium text-[var(--text-primary)] mb-1">Platform fee floor — $0.25</p>
                 <p className="text-sm">
-                  The fee is 0.15% of the service amount, but never less than $0.25 per activated invoice.
-                  On small invoices, a pure percentage would be too low to cover the cost of processing
-                  a non-custodial fee payment on XRPL. The $0.25 minimum keeps fee collection practical
-                  without raising the rate for larger invoices.
+                  The fee is 0.15% of the service amount, but never less than $0.25 per paid invoice.
+                  The $0.25 minimum keeps fee collection practical without raising the rate for larger invoices.
                 </p>
               </div>
             </div>
 
             <p className="text-sm pt-1">
-              Draft invoices remain free at any amount you are still preparing. Minimums apply when you
-              activate (for the fee) or when you choose to mint as an NFT.
+              Draft invoices remain free. Minimums apply when you settle fees or when you choose to mint as an NFT.
             </p>
           </div>
         </section>
@@ -242,37 +235,34 @@ export default function HelpPage() {
           <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6 space-y-5 text-[var(--text-secondary)] leading-relaxed">
             <p>
               The <Link href="/reports" className="text-[var(--brand-primary)] hover:underline">Reports</Link> page
-              exports accountant-oriented CSVs for three regions. These are <strong className="text-[var(--text-primary)]">helpers for bookkeeping</strong>,
-              not finished government filings. Confirm thresholds and local rules with your accountant before submitting anything.
+              exports accountant-oriented CSVs for three regions. These are{' '}
+              <strong className="text-[var(--text-primary)]">helpers for bookkeeping</strong>,
+              not finished government filings. Confirm with your accountant before submitting anything.
             </p>
 
             <div className="space-y-4">
               <div className="border border-[var(--border-color)] rounded-xl p-4">
                 <p className="font-medium text-[var(--text-primary)] mb-2">United States — Form 1099-NEC (IRIS)</p>
                 <ul className="text-sm list-disc pl-5 space-y-1">
-                  <li>Filed by the <em>payer</em> of nonemployee compensation (trade/business payments to independent contractors), not by the service provider reporting their own income.</li>
-                  <li>Federal threshold: generally <strong className="text-[var(--text-primary)]">$600</strong> for payments in calendar year 2025; <strong className="text-[var(--text-primary)]">$2,000</strong> for tax years beginning after 2025 (payments in 2026+). Backup withholding is reported even below the threshold when required.</li>
-                  <li>If you file 10 or more information returns in total (all form types combined), you must e-file via the IRS Information Returns Intake System (IRIS).</li>
-                  <li>UrsaDeFi CSV: one row per payee, Box 1 = sum of paid invoices; profile is treated as payer. Collect recipient TINs on Form W-9 before any IRS upload.</li>
+                  <li>Filed by the payer of nonemployee compensation, not by the service provider reporting their own income.</li>
+                  <li>Federal threshold rules apply; confirm current year with your accountant.</li>
+                  <li>UrsaDeFi CSV is a bookkeeping helper. Collect recipient TINs on Form W-9 before any IRS upload.</li>
                 </ul>
               </div>
 
               <div className="border border-[var(--border-color)] rounded-xl p-4">
                 <p className="font-medium text-[var(--text-primary)] mb-2">Europe — Invoice / VAT ledger</p>
                 <ul className="text-sm list-disc pl-5 space-y-1">
-                  <li>There is no single EU tax-return CSV. Member states apply the EU VAT Directive with local rules; B2B e-invoicing mandates continue to expand by country.</li>
-                  <li>Full VAT invoices generally need: unique sequential number, issue date, supplier name/address and VAT ID, customer name/address (and customer VAT ID when the customer is liable), description, taxable amount, VAT rate(s), VAT amount, and total.</li>
-                  <li>UrsaDeFi export is a line-item bookkeeping ledger (net/VAT/gross, status, XRPL ref). VAT defaults to 0% until you set the correct rate with your accountant.</li>
+                  <li>There is no single EU tax-return CSV. Member states apply local VAT rules.</li>
+                  <li>UrsaDeFi export is a line-item bookkeeping ledger. Set the correct VAT rate with your accountant.</li>
                 </ul>
               </div>
 
               <div className="border border-[var(--border-color)] rounded-xl p-4">
-                <p className="font-medium text-[var(--text-primary)] mb-2">Japan — Qualified invoice ledger (インボイス制度)</p>
+                <p className="font-medium text-[var(--text-primary)] mb-2">Japan — Qualified invoice ledger</p>
                 <ul className="text-sm list-disc pl-5 space-y-1">
-                  <li>Under the Qualified Invoice System (適格請求書等保存方式, since 1 Oct 2023), buyers generally need a qualified invoice from a registered issuer to claim full consumption-tax input credit.</li>
-                  <li>Registration number format: <strong className="text-[var(--text-primary)]">T</strong> + 13 digits (National Tax Agency).</li>
-                  <li>Standard consumption tax <strong className="text-[var(--text-primary)]">10%</strong>; reduced rate <strong className="text-[var(--text-primary)]">8%</strong> for certain items. Qualified invoices break amounts and tax by rate and show the issuer registration number.</li>
-                  <li>UrsaDeFi CSV is oriented to that structure (issuer, registration-number field, excl./tax/incl., XRP settlement). Rate defaults to 0% until set. UTF-8 BOM included for Excel.</li>
+                  <li>Under the Qualified Invoice System, buyers generally need a qualified invoice from a registered issuer.</li>
+                  <li>UrsaDeFi CSV is oriented to that structure. Confirm rates and registration with your accountant.</li>
                 </ul>
               </div>
             </div>
@@ -293,10 +283,9 @@ export default function HelpPage() {
             <div>
               <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">1. Core thesis</h3>
               <p>
-                Traditional invoicing and payment processors (banks, Stripe, PayPal, and similar services)
-                extract high fees, hold funds, can freeze accounts, and create friction. UrsaDeFi replaces
-                that stack with a non-custodial, XRPL-native system that is dramatically cheaper and keeps
-                control with the user.
+                Traditional invoicing and payment processors extract high fees, hold funds, can freeze accounts,
+                and create friction. UrsaDeFi replaces that stack with a non-custodial, XRPL-native system that
+                is dramatically cheaper and keeps control with the user.
               </p>
             </div>
 
@@ -304,111 +293,43 @@ export default function HelpPage() {
               <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">2. Fee model</h3>
               <p className="mb-3">
                 Platform fee: <strong className="text-[var(--text-primary)]">0.15%</strong> of the service amount
-                (minimum <strong className="text-[var(--text-primary)]">$0.25</strong> per activated invoice).
+                (minimum <strong className="text-[var(--text-primary)]">$0.25</strong> per paid invoice).
               </p>
               <ul className="list-disc pl-5 space-y-1">
                 <li>Draft invoices are free.</li>
-                <li>The fee is charged to the <strong>invoice creator</strong> when the invoice is activated.</li>
-                <li>The end client pays only the total shown on the invoice. No separate platform-fee step for the client.</li>
-                <li>This model produces revenue for UrsaDeFi whenever real commercial activity is activated.</li>
+                <li>No monthly subscription.</li>
+                <li>The fee is charged to the invoice creator after the client pays.</li>
+                <li>The end client pays only the total shown on the invoice.</li>
               </ul>
-              <p className="mt-3">
-                Optional features such as minting an invoice as an XRPL NFT can carry additional small costs
-                paid by the creator. Minimum service amount to mint is $50 (after activated and marked Paid).
-              </p>
             </div>
 
             <div>
-              <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">3. Minimums</h3>
-              <p className="mb-2">
-                Minimum invoice (service) amount is <strong className="text-[var(--text-primary)]">$25</strong>.
-                Minimum to mint as an XRPL NFT is <strong className="text-[var(--text-primary)]">$50</strong>.
-                Platform fee floor is <strong className="text-[var(--text-primary)]">$0.25</strong>.
+              <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">3. Login security — XRPL + Xaman</h3>
+              <p className="mb-3">
+                UrsaDeFi does not use passwords. Authentication is based on the user's XRPL account via Xaman.
+                UrsaDeFi never receives the seed phrase or private key.
               </p>
               <p>
-                These floors exist so XRPL network costs, fee collection, and permanent on-chain records stay
-                economically rational. They are not meant to exclude small operators — drafts stay free, and
-                the fee rate itself remains very low once the floor is cleared.
+                Demo mode is separate: a private sandbox on your device so people can explore without connecting
+                a real wallet. Real commercial use requires Xaman.
               </p>
             </div>
 
             <div>
-              <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">4. Why this model</h3>
-              <p>
-                Charging the end client a separate platform fee creates friction and complicates payment flows.
-                Waiting until the client pays is hard to enforce in a fully non-custodial design.
-              </p>
-              <p className="mt-2">
-                Charging the invoice creator a small, transparent fee at activation is simple, enforceable,
-                and keeps the client experience clean. Drafts remain free so users can prepare work without cost.
-              </p>
-            </div>
-
-            <div>
-              <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">5. Login security — XRPL + Xaman</h3>
-              <p className="mb-3">
-                UrsaDeFi does not use traditional username and password login. Authentication is based on the
-                user's XRPL account, managed through the Xaman wallet. This is intentional and is one of the
-                strongest security choices available for a non-custodial financial product.
-              </p>
-              <p className="mb-3">
-                <strong className="text-[var(--text-primary)]">How login works:</strong> the user connects with
-                Xaman. Xaman holds the private keys on the user's device and signs requests only with the
-                user's approval. UrsaDeFi never receives the seed phrase, private key, or any secret that
-                could move funds. There is no password database on UrsaDeFi servers to steal, leak, or
-                brute-force.
-              </p>
-              <p className="mb-3">
-                <strong className="text-[var(--text-primary)]">Why this is safer than passwords:</strong>
-              </p>
-              <ul className="list-disc pl-5 space-y-1 mb-3">
-                <li>No shared secret stored by the application — removes credential stuffing and password reuse risk.</li>
-                <li>No seed phrase or private key ever leaves the user's Xaman wallet.</li>
-                <li>Every sensitive action (fee payment, mint, burn) requires an explicit signature in Xaman.</li>
-                <li>Compromise of the UrsaDeFi web app cannot drain wallets, because the app cannot sign without Xaman.</li>
-              </ul>
-              <p className="mb-3">
-                <strong className="text-[var(--text-primary)]">Why XRPL + Xaman specifically:</strong> the XRP Ledger
-                is a mature, high-throughput public ledger with a long operational history. Xaman is a purpose-built
-                XRPL wallet focused on secure signing, payload review, and user control. Together they give UrsaDeFi
-                a login and transaction model where identity is the wallet itself, and authorization is cryptographic
-                rather than password-based.
-              </p>
-              <p>
-                Demo mode is separate: it uses a fixed test address so people can explore the interface without
-                connecting a real wallet. Real commercial use requires connecting Xaman so that every action is
-                signed under the user's own keys.
-              </p>
-            </div>
-
-            <div>
-              <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">6. Non-custodial guarantee</h3>
+              <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">4. Non-custodial guarantee</h3>
               <p>
                 UrsaDeFi never holds user funds or private keys. All signing happens inside the user's own
-                Xaman wallet. The platform fee is a standard XRPL Payment from the creator's wallet to the
-                official fee address:
-              </p>
-              <p className="mt-2 font-mono text-sm text-[var(--text-primary)] break-all">
-                rwBJnEt8bcS558KTQTSKKRKLBZ7N1YJFJD
+                Xaman wallet. The platform fee is a standard XRPL Payment signed in Xaman to UrsaDeFi's
+                official fee destination (configured server-side; shown only in the fee payload at payment time).
               </p>
             </div>
 
             <div>
-              <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">7. Audience</h3>
+              <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">5. Audience</h3>
               <p>
                 Primary users are freelancers, independent operators, and small businesses who want lower fees
-                and full key control. The product is also designed so autonomous agents and programmatic clients
-                can create and activate invoices with predictable fee behavior.
+                and full key control.
               </p>
-            </div>
-
-            <div>
-              <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">8. Roadmap</h3>
-              <ul className="list-disc pl-5 space-y-1">
-                <li>Phase 1: Fee on activation, Paid confirmation, optional XRPL NFT minting, regional tax CSV exports.</li>
-                <li>Phase 2: Deeper payment monitoring and optional settlement flows.</li>
-                <li>Phase 3: Expanded tooling and integrations for human and agent users.</li>
-              </ul>
             </div>
           </div>
         </section>
@@ -426,21 +347,14 @@ export default function HelpPage() {
                 <h3 className="text-lg font-semibold">Choose how to enter</h3>
               </div>
               <div className="space-y-4 text-sm text-[var(--text-secondary)] leading-relaxed">
-                <p>On the home page you have two clear options:</p>
                 <div className="grid gap-3">
                   <div className="border border-[var(--border-color)] rounded-xl p-4">
                     <p className="font-medium text-[var(--text-primary)] mb-1">Try Demo</p>
-                    <p>
-                      Explore the full app with a fixed test XRPL address. No real wallet is connected.
-                      Ideal for learning the interface safely.
-                    </p>
+                    <p>Private sandbox on your device. No real wallet. Isolated every time.</p>
                   </div>
                   <div className="border border-[var(--border-color)] rounded-xl p-4">
                     <p className="font-medium text-[var(--text-primary)] mb-1">Connect with Xaman</p>
-                    <p>
-                      Link your real XRPL wallet. This is the path for actual invoicing, activation fees, and payments.
-                      Keys stay in Xaman; UrsaDeFi never sees them.
-                    </p>
+                    <p>Real XRPL wallet. Keys stay in Xaman; UrsaDeFi never sees them.</p>
                   </div>
                 </div>
               </div>
@@ -452,22 +366,18 @@ export default function HelpPage() {
                 <h3 className="text-lg font-semibold">Set up your Profile</h3>
               </div>
               <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-                Open <strong className="text-[var(--text-primary)]">Profile</strong> and add your company name,
-                address, EIN (if applicable), and logo. This information appears on the invoices your clients receive
-                and feeds US IRIS-oriented exports when you file as a payer.
+                Open Profile and add your company details. This appears on invoices clients receive.
               </p>
             </div>
 
             <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6">
               <div className="flex items-center gap-3 mb-3">
                 <span className="w-8 h-8 rounded-full bg-[var(--brand-primary)] text-white flex items-center justify-center text-sm font-bold">3</span>
-                <h3 className="text-lg font-semibold">Create, activate, mark Paid, optionally mint</h3>
+                <h3 className="text-lg font-semibold">Create, get paid, settle fee, optionally mint</h3>
               </div>
               <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-                Create invoices from the Dashboard. Drafts are free. Service amount must be at least $25 to activate.
-                When you activate, the platform fee (0.15%, minimum $0.25) is charged to your wallet via Xaman.
-                Mark the invoice Paid when your client pays (confirmation required). Mint as an XRPL NFT only after
-                activated + Paid, with a $50 minimum.
+                Create invoices from the Dashboard. Drafts are free. When the client pays, settle the
+                0.15% platform fee in Xaman. Tax CSV and mint unlock after settled.
               </p>
             </div>
 
@@ -477,9 +387,7 @@ export default function HelpPage() {
                 <h3 className="text-lg font-semibold">Track and export</h3>
               </div>
               <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-                Monitor outstanding invoices on the dashboard and Invoices page. Export US, Europe, or Japan CSVs
-                from the <Link href="/reports" className="text-[var(--brand-primary)] hover:underline">Reports</Link> page
-                for your accountant.
+                Export US, Europe, or Japan CSVs from the Reports page for your accountant.
               </p>
             </div>
           </div>
