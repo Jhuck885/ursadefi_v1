@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, FileText, Users, BarChart3, Settings, User, LogOut, Receipt } from 'lucide-react';
+import { Home, FileText, Users, BarChart3, Settings, User, LogOut, Receipt, Activity } from 'lucide-react';
 import { useWallet } from '@/context/WalletContext';
 
 const navItems = [
@@ -11,6 +11,7 @@ const navItems = [
   { name: 'Expenses', href: '/expenses', icon: Receipt },
   { name: 'Clients', href: '/clients', icon: Users },
   { name: 'Reports', href: '/reports', icon: BarChart3 },
+  { name: 'Poly Arb', href: '/arb', icon: Activity },
   { name: 'Settings', href: '/settings', icon: Settings },
   { name: 'Profile', href: '/profile', icon: User },
 ];
