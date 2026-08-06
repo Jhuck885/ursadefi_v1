@@ -14,13 +14,14 @@ export const MIN_PLATFORM_FEE_USD = 0.25;
 
 /**
  * Official XRPL address that receives the platform fee.
- * Prefer PLATFORM_FEE_RECEIVER env (server). Never put secrets here —
- * this is a public receive address only (cannot spend from it alone).
+ * MUST be set via env in production:
+ *   PLATFORM_FEE_RECEIVER or NEXT_PUBLIC_PLATFORM_FEE_RECEIVER
+ * Never commit a personal wallet as a silent fallback.
  */
 export const PLATFORM_FEE_RECEIVER =
   (typeof process !== 'undefined' && process.env.PLATFORM_FEE_RECEIVER) ||
   (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_PLATFORM_FEE_RECEIVER) ||
-  'rs6nu5gcDn6HYLzd6HCFNLp6UjXDyYYTQi';
+  '';
 
 /**
  * Calculate platform fee from service subtotal.
