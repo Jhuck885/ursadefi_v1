@@ -219,3 +219,28 @@ img[src*="ursa-logo"] {
   background: transparent !important;
   overflow: visible !important;
 }
+
+/* Public-page token field */
+@keyframes ursa-float-a {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(8px, -14px, 0); }
+}
+@keyframes ursa-float-b {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(-10px, 10px, 0); }
+}
+@keyframes ursa-float-c {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(6px, 12px, 0); }
+}
+@keyframes ursa-float-d {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(-6px, -10px, 0); }
+}
+.ursa-float-a { animation: ursa-float-a 9s ease-in-out infinite; }
+.ursa-float-b { animation: ursa-float-b 11s ease-in-out infinite; }
+.ursa-float-c { animation: ursa-float-c 8s ease-in-out infinite; }
+.ursa-float-d { animation: ursa-float-d 10s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .ursa-float-a, .ursa-float-b, .ursa-float-c, .ursa-float-d { animation: none; }
+}
