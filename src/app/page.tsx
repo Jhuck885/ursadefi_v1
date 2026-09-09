@@ -44,7 +44,9 @@ export default function Landing() {
           <br />
           Free drafts. 0.15% when paid. No monthly fee.
           <br />
-          <span className="text-sm text-[var(--text-muted)]">Tax CSV US · Europe · Japan · Settle in XRP · Keep your keys</span>
+          <span className="text-sm text-[var(--text-muted)]">
+            Tax CSV US / Europe / Japan / Settle in XRP / Keep your keys
+          </span>
         </p>
 
         <XRPLConnect />
@@ -56,7 +58,7 @@ export default function Landing() {
           >
             About
           </Link>
-          <span className="text-[var(--text-muted)]">·</span>
+          <span className="text-[var(--text-muted)]">/</span>
           <Link
             href="/help#faq"
             className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition"
