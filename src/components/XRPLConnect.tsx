@@ -94,11 +94,6 @@ export default function XRPLConnect({ onConnect }: XRPLConnectProps = {}) {
     }, 400);
   };
 
-  const pillButton =
-    'btn-primary w-full py-3.5 text-white font-semibold disabled:opacity-60';
-  const outlineButton =
-    'btn-secondary w-full py-3 text-sm';
-
   return (
     <div className="space-y-6">
       {!qrUrl ? (
@@ -106,13 +101,13 @@ export default function XRPLConnect({ onConnect }: XRPLConnectProps = {}) {
           <button
             onClick={generateXamanQR}
             disabled={loading}
-            className={pillButton}
+            className="w-full py-3.5 rounded-full font-semibold text-white transition disabled:opacity-60 bg-[#0D9488] hover:bg-[#0F766E] dark:bg-[#14B8A6] dark:hover:bg-[#2DD4BF]"
           >
             {loading ? 'Connecting to Xaman...' : 'Connect with Xaman'}
           </button>
           <button
             onClick={handleDemoConnect}
-            className={outlineButton}
+            className="btn-secondary w-full py-3 text-sm"
           >
             Try Demo
           </button>
@@ -131,11 +126,11 @@ export default function XRPLConnect({ onConnect }: XRPLConnectProps = {}) {
             <p>4. Approve SignIn</p>
           </div>
 
-          {polling && <p className="text-xs text-[var(--brand-primary)]">Waiting for approval in Xaman...</p>}
+          {polling && <p className="text-xs text-[#14B8A6]">Waiting for approval in Xaman...</p>}
 
           <button
             onClick={handleDemoConnect}
-            className={outlineButton}
+            className="btn-secondary w-full py-3 text-sm"
           >
             Try Demo
           </button>
