@@ -4,7 +4,7 @@ import './globals.css';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Moon, Sun } from 'lucide-react';
-import { WalletProvider } from '@/context/WalletContext';
+import { WalletProvider, useWallet } from '@/context/WalletContext';
 import { ToastProvider } from '@/components/ui/Toast';
 import { Poppins } from 'next/font/google';
 import JsonLd from '@/components/seo/JsonLd';
@@ -15,6 +15,32 @@ const poppins = Poppins({
   variable: '--font-poppins',
   display: 'swap',
 });
+
+function BrandLink() {
+  const { wallet, isReady } = useWallet();
+  const href = isReady && wallet?.address ? '/dashboard' : '/';
+
+  return (
+    <Link href={href} className="flex items-center gap-3">
+      <img
+        src="/ursa-logo.png"
+        alt="UrsaDeFi \u2014 non-custodial XRPL invoicing"
+        className="h-8 w-auto object-contain logo-clean"
+        style={{
+          filter: 'none',
+          WebkitFilter: 'none',
+          boxShadow: 'none',
+          outline: 'none',
+          border: 'none',
+          background: 'transparent',
+        }}
+      />
+      <div className="text-xs text-[var(--text-secondary)] hidden sm:block">
+        Non-custodial XRPL invoicing
+      </div>
+    </Link>
+  );
+}
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const [isDark, setIsDark] = useState(true);
@@ -34,7 +60,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
     document.title = 'UrsaDeFi | Non-custodial XRPL Invoicing';
     const content =
-      'UrsaDeFi is free to start — non-custodial XRPL invoicing built in Dallas, TX. Bill in USD, settle in XRP, keep keys in Xaman. Drafts free. Platform fee 0.15% (min $0.25) on activate. No $50 signup fee.';
+      'UrsaDeFi is free to start \u2014 non-custodial XRPL invoicing built in Dallas, TX. Bill in USD, settle in XRP, keep keys in Xaman. Drafts free. Platform fee 0.15% (min $0.25) on activate. No $50 signup fee.';
     const existing = document.querySelector('meta[name="description"]');
     if (existing) {
       existing.setAttribute('content', content);
@@ -45,7 +71,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       document.head.appendChild(meta);
     }
 
-    // Force Ursa logo as tab favicon (overrides any cached default)
     const setIcon = (rel: string) => {
       let link = document.querySelector(`link[rel="${rel}"]`) as HTMLLinkElement | null;
       if (!link) {
@@ -87,24 +112,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <ToastProvider>
             <nav className="fixed top-0 left-0 right-0 z-50 bg-[var(--bg-primary)]/95 border-b border-[var(--border-color)] px-4 py-3 flex justify-between items-center backdrop-blur">
               <div className="flex items-center gap-3 logo-wrapper">
-                <Link href="/" className="flex items-center gap-3">
-                  <img
-                    src="/ursa-logo.png"
-                    alt="UrsaDeFi — non-custodial XRPL invoicing"
-                    className="h-8 w-auto object-contain logo-clean"
-                    style={{
-                      filter: 'none',
-                      WebkitFilter: 'none',
-                      boxShadow: 'none',
-                      outline: 'none',
-                      border: 'none',
-                      background: 'transparent',
-                    }}
-                  />
-                  <div className="text-xs text-[var(--text-secondary)] hidden sm:block">
-                    Non-custodial XRPL invoicing
-                  </div>
-                </Link>
+                <BrandLink />
               </div>
               <div className="flex items-center gap-3">
                 <Link
