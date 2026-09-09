@@ -85,7 +85,6 @@ export default function XRPLConnect({ onConnect }: XRPLConnectProps = {}) {
   }, [polling, uuid, setWallet, onConnect]);
 
   const handleDemoConnect = () => {
-    // Brand-new sandbox for this visitor — wipe + unique id, never shared
     const demoWallet = startFreshDemoSandbox();
     setWallet(demoWallet);
     onConnect?.(demoWallet);
@@ -95,8 +94,10 @@ export default function XRPLConnect({ onConnect }: XRPLConnectProps = {}) {
     }, 400);
   };
 
-  const pillButton = 'w-full py-3.5 bg-[#1D9BF0] hover:bg-[#1a8cd8] text-white font-semibold rounded-full transition disabled:opacity-60';
-  const outlineButton = 'w-full py-3 text-sm text-gray-400 hover:text-white border border-gray-700 rounded-full transition';
+  const pillButton =
+    'btn-primary w-full py-3.5 text-white font-semibold disabled:opacity-60';
+  const outlineButton =
+    'btn-secondary w-full py-3 text-sm';
 
   return (
     <div className="space-y-6">
@@ -119,18 +120,18 @@ export default function XRPLConnect({ onConnect }: XRPLConnectProps = {}) {
         </div>
       ) : (
         <div className="space-y-4 text-center">
-          <p className="text-sm text-gray-300">Scan with Xaman on your iPhone</p>
+          <p className="text-sm text-[var(--text-secondary)]">Scan with Xaman on your iPhone</p>
           <div className="inline-block p-4 bg-white rounded-2xl">
             <QRCodeCanvas value={qrUrl} size={220} />
           </div>
-          <div className="space-y-1 text-xs text-gray-400">
+          <div className="space-y-1 text-xs text-[var(--text-muted)]">
             <p>1. Open Xaman app</p>
             <p>2. Tap camera icon</p>
             <p>3. Scan QR code</p>
             <p>4. Approve SignIn</p>
           </div>
 
-          {polling && <p className="text-xs text-[#1D9BF0]">Waiting for approval in Xaman...</p>}
+          {polling && <p className="text-xs text-[var(--brand-primary)]">Waiting for approval in Xaman...</p>}
 
           <button
             onClick={handleDemoConnect}
@@ -145,7 +146,7 @@ export default function XRPLConnect({ onConnect }: XRPLConnectProps = {}) {
               setPolling(false);
               setError('');
             }}
-            className="text-xs text-gray-500 hover:text-white"
+            className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)]"
           >
             Back
           </button>
