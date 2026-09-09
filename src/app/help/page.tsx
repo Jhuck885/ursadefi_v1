@@ -86,9 +86,9 @@ export default function HelpPage() {
       <div className="max-w-3xl mx-auto px-6 py-10">
         <Link
           href="/"
-          className="inline-flex items-center gap-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition mb-8"
+          className="btn-primary inline-flex items-center gap-1.5 text-sm font-semibold px-3.5 py-1.5 mb-8 shadow-[0_0_0_1px_rgba(20,184,166,0.35),0_0_18px_rgba(20,184,166,0.28)] hover:shadow-[0_0_0_1px_rgba(45,212,191,0.55),0_0_22px_rgba(45,212,191,0.38)]"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="w-3.5 h-3.5" />
           Back to home
         </Link>
 
