@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import XRPLConnect from '@/components/XRPLConnect';
 import { useWallet } from '@/context/WalletContext';
+import HeroBackdrop from '@/components/layout/HeroBackdrop';
 
 export default function Landing() {
   const router = useRouter();
@@ -17,15 +18,17 @@ export default function Landing() {
 
   if (!isReady || wallet?.address) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--bg-primary)] text-[var(--text-secondary)]">
-        <div className="text-sm">{wallet?.address ? 'Opening your workspace\u2026' : 'Loading\u2026'}</div>
+      <div className="relative min-h-screen flex items-center justify-center text-[var(--text-secondary)]">
+        <HeroBackdrop intensity="hero" />
+        <div className="relative z-10 text-sm">{wallet?.address ? 'Opening your workspace\u2026' : 'Loading\u2026'}</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[var(--bg-primary)] text-[var(--text-primary)]">
-      <div className="text-center max-w-md px-4">
+    <div className="relative min-h-screen flex items-center justify-center text-[var(--text-primary)]">
+      <HeroBackdrop intensity="hero" />
+      <div className="relative z-10 text-center max-w-md px-4">
         <div className="flex justify-center mb-6">
           <img
             src="/ursa-logo.png"
