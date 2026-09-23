@@ -1,5 +1,6 @@
 import { Client } from 'xrpl';
 import { NextRequest, NextResponse } from 'next/server';
+import { getAsset, parseXrplAmount, type AssetId } from '@/lib/stablecoins';
 
 const XRPL_SERVER =
   process.env.XRPL_SERVER ||
@@ -7,22 +8,27 @@ const XRPL_SERVER =
   'wss://xrplcluster.com';
 
 /**
- * Detect inbound XRP Payment to receiver near the locked invoice amount.
- * Body: { receiver, xrpAmount, tolerance? }
+ * Detect inbound Payment to receiver for XRP or issued stablecoins.
+ * Body: { receiver, amount, assetId, xrpAmount?, tolerance? }
  */
 export async function POST(request: NextRequest) {
   const client = new Client(XRPL_SERVER);
   try {
     const body = await request.json();
     const receiver = String(body.receiver || '').trim();
-    const expectedXrp = Number(body.xrpAmount) || 0;
-    const tolerance = Number(body.tolerance) || 0.02; // 2% default
+    const assetId = String(body.assetId || (body.xrpAmount ? 'XRP' : 'RLUSD')).toUpperCase() as AssetId;
+    const asset = getAsset(assetId);
+    const expected =
+      Number(body.amount) ||
+      Number(body.expected) ||
+      (asset.id === 'XRP' ? Number(body.xrpAmount) : 0);
+    const tolerance = Number(body.tolerance) || (asset.peggedUsd ? 0.01 : 0.02);
 
     if (!receiver.startsWith('r')) {
       return NextResponse.json({ error: 'Invalid receiver' }, { status: 400 });
     }
-    if (expectedXrp <= 0) {
-      return NextResponse.json({ error: 'Invalid xrpAmount' }, { status: 400 });
+    if (expected <= 0) {
+      return NextResponse.json({ error: 'Invalid amount' }, { status: 400 });
     }
 
     await client.connect();
@@ -30,18 +36,19 @@ export async function POST(request: NextRequest) {
     const response = await client.request({
       command: 'account_tx',
       account: receiver,
-      limit: 40,
+      limit: 50,
       ledger_index_max: -1,
       ledger_index_min: -1,
       forward: false,
     });
 
-    const minXrp = expectedXrp * (1 - tolerance);
-    const maxXrp = expectedXrp * (1 + tolerance);
+    const min = expected * (1 - tolerance);
+    const max = expected * (1 + tolerance);
 
     const matches: Array<{
       hash: string;
-      amountXrp: number;
+      amount: number;
+      assetId: string;
       from: string;
       date: string;
     }> = [];
@@ -50,17 +57,18 @@ export async function POST(request: NextRequest) {
       const tx: any = (entry as any).tx || (entry as any).tx_json;
       if (!tx || tx.TransactionType !== 'Payment') continue;
       if (tx.Destination !== receiver) continue;
-      if (typeof tx.Amount !== 'string') continue; // XRP only for now
 
-      const amountXrp = Number(tx.Amount) / 1_000_000;
-      if (amountXrp < minXrp || amountXrp > maxXrp) continue;
+      const parsed = parseXrplAmount(tx.Amount);
+      if (parsed.assetId !== asset.id) continue;
+      if (parsed.value < min || parsed.value > max) continue;
 
       const rippleEpoch = Number(tx.date) || 0;
       const date = new Date(rippleEpoch * 1000 + 946684800000).toISOString();
 
       matches.push({
         hash: tx.hash || (entry as any).hash || '',
-        amountXrp,
+        amount: parsed.value,
+        assetId: parsed.assetId,
         from: tx.Account || '',
         date,
       });
@@ -73,7 +81,8 @@ export async function POST(request: NextRequest) {
       match: best,
       matches,
       receiver,
-      expectedXrp,
+      expected,
+      assetId: asset.id,
       tolerance,
     });
   } catch (error: any) {

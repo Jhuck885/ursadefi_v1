@@ -1,12 +1,12 @@
 // src/types.ts — UNIFIED for MVP (matches InvoiceForm + XRPL NFT proof)
-export type SettlementRail = 'xrpl_xrp' | 'xrpl_usdc' | 'x_money' | 'external';
+export type SettlementRail = 'xrpl_xrp' | 'xrpl_rlusd' | 'xrpl_usdc' | 'x_money' | 'external';
 
 export interface Invoice {
   id: string;
   from: string;
   to: string;
   items: Array<{ desc: string; qty: number; price: number }>;
-  /** Amount due (subtotal + platform fee) */
+  /** Amount due (subtotal + platform fee) in USD */
   total: number;
   /** Service amount before platform fee */
   subtotal?: number;
@@ -17,6 +17,7 @@ export interface Invoice {
   xrpAmount: number;
   receiver: string;
   amount?: string;
+  /** Settlement asset: XRP | RLUSD | USDC */
   currency?: string;
   recipient?: string;
   description?: string;

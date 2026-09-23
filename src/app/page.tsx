@@ -45,7 +45,7 @@ export default function Landing() {
           Free drafts. 0.15% when paid. No monthly fee.
           <br />
           <span className="text-sm text-[var(--text-muted)]">
-            Tax CSV US / Europe / Japan / Settle in XRP / Keep your keys
+            Settle in RLUSD, USDC, or XRP · Tax CSV · Keep your keys
           </span>
         </p>
 
