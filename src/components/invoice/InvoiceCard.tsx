@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Invoice } from '@/types';
 import BrowserInvoicePDF from './BrowserInvoicePDF';
+import PayInvoiceButton from './PayInvoiceButton';
 import { supabaseBrowser } from '@/lib/supabase';
 import { useToast } from '@/components/ui/Toast';
 import { useWallet } from '@/context/WalletContext';
@@ -135,9 +136,7 @@ export default function InvoiceCard({ invoice }: Props) {
     const poll = async () => {
       attempts += 1;
       const done = await checkMintStatus(uuid);
-
       if (done) return;
-
       if (attempts >= maxAttempts) {
         setStatusMsg(null);
         setIsMinting(false);
@@ -148,7 +147,6 @@ export default function InvoiceCard({ invoice }: Props) {
         }
         return;
       }
-
       pollRef.current = setTimeout(poll, 2000);
     };
 
@@ -161,12 +159,10 @@ export default function InvoiceCard({ invoice }: Props) {
       warning(`Minimum $${MIN_MINT_USD} to mint an NFT`);
       return;
     }
-
     if (!settled) {
       warning('Pay the platform fee after the client pays — mint unlocks when settled. Open Invoices.');
       return;
     }
-
     if (demo) {
       warning('Connect Xaman for real NFT minting — demo stays local only.');
       return;
@@ -182,15 +178,12 @@ export default function InvoiceCard({ invoice }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ invoice }),
       });
-
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to create mint payload');
       if (!data.next || !data.uuid) throw new Error('No Xaman deep link returned');
-
       setStatusMsg('Open Xaman and approve the mint...');
       info('Open Xaman and approve the mint');
       window.open(data.next, '_blank');
-
       startPolling(data.uuid);
     } catch (e: any) {
       console.error(e);
@@ -209,37 +202,29 @@ export default function InvoiceCard({ invoice }: Props) {
     await checkMintStatus(lastMintUuid);
   };
 
-  const confirmBurn = () => {
-    setShowBurnConfirm(true);
-  };
+  const confirmBurn = () => setShowBurnConfirm(true);
 
   const handleBurn = async () => {
     if (!localNftId) return;
-
     setShowBurnConfirm(false);
     setIsBurning(true);
     setStatusMsg('Creating burn payload...');
-
     try {
       const res = await fetch('/api/xaman/burn', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nftokenId: localNftId }),
       });
-
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to create burn payload');
       if (!data.next) throw new Error('No Xaman deep link returned');
-
       setStatusMsg('Open Xaman and approve the burn...');
       info('Open Xaman and approve the burn');
       window.open(data.next, '_blank');
-
       setTimeout(async () => {
         setLocalNftId(null);
         setLocalStatus('burned');
         setMintSigned(false);
-
         try {
           const existing: any[] = JSON.parse(localStorage.getItem('invoices') || '[]');
           const next = existing.map((i) =>
@@ -247,16 +232,11 @@ export default function InvoiceCard({ invoice }: Props) {
           );
           localStorage.setItem('invoices', JSON.stringify(next));
         } catch {}
-
         if (!demo) {
           try {
-            await supabaseBrowser
-              .from('invoices')
-              .update({ nftoken_id: null, status: 'burned' })
-              .eq('id', invoice.id);
+            await supabaseBrowser.from('invoices').update({ nftoken_id: null, status: 'burned' }).eq('id', invoice.id);
           } catch {}
         }
-
         window.dispatchEvent(new Event('invoices-updated'));
         success('Invoice NFT burned');
         setStatusMsg(null);
@@ -274,13 +254,8 @@ export default function InvoiceCard({ invoice }: Props) {
     const amount = invoice.total;
     const client = invoice.to || (invoice as any).clientName || 'client';
     const bithomp = localNftId ? `https://bithomp.com/nft/${localNftId}` : '';
-
-    let text = `Just sent a $${amount} invoice to ${client} with @UrsaDeFi ⚡\n\nNon-custodial XRPL invoicing via @XamanWallet · settle in $XRP\n\n#XRPL #XRP #invoicing\n\nTry it: ursadefi.com`;
-
-    if (localNftId) {
-      text += `\n\nMinted as XRPL NFT\n${bithomp}\n\nThanks for using UrsaDeFi 🙏`;
-    }
-
+    let text = `Just sent a $${amount} invoice to ${client} with @UrsaDeFi\n\nNon-custodial XRPL invoicing via @XamanWallet · settle in RLUSD, USDC, or XRP\n\n#XRPL #RLUSD #invoicing\n\nTry it: ursadefi.com`;
+    if (localNftId) text += `\n\nMinted as XRPL NFT\n${bithomp}`;
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank');
   };
 
@@ -302,10 +277,7 @@ export default function InvoiceCard({ invoice }: Props) {
   const showMintLocked = !settled && !localNftId && !mintSigned && localStatus !== 'burned';
 
   return (
-    <div
-      className="border border-[var(--card-border)] rounded-3xl p-5 bg-[var(--card-bg)] hover:border-[var(--brand-primary)]/40 transition-all group relative"
-      data-card
-    >
+    <div className="border border-[var(--card-border)] rounded-3xl p-5 bg-[var(--card-bg)] hover:border-[var(--brand-primary)]/40 transition-all group relative" data-card>
       {showBurnConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
           <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6 max-w-sm w-full shadow-xl">
@@ -315,18 +287,8 @@ export default function InvoiceCard({ invoice }: Props) {
               <strong className="text-[var(--text-primary)]">cannot be undone</strong>.
             </p>
             <div className="flex gap-3">
-              <button
-                onClick={() => setShowBurnConfirm(false)}
-                className="flex-1 py-2.5 rounded-full border border-[var(--border-color)] text-sm hover:bg-[var(--bg-primary)] transition"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleBurn}
-                className="flex-1 py-2.5 rounded-full bg-red-600 hover:bg-red-500 text-white text-sm font-medium transition"
-              >
-                Yes, Burn NFT
-              </button>
+              <button onClick={() => setShowBurnConfirm(false)} className="flex-1 py-2.5 rounded-full border border-[var(--border-color)] text-sm hover:bg-[var(--bg-primary)] transition">Cancel</button>
+              <button onClick={handleBurn} className="flex-1 py-2.5 rounded-full bg-red-600 hover:bg-red-500 text-white text-sm font-medium transition">Yes, Burn NFT</button>
             </div>
           </div>
         </div>
@@ -334,106 +296,59 @@ export default function InvoiceCard({ invoice }: Props) {
 
       <div className="flex justify-between items-start mb-3">
         <div>
-          <div className="font-mono text-[10px] text-[var(--text-muted)] tracking-[1px]">
-            #{invoice.id}
-          </div>
-          <div className="text-3xl font-semibold tracking-[-1.5px] mt-1 text-[var(--text-primary)]">
-            ${invoice.total}
-          </div>
+          <div className="font-mono text-[10px] text-[var(--text-muted)] tracking-[1px]">#{invoice.id}</div>
+          <div className="text-3xl font-semibold tracking-[-1.5px] mt-1 text-[var(--text-primary)]">${invoice.total}</div>
           <div className="text-sm text-[var(--text-secondary)] mt-0.5">
-            To:{' '}
-            <span className="font-medium text-[var(--text-primary)]">
-              {invoice.to || (invoice as any).clientName}
-            </span>
+            To: <span className="font-medium text-[var(--text-primary)]">{invoice.to || (invoice as any).clientName}</span>
           </div>
         </div>
         <div className="mt-1">{getStatusBadge()}</div>
       </div>
 
       {invoice.description && (
-        <div className="text-sm text-[var(--text-secondary)] mb-4 line-clamp-2 pr-2">
-          {invoice.description}
+        <div className="text-sm text-[var(--text-secondary)] mb-4 line-clamp-2 pr-2">{invoice.description}</div>
+      )}
+
+      {!settled && localStatus !== 'burned' && (
+        <div className="mb-4">
+          <PayInvoiceButton invoice={invoice} />
         </div>
       )}
 
       {localNftId && (
         <div className="mb-3 p-2 bg-[var(--bg-tertiary)] rounded-xl text-xs font-mono break-all">
           NFT: {localNftId.slice(0, 22)}...
-          <button
-            onClick={handleViewExplorer}
-            className="ml-2 text-[var(--brand-primary)] underline hover:no-underline"
-          >
-            View on Bithomp
-          </button>
+          <button onClick={handleViewExplorer} className="ml-2 text-[var(--brand-primary)] underline hover:no-underline">View on Bithomp</button>
         </div>
       )}
 
-      {statusMsg && (
-        <div className="mb-3 text-xs text-[var(--brand-primary)] animate-pulse">
-          {statusMsg}
-        </div>
-      )}
+      {statusMsg && <div className="mb-3 text-xs text-[var(--brand-primary)] animate-pulse">{statusMsg}</div>}
 
       <div className="flex items-center gap-2 pt-3 border-t border-[var(--border-color)] mt-1 flex-wrap">
         <div className="flex-1">
           <BrowserInvoicePDF invoice={invoice} compact />
         </div>
-
         {feeDue && (
-          <Link
-            href="/invoices"
-            className="btn-secondary text-xs px-3.5 py-1.5 bg-amber-600/15 text-amber-500 border-amber-500/30"
-          >
-            Pay fee to unlock
-          </Link>
+          <Link href="/invoices" className="btn-secondary text-xs px-3.5 py-1.5 bg-amber-600/15 text-amber-500 border-amber-500/30">Pay fee to unlock</Link>
         )}
-
         {showMintButton ? (
           <>
-            <button
-              onClick={handleMint}
-              disabled={isMinting || !canMint}
-              className="btn-secondary text-xs px-3.5 py-1.5 disabled:opacity-50"
-              title={!canMint ? `Minimum $${MIN_MINT_USD} to mint` : undefined}
-            >
+            <button onClick={handleMint} disabled={isMinting || !canMint} className="btn-secondary text-xs px-3.5 py-1.5 disabled:opacity-50" title={!canMint ? `Minimum $${MIN_MINT_USD} to mint` : undefined}>
               {isMinting ? 'Minting...' : 'Mint as XRPL NFT'}
             </button>
             {lastMintUuid && (
-              <button
-                onClick={handleManualCheck}
-                className="btn-secondary text-xs px-3.5 py-1.5 border-[var(--brand-primary)]/40 text-[var(--brand-primary)]"
-              >
-                Check Status
-              </button>
+              <button onClick={handleManualCheck} className="btn-secondary text-xs px-3.5 py-1.5 border-[var(--brand-primary)]/40 text-[var(--brand-primary)]">Check Status</button>
             )}
           </>
         ) : showMintLocked ? (
-          <button
-            onClick={() =>
-              info(
-                feeDue
-                  ? 'Pay the platform fee on Invoices to settle — then mint unlocks.'
-                  : 'Mark Paid on Invoices, pay the 0.15% fee, then mint.'
-              )
-            }
-            className="btn-secondary text-xs px-3.5 py-1.5 opacity-70"
-          >
-            Mint (settle first)
-          </button>
+          <button onClick={() => info(feeDue ? 'Pay the platform fee on Invoices to settle — then mint unlocks.' : 'Mark Paid on Invoices, pay the 0.15% fee, then mint.')} className="btn-secondary text-xs px-3.5 py-1.5 opacity-70">Mint (settle first)</button>
         ) : localNftId || mintSigned ? (
-          <button
-            onClick={confirmBurn}
-            disabled={isBurning || !localNftId}
-            className="btn-secondary text-xs px-3.5 py-1.5 bg-red-600/10 hover:bg-red-600/20 text-red-400 border-red-500/30 disabled:opacity-50"
-          >
+          <button onClick={confirmBurn} disabled={isBurning || !localNftId} className="btn-secondary text-xs px-3.5 py-1.5 bg-red-600/10 hover:bg-red-600/20 text-red-400 border-red-500/30 disabled:opacity-50">
             {isBurning ? 'Burning...' : localNftId ? 'Burn NFT' : 'Minted'}
           </button>
         ) : null}
-
         <button onClick={handleShareToX} className="btn-share-x text-xs px-3.5 py-1.5">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" className="shrink-0">
-            <path d="M18.244 2.25l-7.451 8.502L4.5 2.25H1.5l7.5 8.5L1.5 21.75h3l6.75-7.5 6.75 7.5h3l-7.5-8.5 7.5-8.5z" />
-          </svg>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" className="shrink-0"><path d="M18.244 2.25l-7.451 8.502L4.5 2.25H1.5l7.5 8.5L1.5 21.75h3l6.75-7.5 6.75 7.5h3l-7.5-8.5 7.5-8.5z" /></svg>
           Share to X
         </button>
       </div>
