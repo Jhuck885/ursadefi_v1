@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { XummSdk } from 'xumm-sdk';
 import { PLATFORM_FEE_RECEIVER, calcPlatformFee } from '@/lib/constants';
+import { getAsset, toXrplAmount, type AssetId } from '@/lib/stablecoins';
 
 const xumm = new XummSdk(
   process.env.XUMM_API_KEY!,
   process.env.XUMM_API_SECRET!
 );
 
+/**
+ * Platform fee is collected in the same unit the invoice settled in.
+ * Default: RLUSD (1:1 with invoice USD). XRP only if the invoice currency is XRP.
+ */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -30,31 +35,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No platform fee due' }, { status: 400 });
     }
 
-    // Prefer explicit rate; else derive from invoice XRP amount; else safe fallback
-    let xrpPerUsd = 0;
-    if (Number(invoice.xrpRate) > 0) {
-      // if stored as USD per XRP
-      xrpPerUsd = 1 / Number(invoice.xrpRate);
-    } else if (Number(invoice.xrpAmount) > 0 && Number(invoice.total) > 0) {
-      // xrpAmount is total XRP for the invoice → XRP per USD
-      xrpPerUsd = Number(invoice.xrpAmount) / Number(invoice.total);
+    const assetId = String(invoice.currency || invoice.settlementAsset || 'RLUSD').toUpperCase() as AssetId;
+    const asset = getAsset(assetId === 'XRP' ? 'XRP' : assetId === 'USDC' ? 'USDC' : 'RLUSD');
+
+    let xrplAmount: string | { currency: string; issuer: string; value: string };
+    let feeDisplay: string;
+
+    if (asset.id === 'XRP') {
+      let xrpPerUsd = 0;
+      if (Number(invoice.xrpRate) > 0) {
+        xrpPerUsd = 1 / Number(invoice.xrpRate);
+      } else if (Number(invoice.xrpAmount) > 0 && Number(invoice.total) > 0) {
+        xrpPerUsd = Number(invoice.xrpAmount) / Number(invoice.total);
+      } else {
+        xrpPerUsd = 0.4;
+      }
+      const feeXrp = parseFloat((feeUsd * xrpPerUsd).toFixed(6));
+      if (!Number.isFinite(feeXrp) || feeXrp <= 0) {
+        return NextResponse.json({ error: `Invalid fee XRP amount (${feeXrp})` }, { status: 400 });
+      }
+      xrplAmount = toXrplAmount('XRP', feeXrp) as string;
+      feeDisplay = `${feeXrp} XRP`;
     } else {
-      // fallback ~ $2.50 / XRP → 0.4 XRP per USD
-      xrpPerUsd = 0.4;
+      xrplAmount = toXrplAmount(asset.id, feeUsd) as any;
+      feeDisplay = `${feeUsd.toFixed(2)} ${asset.symbol}`;
     }
-
-    const feeXrp = parseFloat((feeUsd * xrpPerUsd).toFixed(6));
-
-    if (!Number.isFinite(feeXrp) || feeXrp <= 0) {
-      return NextResponse.json(
-        { error: `Invalid fee XRP amount (${feeXrp}). Check invoice rate.` },
-        { status: 400 }
-      );
-    }
-
-    // Amount in drops (1 XRP = 1,000,000 drops). Min 1 drop.
-    const dropsInt = Math.max(1, Math.floor(feeXrp * 1_000_000));
-    const drops = String(dropsInt);
 
     let payload;
     try {
@@ -63,7 +68,7 @@ export async function POST(request: NextRequest) {
           TransactionType: 'Payment',
           Account: '',
           Destination: PLATFORM_FEE_RECEIVER,
-          Amount: drops,
+          Amount: xrplAmount as any,
           Memos: [
             {
               Memo: {
@@ -72,7 +77,7 @@ export async function POST(request: NextRequest) {
                   JSON.stringify({
                     invoiceId: invoice.id,
                     feeUsd,
-                    feeXrp,
+                    asset: asset.symbol,
                   }),
                   'utf8'
                 )
@@ -82,9 +87,7 @@ export async function POST(request: NextRequest) {
             },
           ],
         },
-        options: {
-          submit: true,
-        },
+        options: { submit: true },
       });
     } catch (xummErr: any) {
       console.error('Xumm payload.create failed:', xummErr);
@@ -98,8 +101,7 @@ export async function POST(request: NextRequest) {
           error: `Xaman rejected fee payload: ${detail}`,
           destination: PLATFORM_FEE_RECEIVER,
           feeUsd,
-          feeXrp,
-          drops,
+          asset: asset.symbol,
         },
         { status: 502 }
       );
@@ -108,10 +110,10 @@ export async function POST(request: NextRequest) {
     if (!payload?.uuid) {
       return NextResponse.json(
         {
-          error: 'Xaman returned empty payload. Fee destination may be unfunded or API keys misconfigured.',
+          error: 'Xaman returned empty payload. Fee destination may need an RLUSD/USDC trustline.',
           destination: PLATFORM_FEE_RECEIVER,
           feeUsd,
-          feeXrp,
+          asset: asset.symbol,
         },
         { status: 500 }
       );
@@ -122,9 +124,9 @@ export async function POST(request: NextRequest) {
       next: payload.next?.always,
       qr: payload.refs?.qr_png,
       feeUsd,
-      feeXrp,
+      asset: asset.symbol,
       destination: PLATFORM_FEE_RECEIVER,
-      message: `Pay platform fee of $${feeUsd.toFixed(2)} (~${feeXrp} XRP)`,
+      message: `Pay platform fee of ${feeDisplay}`,
     });
   } catch (error: any) {
     console.error('Xaman pay-fee error:', error);

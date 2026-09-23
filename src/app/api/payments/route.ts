@@ -1,8 +1,9 @@
 import { Client, Transaction } from 'xrpl';
 import { NextResponse } from 'next/server';
+import { parseXrplAmount } from '@/lib/stablecoins';
 
 const RECEIVING_ADDRESS = process.env.NEXT_PUBLIC_XRPL_RECEIVER_ADDRESS || 'rNb4AKqA6QwhD8Nfff7rVxg5RPmyTE1vVn';
-const XRPL_SERVER = process.env.XRPL_SERVER || 'wss://s.altnet.rippletest.net:51233/';
+const XRPL_SERVER = process.env.XRPL_SERVER || process.env.NEXT_PUBLIC_XRPL_SERVER || 'wss://xrplcluster.com';
 
 export async function GET() {
   const client = new Client(XRPL_SERVER);
@@ -20,22 +21,17 @@ export async function GET() {
 
     const txs = response.result.transactions
       .filter((transaction: any) => {
-        const tx = transaction.tx as Transaction | undefined;
-        return (
-          tx &&
-          tx.TransactionType === 'Payment' &&
-          tx.Destination === RECEIVING_ADDRESS &&
-          typeof tx.Amount === 'string' // XRP amount is in drops (string)
-        );
+        const tx = (transaction.tx || transaction.tx_json) as Transaction | undefined;
+        return tx && tx.TransactionType === 'Payment' && (tx as any).Destination === RECEIVING_ADDRESS;
       })
       .map((transaction: any) => {
-        const tx = transaction.tx as Transaction;
+        const tx = (transaction.tx || transaction.tx_json) as any;
+        const parsed = parseXrplAmount(tx.Amount);
         return {
           id: tx.hash,
-          amount: Number(tx.Amount) / 1_000_000,
-          date: new Date(
-            Number(tx.date) * 1000 + 946684800000 // XRPL epoch (2000-01-01)
-          ).toISOString(),
+          amount: parsed.value,
+          asset: parsed.assetId,
+          date: new Date(Number(tx.date) * 1000 + 946684800000).toISOString(),
         };
       });
 
